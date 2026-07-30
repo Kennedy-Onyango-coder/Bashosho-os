@@ -1,0 +1,6 @@
+{
+  "name": "Bashosho OS",
+  "description": "Progressive Web App for managing Bashosho Talents CBO in Kiambiu, Nairobi, addressing mental health, GBV, and SRHR through creative arts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

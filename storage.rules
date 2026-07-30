@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 1. Private applicant uploads (passport photos, national IDs)
+    // Server-side Admin SDK has full bypass. Client direct reads are strictly blocked.
+    match /signup-uploads/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Public homepage/CMS assets and gallery images
+    // Anyone can read (for the public homepage), but only authenticated staff can write.
+    match /public-assets/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 3. Fallback for other files
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
