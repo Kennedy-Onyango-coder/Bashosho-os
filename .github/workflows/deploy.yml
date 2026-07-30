@@ -40,12 +40,12 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Deploy to Cloud Run
-           run: |
-             gcloud run deploy "${{ env.SERVICE_NAME }}" \
-               --image "${{ env.IMAGE }}" \
-               --project "${{ env.PROJECT_ID }}" \
-               --region "${{ env.REGION }}" \
-               --platform managed \
-               --allow-unauthenticated \
-               --set-env-vars "NODE_ENV=production,JWT_SECRET=${{ secrets.JWT_SECRET }},SAFEGUARDING_SECRET=${{ secrets.SAFEGUARDING_SECRET }},VERIFICATION_SECRET=${{ secrets.VERIFICATION_SECRET }}" \
-               --quiet
+        run: |
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --image "${{ env.IMAGE }}" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "NODE_ENV=production,JWT_SECRET=${{ secrets.JWT_SECRET }},SAFEGUARDING_SECRET=${{ secrets.SAFEGUARDING_SECRET }},VERIFICATION_SECRET=${{ secrets.VERIFICATION_SECRET }}" \
+            --quiet
