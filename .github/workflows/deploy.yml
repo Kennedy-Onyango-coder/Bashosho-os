@@ -48,5 +48,5 @@ jobs:
             --region "${{ env.REGION }}" \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars "NODE_ENV=production,JWT_SECRET=${{ secrets.JWT_SECRET }},SAFEGUARDING_SECRET=${{ secrets.SAFEGUARDING_SECRET }},VERIFICATION_SECRET=${{ secrets.VERIFICATION_SECRET }}" \
+            --set-env-vars "NODE_ENV=production,JWT_SECRET=${{ secrets.JWT_SECRET }},SAFEGUARDING_SECRET=${{ secrets.SAFEGUARDING_SECRET }},VERIFICATION_SECRET=${{ secrets.VERIFICATION_SECRET }},FIREBASE_SERVICE_ACCOUNT=${{ toJSON(secrets.FIREBASE_SERVICE_ACCOUNT) }}" \
             --quiet
