@@ -9,7 +9,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: ${{ secrets.GCP_CLOUD_RUN_SERVICE }}
   REGION: ${{ secrets.GCP_REGION }}
-  REPO_NAME: bashosho-os
+  REPO_NAME: bashosho-repo
 
 jobs:
   deploy:
