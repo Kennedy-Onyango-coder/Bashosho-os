@@ -1219,7 +1219,16 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               { url: "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&auto=format&fit=crop&q=80", caption: "On Set: Film Academy Production" },
               { url: "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=800&auto=format&fit=crop&q=80", caption: "Youth Dialogue & Mental Health Circle" },
               { url: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&auto=format&fit=crop&q=80", caption: "16 Days of Activism Street Campaign" }
-            ]).map((img, i) => (
+            ]).map((img, i) => {
+              // Real uploaded gallery images store caption as a bilingual {en, sw}
+              // object; the hardcoded fallback images above use a plain string.
+              // Rendering either shape blindly crashes React on the other — this
+              // normalizes both to a single displayable string first.
+              const captionText: string =
+                typeof img.caption === "string"
+                  ? img.caption
+                  : (img.caption?.[lang] || img.caption?.en || "");
+              return (
               <div
                 key={i}
                 onClick={() => setActiveLightboxImage(img.url)}
@@ -1227,15 +1236,16 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               >
                 <img
                   src={img.url}
-                  alt={img.caption || "Gallery"}
+                  alt={captionText || "Gallery"}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
-                  <p className="text-white text-xs font-bold font-sans line-clamp-2">{img.caption}</p>
+                  <p className="text-white text-xs font-bold font-sans line-clamp-2">{captionText}</p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
