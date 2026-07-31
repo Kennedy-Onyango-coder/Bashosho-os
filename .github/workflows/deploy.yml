@@ -40,6 +40,18 @@ jobs:
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
+      - name: Write Cloud Run env vars file
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}" | base64 -d > firebase-sa.json
+          {
+            echo "NODE_ENV: \"production\""
+            echo "JWT_SECRET: \"${{ secrets.JWT_SECRET }}\""
+            echo "SAFEGUARDING_SECRET: \"${{ secrets.SAFEGUARDING_SECRET }}\""
+            echo "VERIFICATION_SECRET: \"${{ secrets.VERIFICATION_SECRET }}\""
+            echo "FIREBASE_SERVICE_ACCOUNT: |"
+            sed 's/^/  /' firebase-sa.json
+          } > env-vars.yaml
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy "${{ env.SERVICE_NAME }}" \
@@ -48,5 +60,5 @@ jobs:
             --region "${{ env.REGION }}" \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars "NODE_ENV=production,JWT_SECRET=${{ secrets.JWT_SECRET }},SAFEGUARDING_SECRET=${{ secrets.SAFEGUARDING_SECRET }},VERIFICATION_SECRET=${{ secrets.VERIFICATION_SECRET }},FIREBASE_SERVICE_ACCOUNT=${{ toJSON(secrets.FIREBASE_SERVICE_ACCOUNT) }}" \
+            --env-vars-file env-vars.yaml \
             --quiet
