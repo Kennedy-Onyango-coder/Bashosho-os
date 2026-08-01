@@ -744,6 +744,91 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                 </div>
               </div>
             </div>
+
+            {/* Gallery Section Banner Header Editor */}
+            <div className="pt-4 border-t space-y-4">
+              <h4 className="text-[10px] font-black text-[#E31E24] uppercase tracking-wider">Gallery Section Banner Header</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-gray-500 uppercase">Gallery Eyebrow Tag (English)</label>
+                  <input
+                    type="text"
+                    value={content.galleryEyebrow?.en || "COMMUNITY ACTIVISM IN PICTURES"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteContent(prev => ({ ...prev!, galleryEyebrow: { en: val, sw: prev?.galleryEyebrow?.sw || "UHAMASISHAJI WA JAMII KATIKA PICHA" } }));
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-gray-500 uppercase">Gallery Eyebrow Tag (Swahili)</label>
+                  <input
+                    type="text"
+                    value={content.galleryEyebrow?.sw || "UHAMASISHAJI WA JAMII KATIKA PICHA"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteContent(prev => ({ ...prev!, galleryEyebrow: { en: prev?.galleryEyebrow?.en || "COMMUNITY ACTIVISM IN PICTURES", sw: val } }));
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-gray-500 uppercase">Gallery Section Title (English)</label>
+                  <input
+                    type="text"
+                    value={content.galleryTitle?.en || "Behind the Scenes & Field Outreach"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteContent(prev => ({ ...prev!, galleryTitle: { en: val, sw: prev?.galleryTitle?.sw || "Nyuma ya Pazia na Ufikiaji wa Jamii" } }));
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-gray-500 uppercase">Gallery Section Title (Swahili)</label>
+                  <input
+                    type="text"
+                    value={content.galleryTitle?.sw || "Nyuma ya Pazia na Ufikiaji wa Jamii"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteContent(prev => ({ ...prev!, galleryTitle: { en: prev?.galleryTitle?.en || "Behind the Scenes & Field Outreach", sw: val } }));
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-gray-500 uppercase">Gallery Subtitle/Description (English)</label>
+                  <textarea
+                    rows={2}
+                    value={content.gallerySubtitle?.en || "Real moments from set, street marches, mental health circles, and community dialogues across Kiambiu slum and Nairobi."}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteContent(prev => ({ ...prev!, gallerySubtitle: { en: val, sw: prev?.gallerySubtitle?.sw || "Nyakati halisi kutoka setini, maandamano ya mitaani..." } }));
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs font-medium"
+                  ></textarea>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-gray-500 uppercase">Gallery Subtitle/Description (Swahili)</label>
+                  <textarea
+                    rows={2}
+                    value={content.gallerySubtitle?.sw || "Nyakati halisi kutoka setini, maandamano ya mitaani, miduara ya afya ya akili, na majadiliano ya jamii katika mtaa wa Kiambiu na Nairobi."}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteContent(prev => ({ ...prev!, gallerySubtitle: { en: prev?.gallerySubtitle?.en || "Real moments from set...", sw: val } }));
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs font-medium"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
