@@ -1,4 +1,4 @@
-import { Lock, AlertTriangle, Link, Pencil, Trash2, X, Sparkles } from "lucide-react";
+import { Lock, AlertTriangle, Link, Pencil, Trash2, X, Sparkles, Globe } from "lucide-react";
 import React from "react";
 import Modal from "./Modal";
 import { Grant, UserRole, getUserRoleKey } from "../types";
@@ -233,9 +233,18 @@ Notes context: ${notes || "None provided"}`,
                         </div>
                       )}
 
+                      {grant.source === "public_website" && (
+                        <div className="bg-blue-50 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1 uppercase tracking-wider font-mono w-fit">
+                          <Globe size={9} /> {lang === "en" ? "From Website" : "Kutoka Tovutini"}
+                        </div>
+                      )}
+
                       <div className="space-y-1">
                         <h4 className="text-xs font-bold text-neutral-950 line-clamp-2">{grant.name}</h4>
                         <p className="text-[10px] text-neutral-500 font-medium">{grant.funder}</p>
+                        {grant.source === "public_website" && grant.contactPhone && (
+                          <p className="text-[10px] text-blue-600 font-mono font-bold">📞 {grant.contactPhone}</p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-neutral-500 bg-neutral-50 p-2 rounded-lg">

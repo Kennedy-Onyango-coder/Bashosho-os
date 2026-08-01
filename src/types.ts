@@ -282,6 +282,13 @@ export interface Grant {
   notes: string;
   link?: string;
   probability?: number;
+  /** Where this lead came from — lets staff instantly tell a public website
+   *  submission (TaaS booking, partner inquiry, sponsorship request) apart from
+   *  a grant/lead a staff member entered manually. Set server-side only, never
+   *  client-supplied, so it can't be spoofed. */
+  source?: "public_website" | "manual";
+  contactPhone?: string;
+  contactEmail?: string;
 }
 
 export interface Income {
@@ -552,6 +559,9 @@ export interface SiteContent {
   equipmentEyebrow?: LocalizedText;
   equipmentTitle?: LocalizedText;
   equipmentSubtitle?: LocalizedText;
+  galleryEyebrow?: LocalizedText;
+  galleryTitle?: LocalizedText;
+  gallerySubtitle?: LocalizedText;
   programs: Program[];
   projects: Project[];
   partnersList?: PartnerLogo[];

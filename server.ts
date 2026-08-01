@@ -2572,6 +2572,13 @@ app.post("/api/public/inquiry", publicInquiryRateLimiter, async (req: express.Re
       probability: 60,
       status: "identified",
       notes: String(notes || "").slice(0, 3000),
+      // Set server-side, never trusted from the client — this is what lets the
+      // Grants dashboard visually flag "this came from the public website" and
+      // is why staff can trust it wasn't spoofed by someone posting directly to
+      // this endpoint claiming to be a manual entry.
+      source: "public_website",
+      contactPhone: String(contactPhone).slice(0, 30),
+      contactEmail: contactEmail ? String(contactEmail).slice(0, 200) : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -3852,7 +3859,8 @@ app.post("/api/site_content", requireAuth, requirePermission("cms_editor", "edit
       heroTitle, heroSubtitle, heroImageUrl, aboutText, missionText, visionText,
       programs, projects, contactEmail, contactPhone, contactAddress, roleTemplates,
       partnersList, equipmentList, teamMembers,
-      equipmentEyebrow, equipmentTitle, equipmentSubtitle, facebookUrl
+      equipmentEyebrow, equipmentTitle, equipmentSubtitle,
+      galleryEyebrow, galleryTitle, gallerySubtitle, facebookUrl
     } = req.body;
 
     if (!heroTitle || !heroSubtitle || !aboutText || !missionText) {
@@ -3879,6 +3887,9 @@ app.post("/api/site_content", requireAuth, requirePermission("cms_editor", "edit
       equipmentEyebrow: equipmentEyebrow || null,
       equipmentTitle: equipmentTitle || null,
       equipmentSubtitle: equipmentSubtitle || null,
+      galleryEyebrow: galleryEyebrow || null,
+      galleryTitle: galleryTitle || null,
+      gallerySubtitle: gallerySubtitle || null,
       facebookUrl: facebookUrl || "",
       contactEmail: contactEmail || "",
       contactPhone: contactPhone || "",

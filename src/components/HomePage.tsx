@@ -563,7 +563,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               {lang === "en" ? "Our Films" : "Filamu Zetu"}
             </a>
             <a href="#impact-section" className="hover:text-[#E31E24] transition-colors">
-              {lang === "en" ? "Impact & Turkana" : "Matokeo & Turkana"}
+              {lang === "en" ? "Impact" : "Matokeo"}
             </a>
             <a href="#partners-section" className="hover:text-[#E31E24] transition-colors">
               {lang === "en" ? "Partners & Team" : "Washirika & Timu"}
@@ -1203,13 +1203,14 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
-              COMMUNITY ACTIVISM IN PICTURES
+              {content.galleryEyebrow?.[lang] || content.galleryEyebrow?.en || "COMMUNITY ACTIVISM IN PICTURES"}
             </span>
             <h2 className="text-2xl md:text-4xl font-black text-neutral-900 tracking-tight font-sans">
-              Behind the Scenes & Field Outreach
+              {content.galleryTitle?.[lang] || content.galleryTitle?.en || "Behind the Scenes & Field Outreach"}
             </h2>
             <p className="text-neutral-600 text-sm max-w-2xl font-medium">
-              Real moments from set, street marches, mental health circles, and community dialogues across Kiambiu slum and Nairobi.
+              {content.gallerySubtitle?.[lang] || content.gallerySubtitle?.en ||
+                "Real moments from set, street marches, mental health circles, and community dialogues across Kiambiu slum and Nairobi."}
             </p>
           </div>
 
