@@ -3938,7 +3938,18 @@ app.post("/api/gallery_images", requireAuth, requirePermission("cms_editor", "cr
     }
 
     const imageId = crypto.randomBytes(16).toString("hex");
-    const storagePath = `public-assets/gallery/${imageId}.jpg`;
+    // Match the real format (the CMS Editor converts to WebP client-side before
+    // upload) instead of hardcoding .jpg — see the identical fix already applied to
+    // /api/upload, which caused broken images in local mock-storage testing when the
+    // saved extension didn't match the actual encoded bytes.
+    const galleryExtensionForMimeType: Record<string, string> = {
+      "image/webp": "webp",
+      "image/png": "png",
+      "image/jpeg": "jpg",
+      "image/jpg": "jpg"
+    };
+    const galleryExt = galleryExtensionForMimeType[imageDecoded.mimeType] || "jpg";
+    const storagePath = `public-assets/gallery/${imageId}.${galleryExt}`;
 
     const publicUrl = await saveFile(storagePath, imageDecoded.buffer, imageDecoded.mimeType, true);
 
@@ -3996,7 +4007,14 @@ app.put("/api/gallery_images/:id", requireAuth, requirePermission("cms_editor", 
       if (!imageDecoded) {
         return res.status(400).json({ error: "Invalid gallery image upload format." });
       }
-      const storagePath = `public-assets/gallery/${id}.jpg`;
+      const galleryExtensionForMimeType: Record<string, string> = {
+        "image/webp": "webp",
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg"
+      };
+      const galleryExt = galleryExtensionForMimeType[imageDecoded.mimeType] || "jpg";
+      const storagePath = `public-assets/gallery/${id}.${galleryExt}`;
       imageUrl = await saveFile(storagePath, imageDecoded.buffer, imageDecoded.mimeType, true);
     }
 

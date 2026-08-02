@@ -9,7 +9,6 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: ${{ secrets.GCP_CLOUD_RUN_SERVICE }}
   REGION: ${{ secrets.GCP_REGION }}
-  REPO_NAME: bashosho-repo
 
 jobs:
   deploy:
@@ -30,27 +29,15 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
+      - name: Configure Docker for Artifact Registry / gcr.io
+        run: gcloud auth configure-docker --quiet
 
       - name: Build and push container image
         run: |
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-
-      - name: Write Cloud Run env vars file
-        run: |
-          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}" | base64 -d > firebase-sa.json
-          {
-            echo "NODE_ENV: \"production\""
-            echo "JWT_SECRET: \"${{ secrets.JWT_SECRET }}\""
-            echo "SAFEGUARDING_SECRET: \"${{ secrets.SAFEGUARDING_SECRET }}\""
-            echo "VERIFICATION_SECRET: \"${{ secrets.VERIFICATION_SECRET }}\""
-            echo "FIREBASE_SERVICE_ACCOUNT: |"
-            sed 's/^/  /' firebase-sa.json
-          } > env-vars.yaml
 
       - name: Deploy to Cloud Run
         run: |
@@ -59,6 +46,4 @@ jobs:
             --project "${{ env.PROJECT_ID }}" \
             --region "${{ env.REGION }}" \
             --platform managed \
-            --allow-unauthenticated \
-            --env-vars-file env-vars.yaml \
             --quiet

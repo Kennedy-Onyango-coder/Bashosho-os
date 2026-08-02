@@ -75,31 +75,41 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
   }, [fetchData]);
 
   // Handle saving the core site content (hero, about, programs list, projects list, contact)
-  const handleSaveContent = async () => {
-    if (!siteContent) return;
+  // Extracted so individual list-item mutations (partners, team, equipment) can persist
+  // immediately with an explicitly-built object, rather than relying on handleSaveContent's
+  // reliance on the `siteContent` state variable — which would still read the OLD value if
+  // called right after setSiteContent(), since React state updates aren't synchronous.
+  const persistSiteContent = async (newContent: any, successMessage?: string) => {
     setSaving(true);
     setSuccessMsg(null);
     setError(null);
-
     try {
       const res = await fetch("/api/site_content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(siteContent)
+        body: JSON.stringify(newContent)
       });
       const data = await res.json();
       if (res.ok) {
-        setSuccessMsg(lang === "en" ? "Homepage site content updated successfully!" : "Maudhui ya ukurasa yamehifadhiwa kwa ufanisi!");
+        setSuccessMsg(successMessage || (lang === "en" ? "Saved successfully!" : "Imehifadhiwa kwa ufanisi!"));
         fetchData();
+        return true;
       } else {
-        setError(data.error || "Failed to update content.");
+        setError(data.error || "Failed to save.");
+        return false;
       }
     } catch (err) {
       console.error(err);
       setError(lang === "en" ? "Connection failed." : "Mawasiliano na seva yamefeli.");
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveContent = async () => {
+    if (!siteContent) return;
+    await persistSiteContent(siteContent, lang === "en" ? "Homepage site content updated successfully!" : "Maudhui ya ukurasa yamehifadhiwa kwa ufanisi!");
   };
 
   // Helper: Convert client image files to compressed WebP data URL
@@ -1225,9 +1235,12 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
+                        if (!confirm(`Delete "${partner.name}"? This saves immediately.`)) return;
                         const updated = (content.partnersList || []).filter(p => p.id !== partner.id);
-                        setSiteContent(prev => ({ ...prev!, partnersList: updated }));
+                        const updatedContent = { ...content, partnersList: updated };
+                        setSiteContent(updatedContent as any);
+                        await persistSiteContent(updatedContent, lang === "en" ? "Partner deleted and saved." : "Mshirika amefutwa na kuhifadhiwa.");
                       }}
                       className="p-1.5 bg-white hover:bg-red-50 text-red-600 rounded-lg border border-red-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                     >
@@ -1392,9 +1405,12 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
+                        if (!confirm(`Delete "${item.name}"? This saves immediately.`)) return;
                         const updated = (content.equipmentList || []).filter(e => e.id !== item.id);
-                        setSiteContent(prev => ({ ...prev!, equipmentList: updated }));
+                        const updatedContent = { ...content, equipmentList: updated };
+                        setSiteContent(updatedContent as any);
+                        await persistSiteContent(updatedContent, lang === "en" ? "Equipment item deleted and saved." : "Kifaa kimefutwa na kuhifadhiwa.");
                       }}
                       className="px-2.5 py-1.5 bg-gray-50 hover:bg-red-50 text-red-600 rounded-lg border border-red-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                     >
@@ -1445,10 +1461,12 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                         <Edit size={10} /> Edit
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Remove ${member.name}?`)) {
+                        onClick={async () => {
+                          if (window.confirm(`Remove ${member.name}? This saves immediately.`)) {
                             const updated = (content.teamMembers || []).filter((_, i) => i !== index);
-                            setSiteContent(prev => ({ ...prev!, teamMembers: updated }));
+                            const updatedContent = { ...content, teamMembers: updated };
+                            setSiteContent(updatedContent as any);
+                            await persistSiteContent(updatedContent, lang === "en" ? "Team member removed and saved." : "Mwanachama wa timu ameondolewa na kuhifadhiwa.");
                           }
                         }}
                         className="text-red-600 hover:underline text-[10px] font-bold cursor-pointer flex items-center gap-0.5"
@@ -2168,7 +2186,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!activePartner.name) {
                     alert("Partner name is required.");
                     return;
@@ -2181,8 +2199,10 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                   } else {
                     updated.push(activePartner as PartnerLogo);
                   }
-                  setSiteContent(prev => ({ ...prev!, partnersList: updated }));
+                  const updatedContent = { ...content, partnersList: updated };
+                  setSiteContent(updatedContent as any);
                   setActivePartner(null);
+                  await persistSiteContent(updatedContent, lang === "en" ? "Partner saved and published." : "Mshirika amehifadhiwa na kuchapishwa.");
                 }}
                 className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
               >
@@ -2310,7 +2330,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!activeEquipment.name) {
                     alert("Equipment name is required.");
                     return;
@@ -2323,8 +2343,10 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                   } else {
                     updated.push(activeEquipment as EquipmentItem);
                   }
-                  setSiteContent(prev => ({ ...prev!, equipmentList: updated }));
+                  const updatedContent = { ...content, equipmentList: updated };
+                  setSiteContent(updatedContent as any);
                   setActiveEquipment(null);
+                  await persistSiteContent(updatedContent, lang === "en" ? "Equipment item saved and published." : "Kifaa kimehifadhiwa na kuchapishwa.");
                 }}
                 className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
               >
@@ -2416,7 +2438,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!activeTeamMember.name || !activeTeamMember.title) {
                     alert("Name and Title are required.");
                     return;
@@ -2429,8 +2451,10 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                   } else {
                     updatedList = [...currentList, activeTeamMember as TeamMember];
                   }
-                  setSiteContent(prev => ({ ...prev!, teamMembers: updatedList }));
+                  const updatedContent = { ...content, teamMembers: updatedList };
+                  setSiteContent(updatedContent as any);
                   setActiveTeamMember(null);
+                  await persistSiteContent(updatedContent, lang === "en" ? "Team member saved and published." : "Mwanachama wa timu amehifadhiwa na kuchapishwa.");
                 }}
                 className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
               >

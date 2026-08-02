@@ -1232,11 +1232,11 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               return (
               <div
                 key={i}
-                onClick={() => setActiveLightboxImage(img.url)}
+                onClick={() => setActiveLightboxImage(img.imageUrl || img.url)}
                 className="group relative h-56 bg-neutral-900 rounded-2xl overflow-hidden cursor-pointer border border-neutral-200 shadow-xs hover:border-[#E31E24] transition-all"
               >
                 <img
-                  src={img.url}
+                  src={img.imageUrl || img.url}
                   alt={captionText || "Gallery"}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
