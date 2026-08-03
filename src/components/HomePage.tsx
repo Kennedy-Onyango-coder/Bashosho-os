@@ -2527,6 +2527,17 @@ function SignupFormModal({ type, lang, onClose }: SignupFormModalProps) {
   const [submitting, setSubmitting] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
+  const apiErrorRef = React.useRef<HTMLDivElement>(null);
+
+  // The error banner renders at the top of a long, scrollable form — if a visitor has
+  // scrolled down to the submit button (very likely, since it's below the photo
+  // uploads), a validation or server error could appear entirely off-screen and look
+  // exactly like "nothing happened" when they click Submit. Auto-scroll it into view.
+  React.useEffect(() => {
+    if (apiError && apiErrorRef.current) {
+      apiErrorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [apiError]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -2737,7 +2748,10 @@ function SignupFormModal({ type, lang, onClose }: SignupFormModalProps) {
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
             {apiError && (
-              <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl leading-relaxed flex items-center gap-1.5">
+              <div
+                ref={apiErrorRef}
+                className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl leading-relaxed flex items-center gap-1.5"
+              >
                 <AlertTriangle size={14} className="text-red-600 shrink-0" /> {apiError}
               </div>
             )}

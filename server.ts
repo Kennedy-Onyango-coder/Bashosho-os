@@ -47,6 +47,15 @@ import {
 dotenv.config();
 
 const app = express();
+// Cloud Run (and most managed hosting) sits behind a load balancer/proxy. Without this,
+// Express's req.ip always resolves to the proxy's internal address for every request,
+// which means every rate limiter in this file (signup, public inquiries, safeguarding
+// reports) silently shares ONE quota across the entire site's traffic instead of
+// tracking each visitor separately — a handful of legitimate submissions can exhaust
+// the limit for everyone else. `1` trusts exactly one hop (Cloud Run's own frontend),
+// which is correct for this deployment and doesn't open us up to IP spoofing from
+// further upstream.
+app.set("trust proxy", 1);
 app.disable("x-powered-by");
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
