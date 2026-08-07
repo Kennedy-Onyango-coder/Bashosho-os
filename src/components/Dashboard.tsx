@@ -7,7 +7,13 @@ import DocumentEditor from "./DocumentEditor";
 import ContractRenewalPanel from "./ContractRenewalPanel";
 import PrintWrapper from "./PrintWrapper";
 import LeadershipAppointmentsPanel from "./LeadershipAppointmentsPanel";
-import { User, ShieldAlert, LayoutDashboard, FileText, Crown, AlertTriangle, Lock, Sparkles, CheckCircle2, Calendar, MapPin, Megaphone, Landmark, Scale, BarChart3, Printer, Wrench, Palmtree, Star, Flame, Check, X, Plus, Info, ChevronRight, FileCheck, RefreshCw, IdCard, Clock, Eye, Package, CheckCircle } from "lucide-react";
+import ChairpersonOverview from "./dashboard/ChairpersonOverview";
+import ProgramsDirectorOverview from "./dashboard/ProgramsDirectorOverview";
+import ViceChairpersonOverview from "./dashboard/ViceChairpersonOverview";
+import TreasurerOverview from "./dashboard/TreasurerOverview";
+import SecretaryOverview, { getMemberAttendanceStats } from "./dashboard/SecretaryOverview";
+import StatCard from "./dashboard/StatCard";
+import { User, ShieldAlert, LayoutDashboard, FileText, Crown, AlertTriangle, Lock, Sparkles, CheckCircle2, Calendar, MapPin, Megaphone, Landmark, Scale, BarChart3, Printer, Wrench, Palmtree, Star, Flame, Check, X, Plus, Info, ChevronRight, FileCheck, RefreshCw, IdCard, Clock, Eye, Package, CheckCircle, Wallet } from "lucide-react";
 
 interface DashboardProps {
   currentUser: UserProfile;
@@ -781,6 +787,12 @@ export default function Dashboard({
           {/* 1. CHAIRPERSON & EXECUTIVE DIRECTOR (ADMIN) */}
           {(getUserRoleKey(currentUser) === UserRole.CHAIRPERSON) && (
         <div className="space-y-6 text-left">
+          <ChairpersonOverview
+            lang={lang}
+            onNavigateToTab={onNavigateToTab}
+            currentUserNameAndRole={`${currentUser.name} (${currentUser.role})`}
+          />
+
           {(() => {
             const urgentGrants = StorageService.getGrants().filter(g => {
               if (g.status === "submitted" || g.status === "awarded" || g.status === "declined") return false;
@@ -820,84 +832,9 @@ export default function Dashboard({
             );
           })()}
 
-          {/* Quick Metrics cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "ACTIVE MEMBERS" : "WANACHAMA HAI"}
-              </span>
-              <span className="text-2xl font-black text-[#1B1B1B] block mt-1 font-mono">
-                {activeMembersCount}
-              </span>
-              <span className="text-[10px] text-[#00A651] font-semibold mt-1 inline-block">
-                ● {lang === "en" ? "Fully Registered" : "Wamesajiliwa Kikamilifu"}
-              </span>
-            </div>
-
-            <div 
-              onClick={() => onNavigateToTab("finance")}
-              className="bg-white border border-gray-200 hover:border-purple-500 rounded-xl p-4 shadow-sm cursor-pointer transition-all"
-            >
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "PENDING SIGN-OFFS" : "ZINASUBIRI SAINI"}
-              </span>
-              <span className="text-2xl font-black text-purple-600 block mt-1 font-mono">
-                {pendingExp}
-              </span>
-              <span className="text-[10px] text-purple-500 font-semibold mt-1 inline-flex items-center gap-1">
-                <Clock size={12} /> <span className="inline-flex items-center gap-0.5">{lang === "en" ? "Requires Chairperson Action" : "Inahitaji Hatua Yako"} <ChevronRight size={11} /></span>
-              </span>
-            </div>
-
-            <div 
-              onClick={() => {
-                const el = document.getElementById("safeguarding-restricted-officer-panel");
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth" });
-                } else {
-                  onNavigateToTab("documents");
-                }
-              }}
-              className="bg-white border border-gray-200 hover:border-red-500 rounded-xl p-4 shadow-sm cursor-pointer transition-all"
-            >
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "SAFEGUARDING ALERTS" : "ARIFA ZA USALAMA"}
-              </span>
-              <span className="text-2xl font-black text-[#E31E24] block mt-1 font-mono">
-                {safeguarding.filter(s => s.status !== "resolved").length}
-              </span>
-              <span className="text-[10px] text-[#E31E24] font-semibold mt-1 inline-block">
-                 <span className="inline-flex items-center gap-0.5">{lang === "en" ? "Restricted Access Logs" : "Kumbukumbu za Siri"} <ChevronRight size={11} /></span>
-              </span>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "ACTIVE OUTREACHES" : "MIRADI HAI"}
-              </span>
-              <span className="text-2xl font-black text-[#00A651] block mt-1 font-mono">
-                {budgets.filter(b => b.status === "approved").length}
-              </span>
-              <span className="text-[10px] text-[#00A651] font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Forum Theatre Programs" : "Sanaa za Forum"}
-              </span>
-            </div>
-
-            <div 
-              onClick={() => onNavigateToTab("handbook")}
-              className="bg-white border border-gray-200 hover:border-emerald-500 rounded-xl p-4 shadow-sm cursor-pointer transition-all"
-            >
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "HANDBOOK ACKNOWLEDGEMENTS" : "KUKUBALI MWONGOZO"}
-              </span>
-              <span className="text-2xl font-black text-neutral-900 block mt-1 font-mono">
-                {profiles.filter(p => p.handbookAcknowledgedVersion === (StorageService.getOrgSettings().handbookVersion || "1.0")).length}/{activeMembersCount}
-              </span>
-              <span className="text-[10px] text-emerald-600 font-bold mt-1 inline-block">
-                 <span className="inline-flex items-center gap-0.5">{lang === "en" ? "Audit Compliance" : "Ukaguzi wa Sheria"} <ChevronRight size={11} /></span>
-              </span>
-            </div>
-          </div>
+          {/* Quick Metrics cards — superseded by the ChairpersonOverview stat cards above
+              (active members, pending sign-offs / expenditure, safeguarding, active
+              outreaches, and handbook acknowledgements are all covered there now). */}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Main - Pending Approvals list & Actions */}
@@ -1033,44 +970,9 @@ export default function Dashboard({
       {/* 2. PROGRAMS DIRECTOR ( casting, schedules, clock in rosters ) */}
       {(getUserRoleKey(currentUser) === UserRole.PROGRAMS_DIRECTOR) && (
         <div className="space-y-6 text-left">
-          {/* Programs stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "UPCOMING REHEARSALS" : "MAZOEZI YA SANAHA"}
-              </span>
-              <span className="text-2xl font-black text-[#1B1B1B] block mt-1 font-mono">
-                1
-              </span>
-              <span className="text-[10px] text-[#E31E24] font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Today at 2:00 PM" : "Leo Saa Nane Mchana"}
-              </span>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "ACTIVE CLASSES" : "MADARASA YA VIPAJI"}
-              </span>
-              <span className="text-2xl font-black text-[#1B1B1B] block mt-1 font-mono">
-                2
-              </span>
-              <span className="text-[10px] text-[#00A651] font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Skills training underway" : "Mafunzo ya Sanaa yanaendelea"}
-              </span>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "TOTAL VOLUNTEER HOURS RECORDED" : "JUMLA YA SAA ZILIZOHIFADHIWA"}
-              </span>
-              <span className="text-2xl font-black text-[#1B1B1B] block mt-1 font-mono">
-                56.5 Hrs
-              </span>
-              <span className="text-[10px] text-gray-500 font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Aids Funder Reports" : "Inasaidia Ripoti za Rasilimali"}
-              </span>
-            </div>
-          </div>
+          {/* Programs stats — previously 3 hardcoded placeholder numbers (1 rehearsal, 2
+              classes, 56.5 hrs). Now computed live from real classes/attendance data. */}
+          <ProgramsDirectorOverview lang={lang} onNavigateToTab={onNavigateToTab} />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Quick clock in panel */}
@@ -1258,43 +1160,7 @@ export default function Dashboard({
       {(getUserRoleKey(currentUser) === UserRole.VICE_CHAIRPERSON) && (
         <div className="space-y-6 text-left" id="vice-chairperson-panel">
           {/* Top statistics or overview cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "ACTIVE PARTNERS" : "WADAU HAI"}
-              </span>
-              <span className="text-2xl font-black text-[#1B1B1B] block mt-1 font-mono">
-                {partners.length}
-              </span>
-              <span className="text-[10px] text-[#00A651] font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Civil Society & Media partners" : "Mashirika ya jamii na wadau"}
-              </span>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "PENDING FOLLOW-UPS" : "UFUATILIAJI UNAOHITAJIKA"}
-              </span>
-              <span className="text-2xl font-black text-amber-500 block mt-1 font-mono">
-                2
-              </span>
-              <span className="text-[10px] text-amber-600 font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Due this week" : "Wiki hii"}
-              </span>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "UPCOMING ENGAGEMENTS" : "MIRADI INAYOKUJA"}
-              </span>
-              <span className="text-2xl font-black text-[#E31E24] block mt-1 font-mono">
-                {budgets.filter(b => b.status === "approved").length}
-              </span>
-              <span className="text-[10px] text-red-500 font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Logistics confirmed" : "Uratibu umekamilika"}
-              </span>
-            </div>
-          </div>
+          <ViceChairpersonOverview lang={lang} partners={partners} budgets={budgets} />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Side: Partner CRM Summary */}
@@ -1516,43 +1382,15 @@ export default function Dashboard({
       {(getUserRoleKey(currentUser) === UserRole.TREASURER) && (
         <div className="space-y-6 text-left" id="treasurer-panel">
           {/* Top Metrics Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "CURRENT CASH POSITION" : "AKIBA YA SASA (CBO)"}
-              </span>
-              <span className="text-2xl font-black text-[#00A651] block mt-1 font-mono">
-                Ksh {cashReserves.toLocaleString()}
-              </span>
-              <span className="text-[10px] text-gray-500 font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Auditable CBO Reserves" : "Kiwango cha akiba cha sasa"}
-              </span>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "PENDING YOUR APPROVAL" : "ZINASUBIRI MAKAMISHI"}
-              </span>
-              <span className="text-2xl font-black text-amber-500 block mt-1 font-mono">
-                {pendingTreasurerCount}
-              </span>
-              <span className="text-[10px] text-amber-600 font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Stipends & operational claims" : "Madai ya posho na uendeshaji"}
-              </span>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider uppercase block">
-                {lang === "en" ? "TOTAL BUDGETED OUTREACHES" : "JUMLA YA BAJETI ILIYOWASILISHWA"}
-              </span>
-              <span className="text-2xl font-black text-purple-600 block mt-1 font-mono">
-                {budgets.length}
-              </span>
-              <span className="text-[10px] text-purple-600 font-semibold mt-1 inline-block">
-                 {lang === "en" ? "Funder contracts loaded" : "Miradi yote iliyosajiliwa"}
-              </span>
-            </div>
-          </div>
+          <TreasurerOverview
+            lang={lang}
+            cashReserves={cashReserves}
+            pendingTreasurerCount={pendingTreasurerCount}
+            budgets={budgets}
+            incomes={StorageService.getIncomes()}
+            expenditures={expenditures}
+            onNavigateToTab={onNavigateToTab}
+          />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Recent Invoices list */}
@@ -1685,6 +1523,9 @@ export default function Dashboard({
             </button>
           </div>
 
+          {/* Membership summary — new, computed from real profile/attendance data */}
+          <SecretaryOverview lang={lang} profiles={profiles} attendance={StorageService.getAttendance()} />
+
           {/* Active Members Activity Tracker */}
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
             <h3 className="text-sm font-extrabold text-[#1B1B1B] uppercase tracking-wider font-sans border-b pb-3 mb-4">
@@ -1702,15 +1543,17 @@ export default function Dashboard({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium text-neutral-700">
-                  {profiles.slice(0, 4).map((member, idx) => {
-                    const streaks = [" 8 sessions", " 5 sessions", " 3 sessions", " 2 sessions"];
-                    const hours = ["28.5 Hrs", "18.0 Hrs", "12.0 Hrs", "8.5 Hrs"];
+                  {profiles.slice(0, 4).map((member) => {
+                    // Real per-member attendance stats — this table previously showed
+                    // hardcoded placeholder streak/hours text ("8 sessions", "28.5 Hrs")
+                    // cycled by row position, unrelated to the actual member shown.
+                    const { sessions, hours } = getMemberAttendanceStats(member.id, StorageService.getAttendance());
                     return (
                       <tr key={member.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="py-3 pr-2 font-bold text-neutral-900">{member.name}</td>
                         <td className="py-3 px-2 text-neutral-500 font-mono text-[10px] uppercase">{member.role}</td>
-                        <td className="py-3 px-2 text-amber-600 font-bold">{streaks[idx % streaks.length]}</td>
-                        <td className="py-3 px-2 font-mono font-bold text-neutral-800">{hours[idx % hours.length]}</td>
+                        <td className="py-3 px-2 text-amber-600 font-bold">{sessions} {lang === "en" ? "sessions" : "vikao"}</td>
+                        <td className="py-3 px-2 font-mono font-bold text-neutral-800">{hours.toFixed(1)} Hrs</td>
                         <td className="py-3 pl-2 text-right">
                           <button
                             onClick={() => onPrintReport("Bashosho ID Card - " + member.name, (
@@ -1773,6 +1616,23 @@ export default function Dashboard({
             <h3 className="text-sm font-extrabold text-[#1B1B1B] uppercase tracking-wider font-sans border-b pb-3 mb-4">
               {lang === "en" ? "Confidential Incident Reports" : "Ripoti za Siri za Visa Kiambiu"}
             </h3>
+
+            {/* Aggregate status counts only \u2014 no report content, no new data exposure beyond
+                what's already fully visible in the list directly below to this same authorized viewer. */}
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                <p className="text-lg font-bold text-neutral-800 font-mono">{safeguarding.filter(s => s.status === "received").length}</p>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mt-0.5">{lang === "en" ? "Received" : "Zimepokelewa"}</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                <p className="text-lg font-bold text-amber-700 font-mono">{safeguarding.filter(s => s.status === "under_review").length}</p>
+                <p className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold mt-0.5">{lang === "en" ? "Under review" : "Zinakaguliwa"}</p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+                <p className="text-lg font-bold text-emerald-700 font-mono">{safeguarding.filter(s => s.status === "resolved").length}</p>
+                <p className="text-[10px] uppercase tracking-wider text-emerald-700 font-semibold mt-0.5">{lang === "en" ? "Resolved" : "Zimetatuliwa"}</p>
+              </div>
+            </div>
 
             <div className="space-y-5">
               {safeguarding.map((report) => (
@@ -1860,19 +1720,19 @@ export default function Dashboard({
                 <h3 className="text-sm font-extrabold text-[#1B1B1B] uppercase tracking-wider font-sans border-b border-gray-200 pb-3 mb-4">
                   {lang === "en" ? "Your Member Contributions" : "Michango na Mapato Yako"}
                 </h3>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <span className="text-[9px] text-gray-400 block font-mono font-bold tracking-wider">VOLUNTEER HOURS</span>
-                    <span className="text-xl font-black text-[#1B1B1B] font-mono mt-1 block">
-                      {volunteerHours} Hrs
-                    </span>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <span className="text-[9px] text-gray-400 block font-mono font-bold tracking-wider">TOTAL STIPENDS PAID</span>
-                    <span className="text-xl font-black text-[#00A651] font-mono mt-1 block">
-                      Ksh {totalEarnedStipends.toLocaleString()}
-                    </span>
-                  </div>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <StatCard
+                    label={lang === "en" ? "Volunteer hours" : "Saa za kujitolea"}
+                    value={`${volunteerHours} Hrs`}
+                    icon={<Clock size={17} />}
+                    accent="community"
+                  />
+                  <StatCard
+                    label={lang === "en" ? "Total stipends paid" : "Jumla ya posho zilizolipwa"}
+                    value={`KSh ${totalEarnedStipends.toLocaleString()}`}
+                    icon={<Wallet size={17} />}
+                    accent="finance"
+                  />
                 </div>
               </div>
 

@@ -373,6 +373,17 @@ export class StorageService {
         });
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
+          if (res.status === 409 || errorData.conflict) {
+            // Someone (or another tab/device) saved a newer version of this exact record
+            // after we loaded it. Our edit was NOT written — pull the real server state
+            // back into the local cache so the UI doesn't keep showing our stale/rejected
+            // edit, then surface a clear, specific message instead of a generic failure.
+            StorageService.pullFromServer().catch(() => {});
+            throw new Error(
+              errorData.error ||
+              "This record was changed elsewhere since you loaded it. Refresh and try again."
+            );
+          }
           throw new Error(errorData.error || `Server returned status ${res.status}`);
         }
       } catch (err: any) {

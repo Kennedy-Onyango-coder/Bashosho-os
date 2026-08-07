@@ -144,7 +144,7 @@ interface AuthenticatedRequest extends express.Request {
   };
 }
 
-function getCanonicalRoleKey(roleOrName?: string, docId?: string): string {
+function getCanonicalRoleKey(roleOrName?: string, docId?: string, strict: boolean = false): string {
   if (docId) {
     const idLower = docId.toLowerCase().trim();
     if (idLower === "chairperson") return "chairperson";
@@ -168,6 +168,19 @@ function getCanonicalRoleKey(roleOrName?: string, docId?: string): string {
   if (str === "safeguarding_officer" || str === "safeguarding_mel") return "safeguarding_officer";
   if (str === "program_member") return "program_member";
   if (str === "volunteer" || str === "volunteer_staff") return "volunteer";
+
+  // STRICT MODE — used when creating or renaming a role (see /api/roles). Only an exact
+  // match above is allowed to resolve to a privileged system roleKey. The fuzzy
+  // substring matching below (str.includes("chair"), etc.) is NOT applied here, because
+  // it previously meant any brand-new custom role whose name merely *contained* a
+  // keyword — "Wheelchair Access Coordinator", "Deck Chair Fundraising Volunteer" —
+  // silently resolved to roleKey "chairperson" and inherited full system access via the
+  // hardcoded bypass in userHasPermission(), regardless of the (correctly minimal)
+  // role_permissions doc actually created for it. A role that isn't an exact, deliberate
+  // match for a system role name gets its own safe, collision-free slug instead.
+  if (strict) {
+    return str.replace(/[^a-z0-9]+/g, "_");
+  }
 
   if (str.includes("chairperson") || str.includes("chair") || str.includes("executive director") || str.includes("cbo chief")) {
     return "chairperson";
@@ -206,28 +219,40 @@ async function requireAuth(req: AuthenticatedRequest, res: express.Response, nex
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (decoded.id) {
-      try {
-        const pSnap = await db.collection("profiles").doc(decoded.id).get();
-        if (pSnap.exists) {
-          const pData = pSnap.data()!;
-          const resolvedRoleKey = pData.roleKey || getCanonicalRoleKey(pData.role, pData.id);
-          req.user = {
-            ...decoded,
-            name: pData.name || decoded.name,
-            email: pData.email || decoded.email,
-            role: pData.role || decoded.role,
-            roleKey: resolvedRoleKey
-          };
-          return next();
-        }
-      } catch (pErr) {
-        console.warn("Could not fetch profile in requireAuth:", pErr);
-      }
+    if (!decoded.id) {
+      return res.status(401).json({ error: "Invalid session" });
     }
+
+    // Always re-check the live profile on every request rather than trusting the token
+    // alone — this is what lets a role change or account deactivation take effect
+    // immediately instead of waiting for the 7-day token to expire. A DB read failure
+    // here must fail CLOSED (reject the request), not silently fall back to whatever
+    // the token claims — that fallback previously let a deleted or deactivated account
+    // keep working for the rest of its token's lifetime.
+    let pSnap;
+    try {
+      pSnap = await db.collection("profiles").doc(decoded.id).get();
+    } catch (pErr) {
+      console.error("requireAuth: profile lookup failed, rejecting request:", pErr);
+      return res.status(503).json({ error: "Unable to verify session right now. Please try again." });
+    }
+
+    if (!pSnap.exists) {
+      return res.status(401).json({ error: "Account not found. Please log in again." });
+    }
+
+    const pData = pSnap.data()!;
+    if (pData.isActive === false) {
+      return res.status(401).json({ error: "This account has been deactivated. Contact an administrator." });
+    }
+
+    const resolvedRoleKey = pData.roleKey || getCanonicalRoleKey(pData.role, pData.id);
     req.user = {
       ...decoded,
-      roleKey: decoded.roleKey || getCanonicalRoleKey(decoded.role)
+      name: pData.name || decoded.name,
+      email: pData.email || decoded.email,
+      role: pData.role || decoded.role,
+      roleKey: resolvedRoleKey
     };
     next();
   } catch (error) {
@@ -727,8 +752,61 @@ app.post("/api/payments/stk-push", requireAuth, async (req: AuthenticatedRequest
 // Public webhook — Safaricom calls this directly, so it cannot require our own session
 // auth. We validate it by shape and by matching a transaction we ourselves created,
 // rather than trusting the body blindly.
+// Verifies the Daraja callback actually came from Safaricom. Safaricom lets you embed
+// credentials in the callback URL you register on the Daraja portal
+// (https://username:password@yourdomain.com/api/payments/daraja-callback) — it then sends
+// those as a standard HTTP Basic `Authorization` header on every callback POST. Without
+// this check, anyone who learns the callback URL and a valid CheckoutRequestID (e.g. from
+// a browser network tab) could POST a forged "payment succeeded" callback and get a real
+// entry written to the Financial Ledger with no human review.
+function isDarajaCallbackAuthorized(req: express.Request): boolean {
+  const expectedUser = process.env.DARAJA_CALLBACK_USERNAME;
+  const expectedPass = process.env.DARAJA_CALLBACK_PASSWORD;
+
+  // If callback credentials aren't configured at all, there's nothing to check against.
+  // Fail closed rather than silently accepting unauthenticated writes to the ledger —
+  // consistent with this integration's existing rule to never fake/assume a payment.
+  if (!expectedUser || !expectedPass) {
+    console.error(
+      "[Daraja Callback] DARAJA_CALLBACK_USERNAME/PASSWORD are not set — rejecting all " +
+      "callbacks. Set them and register a callback URL of the form " +
+      "https://<user>:<pass>@yourdomain.com/api/payments/daraja-callback on the Daraja portal."
+    );
+    return false;
+  }
+
+  const header = req.headers.authorization || "";
+  if (!header.startsWith("Basic ")) return false;
+
+  let decoded: string;
+  try {
+    decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
+  } catch {
+    return false;
+  }
+  const sepIndex = decoded.indexOf(":");
+  if (sepIndex === -1) return false;
+  const user = decoded.slice(0, sepIndex);
+  const pass = decoded.slice(sepIndex + 1);
+
+  // Constant-time comparison so response timing can't be used to guess the credentials.
+  const userOk = user.length === expectedUser.length &&
+    crypto.timingSafeEqual(Buffer.from(user), Buffer.from(expectedUser));
+  const passOk = pass.length === expectedPass.length &&
+    crypto.timingSafeEqual(Buffer.from(pass), Buffer.from(expectedPass));
+  return userOk && passOk;
+}
+
 app.post("/api/payments/daraja-callback", async (req: express.Request, res: express.Response): Promise<any> => {
   try {
+    if (!isDarajaCallbackAuthorized(req)) {
+      console.warn("[Daraja Callback] Rejected unauthorized callback attempt.");
+      // Deliberately NOT 200 here: Safaricom retries non-200 responses for a while, which
+      // is what we want if this ever fires due to our own credential misconfiguration
+      // (it'll self-heal once fixed) rather than an actual forgery attempt.
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const stkCallback = req.body?.Body?.stkCallback;
     if (!stkCallback || !stkCallback.CheckoutRequestID) {
       console.warn("Daraja callback received with unexpected shape:", JSON.stringify(req.body).slice(0, 500));
@@ -1532,6 +1610,18 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
 
 // --- COLLECTION CRUD API ENDPOINTS WITH ROLE-GATED MIDDLEWARE ---
 
+// Fields that must NEVER be sent to the client in a bulk/list fetch, regardless of the
+// requester's role — a directory listing has no legitimate reason to include credential
+// material for every member. (Individual "my own profile" flows read these server-side
+// directly from Firestore, not through this shared list endpoint.)
+const PROFILE_SENSITIVE_FIELDS = ["passwordHash", "totpSecret", "totpBackupCodeHashes"];
+
+function redactSensitiveProfileFields(item: any): any {
+  const clean = { ...item };
+  for (const field of PROFILE_SENSITIVE_FIELDS) delete clean[field];
+  return clean;
+}
+
 // Helper function to handle full collection fetch
 async function fetchCollection(collectionName: string, req: AuthenticatedRequest, res: express.Response) {
   try {
@@ -1543,10 +1633,10 @@ async function fetchCollection(collectionName: string, req: AuthenticatedRequest
       items = items.map(item => {
         const token = generateVerificationToken("membership", item.id);
         const appUrl = process.env.APP_URL || "http://localhost:3000";
-        return {
+        return redactSensitiveProfileFields({
           ...item,
           verificationUrl: `${appUrl}/verify/membership/${item.id}?t=${token}`
-        };
+        });
       });
     } else if (collectionName === "classes") {
       items = items.map(item => {
@@ -1580,12 +1670,22 @@ async function saveDocument(collectionName: string, id: string, data: any, req: 
     const docRef = db.collection(collectionName).doc(id);
     const docSnap = await docRef.get();
     
-    // Conflict resolution check
+    // Conflict resolution check: reject writes based on a stale read.
+    // IMPORTANT: this must be a non-2xx status. Returning 200 here previously caused
+    // clients that don't specially inspect the response body to treat a silently-dropped
+    // write as a success — the edit would appear to save, then vanish on next refresh
+    // once the client re-pulled the real (unmodified) server record.
     if (docSnap.exists) {
       const currentDoc = docSnap.data()!;
       if (currentDoc.updatedAt && data.updatedAt && currentDoc.updatedAt > data.updatedAt) {
-        // Current server record is newer; reject or merge (last-write-wins)
-        return res.json({ id, ...currentDoc, resolved: "server-wins" });
+        // Current server record is newer than what the client's edit was based on.
+        return res.status(409).json({
+          id,
+          ...currentDoc,
+          resolved: "server-wins",
+          conflict: true,
+          error: "This record was changed elsewhere since you loaded it. Refresh and try again."
+        });
       }
     }
 
@@ -1765,7 +1865,7 @@ app.post("/api/roles", requireAuth, requirePermission("roles", "create"), async 
     }
 
     const id = "role-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6);
-    const targetRoleKey = getCanonicalRoleKey(normalizedNewName, id);
+    const targetRoleKey = getCanonicalRoleKey(normalizedNewName, id, true);
     const newRole = {
       id,
       roleKey: targetRoleKey,
@@ -1836,7 +1936,7 @@ app.put("/api/roles/:id", requireAuth, requirePermission("roles", "edit"), async
 
     const updatedRole = {
       ...currentRole,
-      roleKey: currentRole.roleKey || getCanonicalRoleKey(currentRole.name || currentRole.originalName || id, id),
+      roleKey: currentRole.roleKey || getCanonicalRoleKey(currentRole.name || currentRole.originalName || id, id, true),
       name: newName,
       description: description || ""
     };
@@ -2025,7 +2125,7 @@ app.post("/api/roles/reassign", requireAuth, requirePermission("roles", "edit"),
 });
 
 // 2. DOCUMENTS
-app.get("/api/documents", requireAuth, (req, res) => fetchCollection("documents", req, res));
+app.get("/api/documents", requireAuth, requirePermission("documents", "view"), (req, res) => fetchCollection("documents", req, res));
 
 app.post("/api/documents", requireAuth, requirePermission("documents", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   const doc = req.body;
@@ -2064,7 +2164,7 @@ app.get("/api/documents/:id/audit", requireAuth, async (req: AuthenticatedReques
 });
 
 // 3. BUDGETS
-app.get("/api/budgets", requireAuth, (req, res) => fetchCollection("budgets", req, res));
+app.get("/api/budgets", requireAuth, requirePermission("finance", "view"), (req, res) => fetchCollection("budgets", req, res));
 
 app.post("/api/budgets", requireAuth, requirePermission("finance", "create"), (req, res) => {
   const item = req.body;
@@ -2072,7 +2172,7 @@ app.post("/api/budgets", requireAuth, requirePermission("finance", "create"), (r
 });
 
 // 4. EXPENDITURES (With Role Gates, Self-Approval check, and Append-only audit trails)
-app.get("/api/expenditures", requireAuth, (req, res) => fetchCollection("expenditures", req, res));
+app.get("/api/expenditures", requireAuth, requirePermission("finance", "view"), (req, res) => fetchCollection("expenditures", req, res));
 
 // Default 2-tier chain, used when the org has not configured a custom
 // expenditureApprovalChain in Org Settings — reproduces the exact legacy behavior.
@@ -2107,9 +2207,40 @@ app.post("/api/expenditures", requireAuth, async (req: AuthenticatedRequest, res
   if (!expenditure.id) return res.status(400).json({ error: "Missing expenditure ID" });
 
   try {
-    // Check if we are approving an existing expenditure
     const existingSnap = await db.collection("expenditures").doc(expenditure.id).get();
-    if (existingSnap.exists) {
+
+    if (!existingSnap.exists) {
+      // Creating a brand-new expenditure request. This is intentionally gated behind the
+      // same "finance:create" permission as budgets/incomes (rather than open to any
+      // authenticated user) — anyone able to submit a spend request already has finance
+      // visibility under the default role setup, and financial claims shouldn't be
+      // submittable by roles that can't see finance at all.
+      if (!(await userHasPermission(req, "finance", "create"))) {
+        return res.status(403).json({ error: "You do not have permission to submit expenditure requests." });
+      }
+
+      // Reject anything that isn't a genuine positive amount rather than silently coercing it.
+      const amountNum = Number(expenditure.amount);
+      if (!Number.isFinite(amountNum) || amountNum <= 0) {
+        return res.status(400).json({ error: "Expenditure amount must be a positive number." });
+      }
+      expenditure.amount = amountNum;
+
+      // A new request can NEVER start pre-approved or pre-rejected, no matter what the
+      // request body claims — every expenditure must go through the tiered approval chain
+      // below on a later request. This is what actually closes the gap: previously a new
+      // record's status/approvals were saved completely as submitted, with no chain, no
+      // audit trail entry, and no permission check at all.
+      expenditure.status = "pending";
+      expenditure.approvals = [];
+      expenditure.requestedBy = req.user!.name;
+      expenditure.requestedById = req.user!.id;
+
+      await logActivity(req, "finance", "expenditure_request", expenditure.id, expenditure.description);
+      return saveDocument("expenditures", expenditure.id, expenditure, req, res);
+    }
+
+    {
       const existing = existingSnap.data()!;
 
       // Once an expenditure is fully approved, it represents money that has actually
@@ -2216,8 +2347,6 @@ app.post("/api/expenditures", requireAuth, async (req: AuthenticatedRequest, res
         await db.collection("financial_audit_trails").doc(auditEntry.id).set(auditEntry);
         await logActivity(req, "finance", `expenditure_${expenditure.status}`, expenditure.id, expenditure.description, { status: existing.status }, { status: expenditure.status });
       }
-    } else {
-      await logActivity(req, "finance", "expenditure_request", expenditure.id, expenditure.description);
     }
 
     return saveDocument("expenditures", expenditure.id, expenditure, req, res);
@@ -2227,7 +2356,7 @@ app.post("/api/expenditures", requireAuth, async (req: AuthenticatedRequest, res
 });
 
 // Financial Audit Trail Endpoint
-app.get("/api/financial-audit", requireAuth, (req, res) => fetchCollection("financial_audit_trails", req, res));
+app.get("/api/financial-audit", requireAuth, requirePermission("finance", "view"), (req, res) => fetchCollection("financial_audit_trails", req, res));
 
 // --- UNIFIED ACTIVITY LOG ---
 app.get("/api/activity_log", requireAuth, requirePermission("activity_log", "view"), async (req: AuthenticatedRequest, res): Promise<any> => {
@@ -2322,7 +2451,7 @@ app.post("/api/safeguarding", requireAuth, requirePermission("safeguarding", "cr
     };
     await db.collection("safeguarding_access_logs").doc(logEntry.id).set(logEntry);
 
-    await db.collection("safeguarding_reports").doc(report.id).set(encryptedReport);
+    await db.collection("safeguarding_reports").doc(report.id).set(encryptedReport, { merge: true });
     logActivity(req, "safeguarding", "save", report.id, undefined); // targetLabel omitted deliberately; module is auto-redacted anyway
     return res.json({ success: true, id: report.id });
   } catch (error: any) {
@@ -2350,12 +2479,29 @@ const DELETE_COLLECTION_MODULE_MAP: Record<string, string> = {
   partners: "invoices"
 };
 
+// These collections must never be deletable through the generic endpoint below, by ANY
+// role — including the chairperson superuser bypass. Their entire purpose is to remain
+// intact even if the admin account itself is compromised or the person acting through it
+// is trying to cover something up; an audit trail an admin can selectively erase from
+// isn't an audit trail. This check runs before the chairperson bypass, not alongside it.
+const IMMUTABLE_COLLECTIONS = new Set([
+  "activity_log",
+  "financial_audit_trails",
+  "safeguarding_access_logs",
+  "safeguarding_reports"
+]);
+
 app.delete("/api/:collection/:id", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   const { collection, id } = req.params;
   const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
 
-  // Chairperson remains superuser for delete on any collection, including ones with no
-  // explicit module mapping below (matches old "default fallback: chairperson only").
+  if (IMMUTABLE_COLLECTIONS.has(collection)) {
+    console.warn(`[Audit Integrity] Blocked delete attempt on immutable collection '${collection}' by ${req.user!.name} (${userRoleKey}), doc ${id}`);
+    return res.status(403).json({ error: `Records in '${collection}' are append-only and cannot be deleted, including by chairperson accounts.` });
+  }
+
+  // Chairperson remains superuser for delete on any OTHER collection, including ones with
+  // no explicit module mapping below (matches old "default fallback: chairperson only").
   let allowed = userRoleKey === "chairperson";
   if (!allowed) {
     const moduleKey = DELETE_COLLECTION_MODULE_MAP[collection];
@@ -2600,28 +2746,36 @@ app.post("/api/public/inquiry", publicInquiryRateLimiter, async (req: express.Re
   }
 });
 
-app.get("/api/assets", requireAuth, (req, res) => fetchCollection("assets", req, res));
+app.get("/api/assets", requireAuth, requirePermission("assets", "view"), (req, res) => fetchCollection("assets", req, res));
 app.post("/api/assets", requireAuth, requirePermission("assets", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("assets", "assets", "name", req, res));
 
 // 7. ATTENDANCE
-app.get("/api/attendance", requireAuth, (req, res) => fetchCollection("attendance_sheets", req, res));
+app.get("/api/attendance", requireAuth, requirePermission("classes", "view"), (req, res) => fetchCollection("attendance_sheets", req, res));
 app.post("/api/attendance", requireAuth, requirePermission("classes", "edit"), (req, res) => saveDocument("attendance_sheets", req.body.id, req.body, req, res));
 
 // 8. PARTNERS
-app.get("/api/partners", requireAuth, (req, res) => fetchCollection("partners", req, res));
+app.get("/api/partners", requireAuth, requirePermission("invoices", "view"), (req, res) => fetchCollection("partners", req, res));
 app.post("/api/partners", requireAuth, requirePermission("invoices", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("partners", "invoices", "name", req, res));
 
 // 9. INCOMES
-app.get("/api/incomes", requireAuth, (req, res) => fetchCollection("incomes", req, res));
+app.get("/api/incomes", requireAuth, requirePermission("finance", "view"), (req, res) => fetchCollection("incomes", req, res));
 app.post("/api/incomes", requireAuth, requirePermission("finance", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("incomes", "finance", "description", req, res));
 
 // 10. GRANTS
-app.get("/api/grants", requireAuth, (req, res) => fetchCollection("grants", req, res));
+app.get("/api/grants", requireAuth, requirePermission("grants", "view"), (req, res) => fetchCollection("grants", req, res));
 app.post("/api/grants", requireAuth, requirePermission("grants", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("grants", "grants", "name", req, res));
 
 // 11. CLASSES
-app.get("/api/classes", requireAuth, (req, res) => fetchCollection("classes", req, res));
-app.post("/api/classes", requireAuth, (req, res) => saveDocument("classes", req.body.id, req.body, req, res));
+// GET stays view-gated for consistency/defense-in-depth even though every default role
+// already includes classes:view — this matters for custom roles created via the Role
+// Management panel, which start with NO permissions until deliberately granted (see the
+// role-creation fix earlier in this audit), so a custom role should NOT see class data
+// unless someone explicitly checked that box.
+app.get("/api/classes", requireAuth, requirePermission("classes", "view"), (req, res) => fetchCollection("classes", req, res));
+// Creating/editing a class previously had no permission check at all beyond being logged
+// in — any authenticated account, including the lowest-privilege roles, could create or
+// modify class/program records.
+app.post("/api/classes", requireAuth, requirePermission("classes", "edit"), (req, res) => saveDocument("classes", req.body.id, req.body, req, res));
 
 // 12. BROADCASTS
 app.get("/api/broadcasts", requireAuth, (req, res) => fetchCollection("broadcasts", req, res));
@@ -2637,7 +2791,23 @@ app.post("/api/broadcasts", requireAuth, requirePermission("cms_editor", "create
 });
 
 // 13. LEAVE REQUESTS
-app.get("/api/leave_requests", requireAuth, (req, res) => fetchCollection("leave_requests", req, res));
+// Anyone can see their own leave requests; only the roles who can actually approve them
+// (chairperson / programs_director) see everyone's. Previously ANY authenticated account
+// could list every member's leave requests — personal HR data (dates, reasons) that
+// should only be visible to the person who filed it and whoever approves it.
+app.get("/api/leave_requests", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("leave_requests").get();
+    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (["chairperson", "programs_director"].includes(userRoleKey)) {
+      return res.json(items);
+    }
+    return res.json(items.filter(item => item.userId === req.user!.id));
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to fetch leave requests", details: err.message });
+  }
+});
 app.post("/api/leave_requests", requireAuth, async (req: AuthenticatedRequest, res): Promise<any> => {
   const { id, status, userId } = req.body;
   const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
@@ -2663,7 +2833,7 @@ app.post("/api/leave_requests", requireAuth, async (req: AuthenticatedRequest, r
 });
 
 // 14. INVOICES
-app.get("/api/invoices", requireAuth, (req, res) => fetchCollection("invoices", req, res));
+app.get("/api/invoices", requireAuth, requirePermission("invoices", "view"), (req, res) => fetchCollection("invoices", req, res));
 app.post("/api/invoices", requireAuth, requirePermission("invoices", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("invoices", "invoices", "invoiceNumber", req, res));
 
 // 15. ORG SETTINGS
@@ -2686,7 +2856,21 @@ app.post("/api/org_settings", requireAuth, requirePermission("settings", "edit")
 });
 
 // 16. CONTRACT RENEWALS
-app.get("/api/contract_renewals", requireAuth, (req, res) => fetchCollection("contract_renewals", req, res));
+// Same fix as leave_requests: anyone could previously list every member's contract
+// renewal record. Now non-chairperson users only see their own.
+app.get("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("contract_renewals").get();
+    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (userRoleKey === "chairperson") {
+      return res.json(items);
+    }
+    return res.json(items.filter(item => item.userId === req.user!.id));
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to fetch contract renewals", details: err.message });
+  }
+});
 app.post("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest, res): Promise<any> => {
   const { id, status, userId } = req.body;
   const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
