@@ -596,7 +596,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <FileText size={14} className="shrink-0" /> {lang === "en" ? "CBO Archives" : "Nyaraka za CBO"}
+                      <FileText size={14} className="shrink-0" /> {lang === "en" ? "Archives" : "Nyaraka za CBO"}
                     </button>
                   )}
 
@@ -610,7 +610,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <Wallet size={14} className="shrink-0" /> {lang === "en" ? "Finance Ledger" : "Fedha na Malipo"}
+                      <Wallet size={14} className="shrink-0" /> {lang === "en" ? "Finance" : "Fedha na Malipo"}
                     </button>
                   )}
 
@@ -624,7 +624,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <Package size={14} className="shrink-0" /> {lang === "en" ? "Asset Register" : "Rasilimali / Mali"}
+                      <Package size={14} className="shrink-0" /> {lang === "en" ? "Assets" : "Rasilimali / Mali"}
                     </button>
                   )}
 
@@ -639,7 +639,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <BarChart3 size={14} className="shrink-0" /> {lang === "en" ? "Grants Board" : "Bodi ya Ruzuku"}
+                      <BarChart3 size={14} className="shrink-0" /> {lang === "en" ? "Grants" : "Bodi ya Ruzuku"}
                     </button>
                   )}
 
@@ -652,7 +652,7 @@ export default function App() {
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
-                    <GraduationCap size={14} className="shrink-0" /> {lang === "en" ? "Classes & Certs" : "Madarasa na Vyeti"}
+                    <GraduationCap size={14} className="shrink-0" /> {lang === "en" ? "Classes" : "Madarasa na Vyeti"}
                   </button>
 
                   {can("invoices") && (
@@ -665,7 +665,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <Receipt size={14} className="shrink-0" /> {lang === "en" ? "Partner Invoices" : "Ankara za Washiriki"}
+                      <Receipt size={14} className="shrink-0" /> {lang === "en" ? "Invoices" : "Ankara za Washiriki"}
                     </button>
                   )}
 
@@ -678,7 +678,7 @@ export default function App() {
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
-                    <BookOpen size={14} className="shrink-0" /> {lang === "en" ? "Rules & Handbook" : "Mwongozo na Katiba"}
+                    <BookOpen size={14} className="shrink-0" /> {lang === "en" ? "Handbook" : "Mwongozo na Katiba"}
                   </button>
 
                   <button
@@ -690,7 +690,7 @@ export default function App() {
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
-                    <ShieldCheck size={14} className="shrink-0" /> {lang === "en" ? "Security & 2FA" : "Usalama na 2FA"}
+                    <ShieldCheck size={14} className="shrink-0" /> {lang === "en" ? "Security" : "Usalama na 2FA"}
                   </button>
 
                   {can("settings") && (
@@ -703,7 +703,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <Settings size={14} className="shrink-0" /> {lang === "en" ? "Org Settings" : "Mipangilio ya CBO"}
+                      <Settings size={14} className="shrink-0" /> {lang === "en" ? "Settings" : "Mipangilio ya CBO"}
                     </button>
                   )}
 
@@ -719,7 +719,7 @@ export default function App() {
                         }`}
                       >
                         <span className="flex items-center gap-3">
-                          <UserCheck size={14} className="shrink-0" /> {lang === "en" ? "Signup Applications" : "Maombi ya Kujiunga"}
+                          <UserCheck size={14} className="shrink-0" /> {lang === "en" ? "Applications" : "Maombi ya Kujiunga"}
                         </span>
                         {pendingApplicationsCount > 0 && (
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-black font-mono leading-none ${
@@ -742,7 +742,7 @@ export default function App() {
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                         }`}
                       >
-                        <Globe size={14} className="shrink-0" /> {lang === "en" ? "Homepage CMS Editor" : "Uhariri wa Tovuti"}
+                        <Globe size={14} className="shrink-0" /> {lang === "en" ? "Website" : "Uhariri wa Tovuti"}
                       </button>
                   )}
 
@@ -756,7 +756,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <Users size={14} className="shrink-0" /> {lang === "en" ? "Register Beneficiaries" : "Sajili Wafaidika"}
+                      <Users size={14} className="shrink-0" /> {lang === "en" ? "Beneficiaries" : "Sajili Wafaidika"}
                     </button>
                   )}
 

@@ -25,6 +25,21 @@ const DEFAULT_PILLARS_SEED = [
   { id: "pillar-4", title: { en: "Advocacy Campaigns", sw: "Kampeni za Utetezi" }, description: { en: "Street marches, banners and coordinated outreach that raise awareness of critical social issues and connect residents to services.", sw: "Maandamano ya mitaani, mabango na uhamasishaji ulioratibiwa unaounganisha wakazi na huduma." } }
 ];
 
+// The public homepage's team section falls back to these SAME 6 real people whenever
+// content.teamMembers is empty in the database (which it always has been on this
+// deployment) — meaning this was the real, currently-live team roster, just never
+// actually saved into the editable system. Seeding the CMS editor with them means
+// there's something to edit instead of a blank list with no way to start except
+// retyping all 6 people from scratch.
+const DEFAULT_TEAM_MEMBERS_SEED = [
+  { id: "tm-1", name: "Kennedy Onyango", title: "Executive Director", bio: "Leading strategy, donor partnerships, organizational governance, and grassroots advocacy in Kiambiu." },
+  { id: "tm-2", name: "Michael Kamande", title: "Communications & Marketing", bio: "Directing public relations, media engagement, digital storytelling, and brand outreach." },
+  { id: "tm-3", name: "Irene Maina", title: "Programs Coordinator", bio: "Managing community project schedules, stakeholder coordination, and field outreach operations." },
+  { id: "tm-4", name: "Morgan Otieno", title: "Theatre and Film Director", bio: "Directing participatory stage performances, scriptwriting, and film production workshops." },
+  { id: "tm-5", name: "Paul Ngala", title: "Safeguarding & Field Officer", bio: "Ensuring community safety, ethical referral pathways, and child protection standards." },
+  { id: "tm-6", name: "Shaniz Fabrizia", title: "Youth & Gender Officer", bio: "Facilitating youth empowerment, SRHR peer education, and gender equality circles." }
+];
+
 export default function CmsEditor({ lang }: CmsEditorProps) {
   const [siteContent, setSiteContent] = React.useState<SiteContent | null>(null);
   const [galleryImages, setGalleryImages] = React.useState<GalleryImage[]>([]);
@@ -391,7 +406,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "hero_about" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Hero & About Texts" : "Bango na Kuhusu"}
+           {lang === "en" ? "About" : "Bango na Kuhusu"}
         </button>
         <button
           onClick={() => setActiveTab("programs")}
@@ -399,7 +414,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "programs" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Our Programs (Pillars)" : "Programu zetu"}
+           {lang === "en" ? "Programs" : "Programu zetu"}
         </button>
         <button
           onClick={() => setActiveTab("projects")}
@@ -407,7 +422,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "projects" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Productions & Outreach" : "Filamu na Miradi"}
+           {lang === "en" ? "Projects" : "Filamu na Miradi"}
         </button>
         <button
           onClick={() => setActiveTab("partners")}
@@ -415,7 +430,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "partners" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Partners & Sponsors" : "Washirika na Wadhamini"}
+           {lang === "en" ? "Partners" : "Washirika na Wadhamini"}
         </button>
         <button
           onClick={() => setActiveTab("equipment")}
@@ -423,7 +438,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "equipment" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Equipment & Gear" : "Vifaa na Mitambo"}
+           {lang === "en" ? "Equipment" : "Vifaa na Mitambo"}
         </button>
         <button
           onClick={() => setActiveTab("gallery")}
@@ -431,7 +446,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "gallery" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Gallery Stream" : "Maktaba ya Picha"}
+           {lang === "en" ? "Gallery" : "Maktaba ya Picha"}
         </button>
         <button
           onClick={() => setActiveTab("role_templates")}
@@ -439,7 +454,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "role_templates" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Leadership Role Templates" : "Mifano ya Majukumu"}
+           {lang === "en" ? "Templates" : "Mifano ya Majukumu"}
         </button>
         <button
           onClick={() => setActiveTab("team")}
@@ -447,7 +462,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             activeTab === "team" ? "border-b-[#E31E24] text-[#E31E24]" : "border-b-transparent text-gray-500 hover:text-gray-900"
           }`}
         >
-           {lang === "en" ? "Leadership & Team" : "Viongozi na Timu"}
+           {lang === "en" ? "Team" : "Viongozi na Timu"}
         </button>
       </div>
 
@@ -1637,7 +1652,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(content.teamMembers || []).map((member, index) => (
+              {(content.teamMembers && content.teamMembers.length > 0 ? content.teamMembers : DEFAULT_TEAM_MEMBERS_SEED).map((member, index) => (
                 <div key={member.id} className="p-4 border rounded-2xl flex items-start gap-4 bg-gray-50/50">
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-neutral-200 shrink-0 border relative flex items-center justify-center text-xs">
                     {member.photoUrl ? (
@@ -1661,7 +1676,8 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                       <button
                         onClick={async () => {
                           if (window.confirm(`Remove ${member.name}? This saves immediately.`)) {
-                            const updated = (content.teamMembers || []).filter((_, i) => i !== index);
+                            const base = content.teamMembers && content.teamMembers.length > 0 ? content.teamMembers : DEFAULT_TEAM_MEMBERS_SEED;
+                            const updated = base.filter((_, i) => i !== index);
                             const updatedContent = { ...content, teamMembers: updated };
                             setSiteContent(updatedContent as any);
                             await persistSiteContent(updatedContent, lang === "en" ? "Team member removed and saved." : "Mwanachama wa timu ameondolewa na kuhifadhiwa.");
@@ -2684,7 +2700,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                     alert("Name and Title are required.");
                     return;
                   }
-                  const currentList = content?.teamMembers || [];
+                  const currentList = content?.teamMembers && content.teamMembers.length > 0 ? content.teamMembers : DEFAULT_TEAM_MEMBERS_SEED;
                   const exists = currentList.some(m => m.id === activeTeamMember.id);
                   let updatedList: TeamMember[];
                   if (exists) {
