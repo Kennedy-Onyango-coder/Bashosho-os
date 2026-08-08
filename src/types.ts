@@ -573,6 +573,8 @@ export interface SiteContent {
   roleTemplates?: RoleTemplate[];
   heroImageUrl?: string;
   facebookUrl?: string;
+  impactStats?: { id: string; value: string; label: LocalizedText; description: LocalizedText }[];
+  pillars?: { id: string; title: LocalizedText; description: LocalizedText }[];
 }
 
 export interface GalleryImage {

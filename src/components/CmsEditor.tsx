@@ -1,12 +1,29 @@
 import React from "react";
 import Modal from "./Modal";
-import { SiteContent, GalleryImage, Program, Project, PartnerLogo, EquipmentItem, TeamMember } from "../types";
+import { SiteContent, GalleryImage, Program, Project, PartnerLogo, Asset, TeamMember } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { Edit, Trash2, X, UploadCloud, CheckCircle, AlertCircle, Save, Plus, Camera } from "lucide-react";
 
 interface CmsEditorProps {
   lang: "en" | "sw";
 }
+
+// Seed values for the Impact Stats / Pillars editors below — must match the defaults in
+// HomePage.tsx exactly, so editing starts from what's actually live on the site today
+// rather than blank fields.
+const DEFAULT_IMPACT_STATS_SEED = [
+  { id: "stat-1", value: "5,000+", label: { en: "Youth Engaged Directly", sw: "Vijana Waliofikiwa Moja kwa Moja" }, description: { en: "Through theatre performances, workshops, and film screenings.", sw: "Kupitia maonyesho ya maigizo, warsha, na uonyeshaji wa filamu." } },
+  { id: "stat-2", value: "12,000+", label: { en: "Digital Views", sw: "Watazamaji wa Kidijitali" }, description: { en: "Across advocacy film releases on YouTube and social platforms.", sw: "Katika utoaji wa filamu za utetezi kwenye YouTube na mitandao ya kijamii." } },
+  { id: "stat-3", value: "350+", label: { en: "Survivors Supported", sw: "Waathirika Waliosaidiwa" }, description: { en: "Referred to local safe houses, legal aid, and counseling partners.", sw: "Waliopelekwa kwenye nyumba salama, msaada wa kisheria, na washauri." } },
+  { id: "stat-4", value: "45+", label: { en: "Film Academy Alumni", sw: "Wahitimu wa Chuo cha Filamu" }, description: { en: "Trained in practical filmmaking, sound recording, and editing.", sw: "Waliofundishwa utengenezaji wa filamu, urekodi wa sauti, na uhariri." } }
+];
+
+const DEFAULT_PILLARS_SEED = [
+  { id: "pillar-1", title: { en: "Theatre Productions", sw: "Uzalishaji wa Maigizo" }, description: { en: "Interactive, forum-style performances staged directly in the community, addressing the issues residents live with every day.", sw: "Maonyesho ya mwingiliano yanayofanyika moja kwa moja jamiini, yakishughulikia masuala wanayokabiliana nayo wakazi kila siku." } },
+  { id: "pillar-2", title: { en: "Educational Films", sw: "Filamu za Kielimu" }, description: { en: "Compelling short films and documentary-style content that informs, humanizes, and inspires action long after the credits roll.", sw: "Filamu fupi zenye mvuto na maudhui ya kishairi yanayoelimisha na kuhamasisha hatua." } },
+  { id: "pillar-3", title: { en: "Community Workshops", sw: "Warsha za Jamii" }, description: { en: "Hands-on sessions that engage residents in artistic expression, dialogue, and peer-to-peer psychosocial support.", sw: "Vikao vya vitendo vinavyoshirikisha wakazi katika sanaa, mazungumzo, na msaada wa kisaikolojia." } },
+  { id: "pillar-4", title: { en: "Advocacy Campaigns", sw: "Kampeni za Utetezi" }, description: { en: "Street marches, banners and coordinated outreach that raise awareness of critical social issues and connect residents to services.", sw: "Maandamano ya mitaani, mabango na uhamasishaji ulioratibiwa unaounganisha wakazi na huduma." } }
+];
 
 export default function CmsEditor({ lang }: CmsEditorProps) {
   const [siteContent, setSiteContent] = React.useState<SiteContent | null>(null);
@@ -37,10 +54,17 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
   const [activeProg, setActiveProg] = React.useState<Partial<Program> | null>(null);
   const [activeProj, setActiveProj] = React.useState<Partial<Project> | null>(null);
   const [activePartner, setActivePartner] = React.useState<Partial<PartnerLogo> | null>(null);
-  const [activeEquipment, setActiveEquipment] = React.useState<Partial<EquipmentItem> | null>(null);
+  const [activeEquipment, setActiveEquipment] = React.useState<Partial<Asset> | null>(null);
   const [activeTeamMember, setActiveTeamMember] = React.useState<Partial<TeamMember> | null>(null);
 
   const [activeTab, setActiveTab] = React.useState<"hero_about" | "programs" | "projects" | "partners" | "equipment" | "gallery" | "role_templates" | "team">("hero_about");
+
+  // Equipment/gear-for-hire — this tab manages the SAME `assets` collection used by the
+  // Assets module and the public homepage's equipment-hire section (previously this tab
+  // wrote to a separate, never-read `content.equipmentList` field: anything added or
+  // edited here silently never appeared on the actual public site).
+  const [assets, setAssets] = React.useState<Asset[]>([]);
+  const [assetsError, setAssetsError] = React.useState<string | null>(null);
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -61,6 +85,24 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
       if (galleryRes.ok) {
         const galleryData = await galleryRes.json();
         setGalleryImages(galleryData);
+      }
+
+      // Real asset inventory (the same data the public homepage's equipment-hire
+      // section and the internal Assets module both read from). A 403 here just means
+      // this account's role doesn't have assets:view — handled gracefully below rather
+      // than failing the whole CMS load.
+      try {
+        const assetsRes = await fetch("/api/assets");
+        if (assetsRes.ok) {
+          setAssets(await assetsRes.json());
+          setAssetsError(null);
+        } else if (assetsRes.status === 403) {
+          setAssetsError(lang === "en"
+            ? "Your role doesn't have permission to view the equipment inventory. Ask a Chairperson, Programs Director, or Treasurer to grant Assets access, or to manage equipment for you."
+            : "Wadhifa wako hauna ruhusa ya kuona orodha ya vifaa. Muulize Mwenyekiti, Mkurugenzi wa Miradi, au Mhazini akupe ruhusa ya Assets.");
+        }
+      } catch {
+        setAssetsError(lang === "en" ? "Failed to load equipment inventory." : "Imeshindwa kupakia orodha ya vifaa.");
       }
     } catch (err: any) {
       console.error(err);
@@ -839,6 +881,166 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                 </div>
               </div>
             </div>
+
+            {/* Impact & Reach stats — fixed at 4 cards to match the homepage grid layout,
+                so this edits values/labels/descriptions rather than adding/removing cards. */}
+            <div className="pt-6 border-t space-y-4">
+              <div>
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Impact & Reach Stats</h3>
+                <p className="text-xs text-gray-500 mt-1">The 4 result cards shown under "Impact & Reach" on the homepage.</p>
+              </div>
+              {(content.impactStats && content.impactStats.length === 4 ? content.impactStats : DEFAULT_IMPACT_STATS_SEED).map((stat, idx) => (
+                <div key={stat.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Value (e.g. "5,000+")</label>
+                      <input
+                        type="text"
+                        value={stat.value}
+                        onChange={(e) => {
+                          const base = content.impactStats && content.impactStats.length === 4 ? content.impactStats : DEFAULT_IMPACT_STATS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], value: e.target.value };
+                          setSiteContent(prev => ({ ...prev!, impactStats: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-black font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Label (English)</label>
+                      <input
+                        type="text"
+                        value={stat.label.en}
+                        onChange={(e) => {
+                          const base = content.impactStats && content.impactStats.length === 4 ? content.impactStats : DEFAULT_IMPACT_STATS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], label: { ...updated[idx].label, en: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, impactStats: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Label (Swahili)</label>
+                      <input
+                        type="text"
+                        value={stat.label.sw}
+                        onChange={(e) => {
+                          const base = content.impactStats && content.impactStats.length === 4 ? content.impactStats : DEFAULT_IMPACT_STATS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], label: { ...updated[idx].label, sw: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, impactStats: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Description (English)</label>
+                      <input
+                        type="text"
+                        value={stat.description.en}
+                        onChange={(e) => {
+                          const base = content.impactStats && content.impactStats.length === 4 ? content.impactStats : DEFAULT_IMPACT_STATS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], description: { ...updated[idx].description, en: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, impactStats: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Description (Swahili)</label>
+                      <input
+                        type="text"
+                        value={stat.description.sw}
+                        onChange={(e) => {
+                          const base = content.impactStats && content.impactStats.length === 4 ? content.impactStats : DEFAULT_IMPACT_STATS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], description: { ...updated[idx].description, sw: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, impactStats: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Four Pillars / methodology — also fixed at 4 to match the homepage layout;
+                icon and color per card are fixed by position and not edited here. */}
+            <div className="pt-6 border-t space-y-4">
+              <div>
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Four Pillars / Methodology</h3>
+                <p className="text-xs text-gray-500 mt-1">The 4 methodology cards shown under "Our Methodology" on the homepage.</p>
+              </div>
+              {(content.pillars && content.pillars.length === 4 ? content.pillars : DEFAULT_PILLARS_SEED).map((pillar, idx) => (
+                <div key={pillar.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Title (English)</label>
+                      <input
+                        type="text"
+                        value={pillar.title.en}
+                        onChange={(e) => {
+                          const base = content.pillars && content.pillars.length === 4 ? content.pillars : DEFAULT_PILLARS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], title: { ...updated[idx].title, en: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, pillars: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Title (Swahili)</label>
+                      <input
+                        type="text"
+                        value={pillar.title.sw}
+                        onChange={(e) => {
+                          const base = content.pillars && content.pillars.length === 4 ? content.pillars : DEFAULT_PILLARS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], title: { ...updated[idx].title, sw: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, pillars: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Description (English)</label>
+                      <textarea
+                        rows={2}
+                        value={pillar.description.en}
+                        onChange={(e) => {
+                          const base = content.pillars && content.pillars.length === 4 ? content.pillars : DEFAULT_PILLARS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], description: { ...updated[idx].description, en: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, pillars: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-medium"
+                      ></textarea>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Description (Swahili)</label>
+                      <textarea
+                        rows={2}
+                        value={pillar.description.sw}
+                        onChange={(e) => {
+                          const base = content.pillars && content.pillars.length === 4 ? content.pillars : DEFAULT_PILLARS_SEED;
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], description: { ...updated[idx].description, sw: e.target.value } };
+                          setSiteContent(prev => ({ ...prev!, pillars: updated }));
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-medium"
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1268,11 +1470,17 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                 onClick={() => setActiveEquipment({
                   id: `ast-${Date.now()}`,
                   name: "",
-                  category: "Video & Cinema",
+                  category: "camera",
                   dailyRate: 2000,
                   condition: "excellent",
                   photoUrl: "",
-                  description: ""
+                  availableForHire: true,
+                  custodian: "",
+                  location: "Bashosho Studio",
+                  serialNumber: "",
+                  purchaseDate: new Date().toISOString().slice(0, 10),
+                  purchaseCost: 0,
+                  checkoutHistory: []
                 })}
                 className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
@@ -1336,41 +1544,21 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
               </div>
             </div>
 
-            {/* Equipment Grid */}
+            {/* Equipment Grid — reads the real assets collection now. An item only shows
+                on the public homepage when "Available for hire" is on; items that aren't
+                are still listed here (grayed) so admins can find and publish them. */}
+            {assetsError ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 font-medium">
+                {assetsError}
+              </div>
+            ) : assets.length === 0 ? (
+              <div className="bg-gray-50 border border-dashed border-gray-300 rounded-2xl p-6 text-center text-xs text-gray-500">
+                {lang === "en" ? "No equipment in inventory yet. Add your first item above." : "Hakuna vifaa bado. Ongeza kifaa cha kwanza hapo juu."}
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {((content.equipmentList && content.equipmentList.length > 0)
-                ? content.equipmentList
-                : [
-                    {
-                      id: "ast-001",
-                      name: "Sony FX30 Cinema Camera",
-                      category: "Video & Cinema",
-                      dailyRate: 3500,
-                      condition: "excellent",
-                      photoUrl: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=60",
-                      description: "4K Super35 Cinema Camera with 18-105mm F4 Lens & accessories."
-                    },
-                    {
-                      id: "ast-002",
-                      name: "Rode Wireless PRO Mic Kit",
-                      category: "Audio & Microphones",
-                      dailyRate: 1500,
-                      condition: "excellent",
-                      photoUrl: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=60",
-                      description: "Dual wireless lavalier mic set with 32-bit float internal backup."
-                    },
-                    {
-                      id: "ast-003",
-                      name: "Behringer PA Sound System",
-                      category: "PA & Sound",
-                      dailyRate: 2000,
-                      condition: "good",
-                      photoUrl: "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=800&auto=format&fit=crop&q=60",
-                      description: "40W battery-powered portable PA with Bluetooth & wireless mic."
-                    }
-                  ]
-              ).map((item) => (
-                <div key={item.id} className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden flex flex-col justify-between shadow-xs">
+              {assets.map((item) => (
+                <div key={item.id} className={`bg-gray-50 border rounded-2xl overflow-hidden flex flex-col justify-between shadow-xs ${item.availableForHire ? "border-gray-200" : "border-gray-200 opacity-60"}`}>
                   <div>
                     <div className="h-32 bg-neutral-900 relative">
                       {item.photoUrl ? (
@@ -1384,11 +1572,13 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                       <span className="absolute top-2 left-2 bg-neutral-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-md uppercase">
                         {item.category}
                       </span>
+                      <span className={`absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase ${item.availableForHire ? "bg-emerald-600 text-white" : "bg-gray-400 text-white"}`}>
+                        {item.availableForHire ? (lang === "en" ? "Live on site" : "Iko hai") : (lang === "en" ? "Not published" : "Haijachapishwa")}
+                      </span>
                     </div>
 
                     <div className="p-4 space-y-1">
                       <h4 className="text-xs font-black text-gray-900">{item.name}</h4>
-                      <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">{item.description}</p>
                       <p className="text-xs font-black text-emerald-700 font-mono pt-1">
                         Ksh {(item.dailyRate || 0).toLocaleString()} / day
                       </p>
@@ -1407,10 +1597,17 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                       type="button"
                       onClick={async () => {
                         if (!confirm(`Delete "${item.name}"? This saves immediately.`)) return;
-                        const updated = (content.equipmentList || []).filter(e => e.id !== item.id);
-                        const updatedContent = { ...content, equipmentList: updated };
-                        setSiteContent(updatedContent as any);
-                        await persistSiteContent(updatedContent, lang === "en" ? "Equipment item deleted and saved." : "Kifaa kimefutwa na kuhifadhiwa.");
+                        try {
+                          const res = await fetch(`/api/assets/${item.id}`, { method: "DELETE" });
+                          if (!res.ok) {
+                            const data = await res.json().catch(() => ({}));
+                            throw new Error(data.error || `Server returned status ${res.status}`);
+                          }
+                          setAssets(prev => prev.filter(a => a.id !== item.id));
+                          setSuccessMsg(lang === "en" ? "Equipment item deleted." : "Kifaa kimefutwa.");
+                        } catch (err: any) {
+                          setError(err.message || (lang === "en" ? "Failed to delete equipment item." : "Imeshindwa kufuta kifaa."));
+                        }
                       }}
                       className="px-2.5 py-1.5 bg-gray-50 hover:bg-red-50 text-red-600 rounded-lg border border-red-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                     >
@@ -1420,6 +1617,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
@@ -2213,11 +2411,12 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
         )}
       </Modal>
 
-      {/* MODAL: ADD/EDIT EQUIPMENT ITEM */}
+      {/* MODAL: ADD/EDIT EQUIPMENT ITEM — this saves directly to the same `assets`
+          collection the public homepage reads from (see fetchData / save handler below). */}
       <Modal
         isOpen={!!activeEquipment}
         onClose={() => setActiveEquipment(null)}
-        title={activeEquipment?.id && content?.equipmentList?.some(e => e.id === activeEquipment.id) ? "Edit Equipment Item" : "Add Equipment Item"}
+        title={assets.some(e => e.id === activeEquipment?.id) ? "Edit Equipment Item" : "Add Equipment Item"}
         maxWidth="max-w-lg"
       >
         {activeEquipment && (
@@ -2237,15 +2436,18 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
                 <select
-                  value={activeEquipment.category || "Video & Cinema"}
-                  onChange={(e) => setActiveEquipment(prev => ({ ...prev!, category: e.target.value }))}
+                  value={activeEquipment.category || "camera"}
+                  onChange={(e) => setActiveEquipment(prev => ({ ...prev!, category: e.target.value as Asset["category"] }))}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-bold"
                 >
-                  <option value="Video & Cinema">Video & Cinema</option>
-                  <option value="Audio & Microphones">Audio & Microphones</option>
-                  <option value="PA & Sound">PA & Sound</option>
-                  <option value="Lighting & Grip">Lighting & Grip</option>
-                  <option value="Studio Accessories">Studio Accessories</option>
+                  <option value="camera">Camera / Video</option>
+                  <option value="mic">Microphones / Audio</option>
+                  <option value="sound">PA & Sound</option>
+                  <option value="costume">Costume</option>
+                  <option value="prop">Prop</option>
+                  <option value="laptop">Laptop / Editing</option>
+                  <option value="furniture">Furniture</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
             </div>
@@ -2263,26 +2465,31 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Condition</label>
-                <input
-                  type="text"
+                <select
                   value={activeEquipment.condition || "excellent"}
-                  onChange={(e) => setActiveEquipment(prev => ({ ...prev!, condition: e.target.value }))}
-                  placeholder="e.g. excellent, good, like new"
+                  onChange={(e) => setActiveEquipment(prev => ({ ...prev!, condition: e.target.value as Asset["condition"] }))}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-medium"
-                />
+                >
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                  <option value="repair_needed">Needs repair</option>
+                </select>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-500 uppercase">Description / Kit Details</label>
-              <textarea
-                rows={2}
-                value={activeEquipment.description || ""}
-                onChange={(e) => setActiveEquipment(prev => ({ ...prev!, description: e.target.value }))}
-                placeholder="4K Super35 Cinema Camera with 18-105mm F4 Lens & accessories."
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-medium"
-              ></textarea>
-            </div>
+            <label className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={activeEquipment.availableForHire !== false}
+                onChange={(e) => setActiveEquipment(prev => ({ ...prev!, availableForHire: e.target.checked }))}
+                className="w-4 h-4"
+              />
+              <span className="text-xs font-bold text-emerald-800">
+                Available for hire (shows on the public homepage when checked)
+              </span>
+            </label>
 
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-gray-500 uppercase">Photo Image</label>
@@ -2320,6 +2527,10 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
               </div>
             </div>
 
+            <p className="text-[10px] text-gray-400 leading-relaxed">
+              Full inventory details (serial number, custodian, purchase cost, storage location) can be filled in from the Assets module — this quick form covers what's needed to publish an item for public hire.
+            </p>
+
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button
                 type="button"
@@ -2335,18 +2546,48 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                     alert("Equipment name is required.");
                     return;
                   }
-                  const existing = content?.equipmentList || [];
-                  const idx = existing.findIndex(e => e.id === activeEquipment.id);
-                  let updated = [...existing];
-                  if (idx >= 0) {
-                    updated[idx] = activeEquipment as EquipmentItem;
-                  } else {
-                    updated.push(activeEquipment as EquipmentItem);
+                  const isNew = !assets.some(a => a.id === activeEquipment.id);
+                  const payload: Asset = {
+                    id: activeEquipment.id!,
+                    name: activeEquipment.name!,
+                    category: activeEquipment.category || "other",
+                    serialNumber: activeEquipment.serialNumber || "",
+                    purchaseDate: activeEquipment.purchaseDate || new Date().toISOString().slice(0, 10),
+                    purchaseCost: activeEquipment.purchaseCost || 0,
+                    condition: activeEquipment.condition || "excellent",
+                    custodian: activeEquipment.custodian || "",
+                    location: activeEquipment.location || "Bashosho Studio",
+                    photoUrl: activeEquipment.photoUrl || "",
+                    availableForHire: activeEquipment.availableForHire !== false,
+                    dailyRate: activeEquipment.dailyRate || 0,
+                    checkoutHistory: activeEquipment.checkoutHistory || []
+                  };
+                  try {
+                    const res = await fetch("/api/assets", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data.error || `Server returned status ${res.status}`);
+                    }
+                    setAssets(prev => {
+                      const idx = prev.findIndex(a => a.id === payload.id);
+                      if (idx >= 0) {
+                        const updated = [...prev];
+                        updated[idx] = payload;
+                        return updated;
+                      }
+                      return [...prev, payload];
+                    });
+                    setActiveEquipment(null);
+                    setSuccessMsg(isNew
+                      ? (lang === "en" ? "Equipment item added and published." : "Kifaa kimeongezwa na kuchapishwa.")
+                      : (lang === "en" ? "Equipment item saved and published." : "Kifaa kimehifadhiwa na kuchapishwa."));
+                  } catch (err: any) {
+                    setError(err.message || (lang === "en" ? "Failed to save equipment item." : "Imeshindwa kuhifadhi kifaa."));
                   }
-                  const updatedContent = { ...content, equipmentList: updated };
-                  setSiteContent(updatedContent as any);
-                  setActiveEquipment(null);
-                  await persistSiteContent(updatedContent, lang === "en" ? "Equipment item saved and published." : "Kifaa kimehifadhiwa na kuchapishwa.");
                 }}
                 className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
               >

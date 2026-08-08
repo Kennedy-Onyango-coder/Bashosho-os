@@ -374,7 +374,11 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
     case "vice_chairperson":
       full("documents"); p.documents.delete = false; // document delete was chairperson-only under the old generic-delete fallback
       view("finance");
-      view("assets");
+      // Assets: create+edit granted so the CMS Equipment tab (full("cms_editor") above)
+      // is actually usable — that tab now saves directly to the assets collection.
+      // Delete intentionally withheld; only Chairperson/Treasurer/Programs Director can
+      // remove inventory records.
+      view("assets"); p.assets.create = true; p.assets.edit = true;
       view("grants");
       full("invoices");
       full("settings"); p.settings.delete = false;
@@ -4053,7 +4057,8 @@ app.post("/api/site_content", requireAuth, requirePermission("cms_editor", "edit
       programs, projects, contactEmail, contactPhone, contactAddress, roleTemplates,
       partnersList, equipmentList, teamMembers,
       equipmentEyebrow, equipmentTitle, equipmentSubtitle,
-      galleryEyebrow, galleryTitle, gallerySubtitle, facebookUrl
+      galleryEyebrow, galleryTitle, gallerySubtitle, facebookUrl,
+      impactStats, pillars
     } = req.body;
 
     if (!heroTitle || !heroSubtitle || !aboutText || !missionText) {
@@ -4088,6 +4093,8 @@ app.post("/api/site_content", requireAuth, requirePermission("cms_editor", "edit
       contactPhone: contactPhone || "",
       contactAddress: contactAddress || "",
       roleTemplates: roleTemplates || DEFAULT_ROLE_TEMPLATES,
+      impactStats: impactStats || [],
+      pillars: pillars || [],
       updatedAt: new Date().toISOString()
     };
 

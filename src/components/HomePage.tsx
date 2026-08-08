@@ -60,6 +60,38 @@ interface HomePageProps {
   onNavigateToPortal: () => void;
 }
 
+// Default content for the Impact & Reach and Four Pillars sections — used whenever the
+// CMS-editable fields (content.impactStats / content.pillars) are empty, which includes
+// every deployment made before these fields existed. This keeps the homepage showing
+// today's real copy unchanged until an admin actually edits it via the CMS, rather than
+// the section going blank the moment these fields were introduced.
+const DEFAULT_IMPACT_STATS = [
+  { id: "stat-1", value: "5,000+", label: { en: "Youth Engaged Directly", sw: "Vijana Waliofikiwa Moja kwa Moja" }, description: { en: "Through theatre performances, workshops, and film screenings.", sw: "Kupitia maonyesho ya maigizo, warsha, na uonyeshaji wa filamu." } },
+  { id: "stat-2", value: "12,000+", label: { en: "Digital Views", sw: "Watazamaji wa Kidijitali" }, description: { en: "Across advocacy film releases on YouTube and social platforms.", sw: "Katika utoaji wa filamu za utetezi kwenye YouTube na mitandao ya kijamii." } },
+  { id: "stat-3", value: "350+", label: { en: "Survivors Supported", sw: "Waathirika Waliosaidiwa" }, description: { en: "Referred to local safe houses, legal aid, and counseling partners.", sw: "Waliopelekwa kwenye nyumba salama, msaada wa kisheria, na washauri." } },
+  { id: "stat-4", value: "45+", label: { en: "Film Academy Alumni", sw: "Wahitimu wa Chuo cha Filamu" }, description: { en: "Trained in practical filmmaking, sound recording, and editing.", sw: "Waliofundishwa utengenezaji wa filamu, urekodi wa sauti, na uhariri." } }
+];
+
+// Colors are fixed by POSITION, same reasoning as PILLAR_STYLES below — value/label/
+// description are CMS-editable, color is not.
+const STAT_COLORS = ["text-[#E31E24]", "text-[#00A651]", "text-amber-600", "text-blue-600"];
+
+const DEFAULT_PILLARS = [
+  { id: "pillar-1", title: { en: "Theatre Productions", sw: "Uzalishaji wa Maigizo" }, description: { en: "Interactive, forum-style performances staged directly in the community, addressing the issues residents live with every day.", sw: "Maonyesho ya mwingiliano yanayofanyika moja kwa moja jamiini, yakishughulikia masuala wanayokabiliana nayo wakazi kila siku." } },
+  { id: "pillar-2", title: { en: "Educational Films", sw: "Filamu za Kielimu" }, description: { en: "Compelling short films and documentary-style content that informs, humanizes, and inspires action long after the credits roll.", sw: "Filamu fupi zenye mvuto na maudhui ya kishairi yanayoelimisha na kuhamasisha hatua." } },
+  { id: "pillar-3", title: { en: "Community Workshops", sw: "Warsha za Jamii" }, description: { en: "Hands-on sessions that engage residents in artistic expression, dialogue, and peer-to-peer psychosocial support.", sw: "Vikao vya vitendo vinavyoshirikisha wakazi katika sanaa, mazungumzo, na msaada wa kisaikolojia." } },
+  { id: "pillar-4", title: { en: "Advocacy Campaigns", sw: "Kampeni za Utetezi" }, description: { en: "Street marches, banners and coordinated outreach that raise awareness of critical social issues and connect residents to services.", sw: "Maandamano ya mitaani, mabango na uhamasishaji ulioratibiwa unaounganisha wakazi na huduma." } }
+];
+
+// Icon/color styling for pillars is fixed by POSITION (not CMS-editable — only title and
+// description are), applied to whichever 4 pillars are showing, default or CMS-edited.
+const PILLAR_STYLES = [
+  { icon: Theater, iconBg: "bg-red-50", iconColor: "text-[#E31E24]" },
+  { icon: Clapperboard, iconBg: "bg-emerald-50", iconColor: "text-[#00A651]" },
+  { icon: Users, iconBg: "bg-blue-50", iconColor: "text-blue-600" },
+  { icon: Megaphone, iconBg: "bg-amber-50", iconColor: "text-amber-600" }
+];
+
 export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: HomePageProps) {
   const [siteContent, setSiteContent] = React.useState<SiteContent | null>(null);
   const [galleryImages, setGalleryImages] = React.useState<GalleryImage[]>([]);
@@ -828,49 +860,21 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Pillar 1 */}
-            <div className="bg-white border border-neutral-200 rounded-2xl p-6 space-y-3 shadow-xs hover:border-[#E31E24]/50 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-red-50 text-[#E31E24] flex items-center justify-center font-bold">
-                <Theater size={20} />
-              </div>
-              <h3 className="text-base font-bold text-neutral-900">Theatre Productions</h3>
-              <p className="text-xs text-neutral-600 leading-relaxed font-medium">
-                Interactive, forum-style performances staged directly in the community, addressing the issues residents live with every day.
-              </p>
-            </div>
-
-            {/* Pillar 2 */}
-            <div className="bg-white border border-neutral-200 rounded-2xl p-6 space-y-3 shadow-xs hover:border-[#E31E24]/50 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#00A651] flex items-center justify-center font-bold">
-                <Clapperboard size={20} />
-              </div>
-              <h3 className="text-base font-bold text-neutral-900">Educational Films</h3>
-              <p className="text-xs text-neutral-600 leading-relaxed font-medium">
-                Compelling short films and documentary-style content that informs, humanizes, and inspires action long after the credits roll.
-              </p>
-            </div>
-
-            {/* Pillar 3 */}
-            <div className="bg-white border border-neutral-200 rounded-2xl p-6 space-y-3 shadow-xs hover:border-[#E31E24]/50 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                <Users size={20} />
-              </div>
-              <h3 className="text-base font-bold text-neutral-900">Community Workshops</h3>
-              <p className="text-xs text-neutral-600 leading-relaxed font-medium">
-                Hands-on sessions that engage residents in artistic expression, dialogue, and peer-to-peer psychosocial support.
-              </p>
-            </div>
-
-            {/* Pillar 4 */}
-            <div className="bg-white border border-neutral-200 rounded-2xl p-6 space-y-3 shadow-xs hover:border-[#E31E24]/50 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                <Megaphone size={20} />
-              </div>
-              <h3 className="text-base font-bold text-neutral-900">Advocacy Campaigns</h3>
-              <p className="text-xs text-neutral-600 leading-relaxed font-medium">
-                Street marches, banners and coordinated outreach that raise awareness of critical social issues and connect residents to services.
-              </p>
-            </div>
+            {(content.pillars && content.pillars.length > 0 ? content.pillars : DEFAULT_PILLARS).map((pillar, idx) => {
+              const style = PILLAR_STYLES[idx % PILLAR_STYLES.length];
+              const Icon = style.icon;
+              return (
+                <div key={pillar.id} className="bg-white border border-neutral-200 rounded-2xl p-6 space-y-3 shadow-xs hover:border-[#E31E24]/50 transition-all">
+                  <div className={`w-10 h-10 rounded-xl ${style.iconBg} ${style.iconColor} flex items-center justify-center font-bold`}>
+                    <Icon size={20} />
+                  </div>
+                  <h3 className="text-base font-bold text-neutral-900">{pillar.title[lang] || pillar.title.en}</h3>
+                  <p className="text-xs text-neutral-600 leading-relaxed font-medium">
+                    {pillar.description[lang] || pillar.description.en}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -1324,29 +1328,13 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-neutral-50 border border-neutral-200 p-6 rounded-3xl space-y-2">
-              <span className="text-3xl md:text-4xl font-black text-[#E31E24] font-mono">5,000+</span>
-              <h4 className="text-sm font-bold text-neutral-900">Youth Engaged Directly</h4>
-              <p className="text-xs text-neutral-600 font-medium">Through theatre performances, workshops, and film screenings.</p>
-            </div>
-
-            <div className="bg-neutral-50 border border-neutral-200 p-6 rounded-3xl space-y-2">
-              <span className="text-3xl md:text-4xl font-black text-[#00A651] font-mono">12,000+</span>
-              <h4 className="text-sm font-bold text-neutral-900">Digital Views</h4>
-              <p className="text-xs text-neutral-600 font-medium">Across advocacy film releases on YouTube and social platforms.</p>
-            </div>
-
-            <div className="bg-neutral-50 border border-neutral-200 p-6 rounded-3xl space-y-2">
-              <span className="text-3xl md:text-4xl font-black text-amber-600 font-mono">350+</span>
-              <h4 className="text-sm font-bold text-neutral-900">Survivors Supported</h4>
-              <p className="text-xs text-neutral-600 font-medium">Referred to local safe houses, legal aid, and counseling partners.</p>
-            </div>
-
-            <div className="bg-neutral-50 border border-neutral-200 p-6 rounded-3xl space-y-2">
-              <span className="text-3xl md:text-4xl font-black text-blue-600 font-mono">45+</span>
-              <h4 className="text-sm font-bold text-neutral-900">Film Academy Alumni</h4>
-              <p className="text-xs text-neutral-600 font-medium">Trained in practical filmmaking, sound recording, and editing.</p>
-            </div>
+            {(content.impactStats && content.impactStats.length > 0 ? content.impactStats : DEFAULT_IMPACT_STATS).map((stat, idx) => (
+              <div key={stat.id} className="bg-neutral-50 border border-neutral-200 p-6 rounded-3xl space-y-2">
+                <span className={`text-3xl md:text-4xl font-black font-mono ${STAT_COLORS[idx % STAT_COLORS.length]}`}>{stat.value}</span>
+                <h4 className="text-sm font-bold text-neutral-900">{stat.label[lang] || stat.label.en}</h4>
+                <p className="text-xs text-neutral-600 font-medium">{stat.description[lang] || stat.description.en}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
