@@ -573,9 +573,6 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black uppercase tracking-widest text-[#E31E24]">BASHOSHO</span>
-                <span className="hidden sm:inline-block bg-neutral-100 text-neutral-600 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border border-neutral-200">
-                  Reg: DSD/KAM/CBO/5/4/22/269
-                </span>
               </div>
               <p className="text-[9px] font-bold text-[#00A651] uppercase tracking-wider -mt-0.5">TALENTS CBO</p>
             </div>
@@ -606,16 +603,6 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
           </nav>
 
           <div className="flex items-center gap-3">
-            {/* Report a Concern — always visible. This form (and its backend) was already
-                fully built, but had no button anywhere on the site that opened it. */}
-            <button
-              onClick={() => setShowSafeguardingModal(true)}
-              id="header-report-concern-btn"
-              className="flex bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 text-[10px] md:text-xs font-bold px-2.5 md:px-3 py-2 rounded-lg transition-colors cursor-pointer items-center gap-1.5"
-            >
-              <ShieldAlert size={12} /> <span className="hidden sm:inline">{lang === "en" ? "Report a Concern" : "Ripoti Wasiwasi"}</span>
-            </button>
-
             {/* Swahili / English toggle widget */}
             <div className="flex bg-neutral-100 border border-neutral-200 p-0.5 rounded-lg text-[10px] font-bold">
               <button
