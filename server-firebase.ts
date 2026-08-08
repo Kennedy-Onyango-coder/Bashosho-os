@@ -962,107 +962,133 @@ export async function seedHomepageContentIfEmpty() {
       },
       programs: [
         {
-          id: "prog-theatre-advocacy",
-          title: { en: "Theatre for Social Change", sw: "Sanaa ya Jukwaani kwa Mabadiliko" },
+          id: "prog-taas",
+          title: { en: "Theatre as a Service (TaaS)", sw: "Maigizo Kama Huduma (TaaS)" },
           description: {
-            en: "An interactive, audience-participatory forum theatre method where local actors stage real-life social issues (SGBV, human rights, mental health struggles) in public spaces in Kiambiu. The performance stops at a critical conflict point, and community members are invited to step into the actors' shoes to rehearse practical solutions, test coping mechanisms, and trigger behavioral change.",
-            sw: "Mbinu shirikishi ya maigizo ya jukwaani ambapo wasanii huonyesha changamoto halisi za kijamii (SGBV, haki za binadamu, afya ya akili) mitaani. Maonyesho husimama pale mzozo unapofikia kilele, na watazamaji hualikwa kuigiza badala ya wasanii ili kujaribu suluhisho la vitendo na kuleta mabadiliko ya tabia."
+            en: "Our consultancy arm — we design and deliver custom, interactive theatre and forum-drama campaigns for organizations that need to move an audience from awareness to action. Every engagement includes a tailored script, trained performers, and a short post-session evaluation, so you leave with a record of impact, not just a photo.",
+            sw: "Tawi letu la ushauri — tunabuni na kutoa kampeni maalum za maigizo shirikishi kwa mashirika yanayotaka kusukuma hadhira kutoka ufahamu hadi hatua. Kila tukio linajumuisha script maalum, waigizaji waliofunzwa, na tathmini fupi baada ya kikao, hivyo unabaki na ushahidi wa matokeo, si picha tu."
           },
-          photoUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&auto=format&fit=crop&q=60",
-          supportTillNumber: "291002",
+          photoUrl: "",
+          supportTillNumber: "8671238",
           supportInstructions: {
-            en: "Donate via M-PESA Paybill/Till to support our community outreach tours.",
-            sw: "Changia kupitia M-PESA Paybill/Till ili kusaidia ziara zetu za uenezi katika jamii."
+            en: "Support a forum-theatre campaign via M-PESA Till 8671238.",
+            sw: "Saidia kampeni ya maigizo ya jukwaa kupitia M-PESA Till 8671238."
           },
           audienceTag: {
-            en: "Community members, grassroots leaders, youth, & human rights defenders",
-            sw: "Wanajamii, viongozi wa nyanja za chini, vijana, na watetezi wa haki"
+            en: "For NGOs, government agencies, schools & corporate sponsors",
+            sw: "Kwa mashirika yasiyo ya kiserikali, taasisi za serikali, shule na wafadhili wa kibiashara"
           },
           outcomeText: {
-            en: "Interactive forum performance, problem-solving rehearsal, & advocacy dialogues",
-            sw: "Onyesho shirikishi, mazoezi ya kutatua matatizo, na mijadala ya utetezi"
+            en: "A campaign your audience remembers — and evidence you can report back to your own funders.",
+            sw: "Kampeni ambayo hadhira yako itakumbuka — na ushahidi unaoweza kuripoti kwa wafadhili wako."
           },
           actionButtonText: {
-            en: "Sponsor Forum Tour",
-            sw: "Dhamini Ziara ya Jukwaani"
+            en: "Hire Us (TaaS)",
+            sw: "Tukodi (TaaS)"
+          }
+        },
+        {
+          id: "prog-gbv",
+          title: { en: "GBV Awareness and Referral", sw: "Uhamasishaji na Urejeleaji wa Ukatili wa Kijinsia" },
+          description: {
+            en: "Through forum theatre and short film, we bring conversations about Gender-Based Violence into public spaces where they're normally avoided. Our performers stage real, recognizable scenarios and pause at the point of crisis, inviting the audience to step in. We do not run a safe space ourselves — we raise awareness, recognize when someone needs help, and make a fast, confidential referral to a partner equipped to support them directly.",
+            sw: "Kupitia maigizo ya jukwaa na filamu fupi, tunaleta mazungumzo kuhusu Ukatili wa Kijinsia mahali pa umma ambapo kwa kawaida hayajadiliwi. Waigizaji wetu huonyesha hali halisi zinazofahamika na kusimama wakati wa mgogoro, wakialika hadhira kushiriki. Hatuendeshi nyumba salama wenyewe — tunahamasisha, tunatambua wakati mtu anahitaji msaada, na tunafanya urejeleaji wa haraka na wa siri kwa mshirika mwenye uwezo wa kumsaidia moja kwa moja."
+          },
+          photoUrl: "",
+          supportTillNumber: "8671238",
+          supportInstructions: {
+            en: "Support our GBV referral work via M-PESA Till 8671238.",
+            sw: "Saidia kazi yetu ya urejeleaji wa GBV kupitia M-PESA Till 8671238."
+          },
+          audienceTag: {
+            en: "Communities across Kenya, with deep roots in informal settlements like Kiambiu",
+            sw: "Jamii kote nchini Kenya, hasa maeneo ya mabanda kama Kiambiu"
+          },
+          outcomeText: {
+            en: "Same-day, confidential referral — we never leave a disclosure unanswered.",
+            sw: "Urejeleaji wa siku hiyo hiyo, wa siri — hatuachi taarifa yoyote bila majibu."
+          },
+          actionButtonText: {
+            en: "Report a Concern",
+            sw: "Ripoti Wasiwasi"
+          }
+        },
+        {
+          id: "prog-srhr",
+          title: { en: "SRHR Awareness and Support", sw: "Uhamasishaji na Msaada wa SRHR" },
+          description: {
+            en: "We use theatre and film to open up conversations on Sexual and Reproductive Health Rights that many young people rarely get to have safely — consent, puberty, and making informed choices. Working with partners like HESED Africa, many sessions include dignity kits (sanitary pads, boxers, hygiene essentials) so awareness comes with something a young person can actually use.",
+            sw: "Tunatumia maigizo na filamu kufungua mazungumzo kuhusu Haki za Afya ya Uzazi ambazo vijana wengi hawapati nafasi ya kuzungumza kwa usalama — ridhaa, balehe, na kufanya maamuzi sahihi. Tukishirikiana na wadau kama HESED Africa, vikao vingi hujumuisha vifaa vya heshima (taulo za kike, chupi, na vifaa vingine vya usafi) ili uhamasishaji uje na kitu vijana wanaweza kutumia."
+          },
+          photoUrl: "",
+          supportTillNumber: "8671238",
+          supportInstructions: {
+            en: "Support an SRHR session or dignity kits via M-PESA Till 8671238.",
+            sw: "Saidia kikao cha SRHR au vifaa vya heshima kupitia M-PESA Till 8671238."
+          },
+          audienceTag: {
+            en: "Schools & youth groups — separate or joint sessions for boys and girls",
+            sw: "Shule na vikundi vya vijana — vikao tofauti au vya pamoja kwa wavulana na wasichana"
+          },
+          outcomeText: {
+            en: "A confidential, age-appropriate session — with dignity kits included where a partner is supporting that round.",
+            sw: "Kikao cha siri, kinachofaa umri — na vifaa vya heshima vinapopatikana kutoka kwa mshirika anayeunga mkono kikao hicho."
+          },
+          actionButtonText: {
+            en: "Book a Session",
+            sw: "Weka Miadi"
+          }
+        },
+        {
+          id: "prog-mental-health",
+          title: { en: "Mental Health Awareness and Support", sw: "Uhamasishaji na Msaada wa Afya ya Akili" },
+          description: {
+            en: "Mental health struggles are widespread but rarely spoken about openly in the communities we work in. We use theatre and short film to give mental health a human face — stories of anxiety, stress, and recovery performed by peers rather than delivered as a lecture — making it easier to recognize what you're feeling and ask for help.",
+            sw: "Changamoto za afya ya akili ni za kawaida lakini mara nyingi hazizungumzwi waziwazi katika jamii tunazofanya kazi nazo. Tunatumia maigizo na filamu fupi kuipa afya ya akili uso wa kibinadamu — hadithi za wasiwasi, msongo, na kupona zinazoigizwa na wenzao badala ya kutolewa kama mhadhara — hivyo kurahisisha kutambua unachohisi na kuomba msaada."
+          },
+          photoUrl: "",
+          supportTillNumber: "8671238",
+          supportInstructions: {
+            en: "Support a mental health awareness session via M-PESA Till 8671238.",
+            sw: "Saidia kikao cha uhamasishaji wa afya ya akili kupitia M-PESA Till 8671238."
+          },
+          audienceTag: {
+            en: "Schools, youth groups & community organizations",
+            sw: "Shule, vikundi vya vijana na mashirika ya jamii"
+          },
+          outcomeText: {
+            en: "A session that names the issue clearly and points to real support, not just performance.",
+            sw: "Kikao kinachotaja suala waziwazi na kuelekeza kwenye msaada halisi, si maonyesho tu."
+          },
+          actionButtonText: {
+            en: "Book a Session",
+            sw: "Weka Miadi"
           }
         },
         {
           id: "prog-film-academy",
           title: { en: "Bashosho Film Academy", sw: "Chuo cha Filamu cha Bashosho" },
           description: {
-            en: "A hands-on professional filmmaking curriculum designed specifically for youth in informal settlements. We provide training in screenwriting, directing, cinematography, sound design, and post-production, enabling young creatives to produce high-quality, impact-driven films that amplify local narratives, combat stigma, and build viable creative careers.",
-            sw: "Mtaala wa vitendo wa utengenezaji filamu ulioundwa mahususi kwa ajili ya vijana waliotengwa katika mitaa ya mabanda. Tunatoa mafunzo ya uandishi wa skrini, uongozaji, picha, muundo wa sauti, na uhariri wa video, tukiwezesha vijana kutoa filamu zenye athari na kujenga kazi endelevu za ubunifu."
+            en: "Every film we make is also a classroom. The Academy trains young people from Kiambiu and beyond in filmmaking — scriptwriting, direction, camera, sound and editing — using our own advocacy productions as real, hands-on projects rather than theory. Graduates leave with a practical portfolio and a craft they can build a livelihood on.",
+            sw: "Kila filamu tunayotengeneza pia ni darasa. Chuo hufunza vijana kutoka Kiambiu na zaidi ufundi wa filamu — uandishi wa script, uongozaji, kamera, sauti na uhariri — kwa kutumia uzalishaji wetu wa uhamasishaji kama miradi halisi ya vitendo badala ya nadharia tu. Wahitimu huondoka na kazi za kuonyesha na ustadi wanaoweza kujenga maisha yao juu yake."
           },
-          photoUrl: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=800&auto=format&fit=crop&q=60",
-          supportTillNumber: "291003",
+          photoUrl: "",
+          supportTillNumber: "8671238",
           supportInstructions: {
-            en: "Sponsor a youth filmmaker's training kit.",
-            sw: "Dhamini vifaa vya mafunzo vya mtengenezaji mchanga wa filamu."
+            en: "Sponsor a young filmmaker's training via M-PESA Till 8671238.",
+            sw: "Dhamini mafunzo ya mtengenezaji mchanga wa filamu kupitia M-PESA Till 8671238."
           },
           audienceTag: {
-            en: "Aspiring young filmmakers, storytellers, & creative youth aged 16–30",
-            sw: "Watengenezaji filamu chipukizi, wasimulizi wa hadithi, na vijana miaka 16–30"
+            en: "Young people from Kiambiu and beyond",
+            sw: "Vijana kutoka Kiambiu na zaidi"
           },
           outcomeText: {
-            en: "Hands-on filmmaking training, short film production, & industry mentorship",
-            sw: "Mafunzo ya vitendo, utengenezaji wa filamu fupi, na ushauri wa kitaaluma"
+            en: "Where our two identities meet: a CBO using film for advocacy, and a training ground turning that work into opportunity.",
+            sw: "Mahali ambapo utambulisho wetu miwili hukutana: shirika linalotumia filamu kwa uhamasishaji, na mahali pa mafunzo panapogeuza kazi hiyo kuwa fursa."
           },
           actionButtonText: {
-            en: "Sponsor Youth Filmmaker",
-            sw: "Dhamini Mwanafunzi wa Filamu"
-          }
-        },
-        {
-          id: "prog-safeguarding-mel",
-          title: { en: "Safe Spaces & SGBV Desk", sw: "Nafasi Salama na Dawati la SGBV" },
-          description: {
-            en: "A secure community-driven support desk and safe-haven network providing confidential psychosocial first aid, peer-to-peer mental health counseling circles, human rights awareness, and immediate, structured medical and legal referral pathways for survivors of Sexual and Gender-Based Violence (SGBV) in informal settlements.",
-            sw: "Dawati salama linaloendeshwa na jamii na mtandao wa hifadhi unaotoa msaada wa kisaikolojia wa siri, vikundi vya ushauri vya afya ya akili, uelewa wa haki za binadamu, na mifumo ya haraka ya rufaa za matibabu na kisheria kwa manusura wa SGBV."
-          },
-          photoUrl: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=800&auto=format&fit=crop&q=60",
-          supportTillNumber: "291004",
-          supportInstructions: {
-            en: "Support safe space community dialogues and rescue resources.",
-            sw: "Saidia mijadala ya jamii katika nafasi salama na rasilimali za uokoaji."
-          },
-          audienceTag: {
-            en: "SGBV survivors, at-risk youth, young women, & families seeking confidential support",
-            sw: "Manusura wa SGBV, vijana walio hatarini, wanawake vijana, na familia"
-          },
-          outcomeText: {
-            en: "Confidential intake, medical/legal referral, & peer support group counseling",
-            sw: "Mpokeo wa siri, rufaa ya matibabu/kisheria, na ushauri wa usaidizi wa rika"
-          },
-          actionButtonText: {
-            en: "Support Safe Space Desk",
-            sw: "Saidia Dawati la Nafasi Salama"
-          }
-        },
-        {
-          id: "prog-taas",
-          title: { en: "Theatre as a Service (TaaS)", sw: "Sanaa ya Maonyesho kama Huduma (TaaS)" },
-          description: {
-            en: "A revenue-generating creative consultancy program where our elite performance group is hired by NGOs, government agencies, schools, and corporate sponsors to design and execute customized participatory theatre, sensitization roadshows, and interactive community outreach campaigns on topics like civic education, public health, and corporate compliance.",
-            sw: "Programu ya kibiashara ambapo kikundi chetu cha wasanii nguli hukodiwa na mashirika yasiyo ya kiserikali (NGOs), idara za serikali, shule, na mashirika ya kibiashara kubuni na kutekeleza michezo ya kuigiza shirikishi, kampeni za roadshows, na uelimishaji wa jamii kuhusu afya ya umma, uraia, au maadili."
-          },
-          photoUrl: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&auto=format&fit=crop&q=60",
-          supportTillNumber: "291005",
-          supportInstructions: {
-            en: "Hire our performance team or sponsor an institutional forum theatre campaign.",
-            sw: "Kodi kikundi chetu cha wasanii au fadhili kampeni ya maigizo ya taasisi."
-          },
-          audienceTag: {
-            en: "NGOs, government agencies, schools, & corporate sponsors",
-            sw: "NGOs, idara za serikali, shule, na wadhamini wa kibiashara"
-          },
-          outcomeText: {
-            en: "Custom script drafting, professional cast roadshow, & audience impact reports",
-            sw: "Uandishi wa hati mahususi, upelekaji wa wasanii, na ripoti za matokeo"
-          },
-          actionButtonText: {
-            en: "Book a TaaS Session",
-            sw: "Weka Miadi ya TaaS"
+            en: "Apply to Academy",
+            sw: "Omba Kujiunga"
           }
         }
       ],

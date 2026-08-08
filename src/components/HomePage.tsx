@@ -974,19 +974,51 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                             {lang === "en" ? "Sponsor TaaS" : "Fadhili TaaS"}
                           </button>
                         </>
-                      ) : (
+                      ) : prog.id === "prog-gbv" ? (
                         <>
+                          {/* GBV's real call-to-action is the site's existing safeguarding report
+                              flow, not a generic inquiry form — this reuses that same modal. */}
+                          <button
+                            onClick={() => setShowSafeguardingModal(true)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
+                          >
+                            <ShieldAlert size={14} /> {prog.actionButtonText?.[lang] || (lang === "en" ? "Report a Concern" : "Ripoti Wasiwasi")}
+                          </button>
                           <button
                             onClick={() => openProgramInquiry(prog, "partner")}
                             className="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer"
                           >
-                            {lang === "en" ? "Partner / Sponsor" : "Shirikiana / Fadhili"}
+                            {lang === "en" ? "Partner With Us" : "Shirikiana Nasi"}
+                          </button>
+                        </>
+                      ) : prog.id === "prog-film-academy" ? (
+                        <>
+                          <button
+                            onClick={() => openProgramInquiry(prog, "film_apply")}
+                            className="bg-[#00A651] hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
+                          >
+                            <Film size={14} /> {prog.actionButtonText?.[lang] || (lang === "en" ? "Apply to Academy" : "Omba Kujiunga")}
                           </button>
                           <button
+                            onClick={() => openProgramInquiry(prog, "partner")}
+                            className="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer"
+                          >
+                            {lang === "en" ? "Partner With Us" : "Shirikiana Nasi"}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
                             onClick={() => openProgramInquiry(prog, "book_session")}
+                            className="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer"
+                          >
+                            {prog.actionButtonText?.[lang] || (lang === "en" ? "Book a Session" : "Weka Miadi")}
+                          </button>
+                          <button
+                            onClick={() => openProgramInquiry(prog, "partner")}
                             className="bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer"
                           >
-                            {lang === "en" ? "Inquire Program" : "Uliza Kuhusu Programu"}
+                            {lang === "en" ? "Partner With Us" : "Shirikiana Nasi"}
                           </button>
                           <button
                             onClick={() => setSelectedSponsorProgram(prog)}
