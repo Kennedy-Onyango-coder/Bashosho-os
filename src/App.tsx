@@ -1058,6 +1058,7 @@ export default function App() {
                     currentUser={currentUser!}
                     lang={lang}
                     assets={assets}
+                    canManage={can("assets", "create")}
                     onRefresh={() => {
                       setAssets(StorageService.getAssets());
                     }}

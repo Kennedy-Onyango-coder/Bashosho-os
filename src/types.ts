@@ -213,6 +213,36 @@ export interface Asset {
   photoUrl?: string;
   availableForHire?: boolean;
   dailyRate?: number;
+  /** How the CBO came to own this asset — purchased outright, or received as a donation. */
+  acquisitionType?: "purchased" | "donated";
+  /** Only meaningful when acquisitionType is "donated". */
+  donatedBy?: string;
+  /** Whether a purchase/donation receipt exists for this asset (paper or digital). */
+  hasReceipt?: boolean;
+  /** Free-text reference to the receipt — a filed document number, folder name, or link. */
+  receiptRef?: string;
+  /** Every physical inspection this asset has been through — the record behind the
+   *  6-month re-inspection cycle. Most recent entry's date drives the "next inspection
+   *  due" calculation shown in the UI. */
+  inspectionHistory?: {
+    id: string;
+    date: string;
+    inspectedBy: string;
+    condition: Asset["condition"];
+    notes?: string;
+  }[];
+  /** Every time this asset's custodian changed — a real chain-of-custody log, not just
+   *  the current holder. */
+  assignmentHistory?: {
+    id: string;
+    custodian: string;
+    assignedDate: string;
+    assignedBy: string;
+    notes?: string;
+  }[];
+  /** Server-computed, cryptographically signed verification link for the printable
+   *  asset card (see /api/verify/asset/:id) */
+  verificationUrl?: string;
   externalRentals?: {
     id: string;
     clientName: string;

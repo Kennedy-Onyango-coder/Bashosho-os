@@ -1585,7 +1585,8 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
     invoice: "invoices",
     leadership_appointment: "leadership_appointments",
     document: "documents",
-    volunteer_certificate: "volunteer_certificates"
+    volunteer_certificate: "volunteer_certificates",
+    asset: "assets"
   };
   const collection = collectionMap[type];
   if (!collection) return res.status(400).json({ verified: false, error: "Unknown document type" });
@@ -1664,6 +1665,18 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
         orgName: "Bashosho Talents CBO",
       });
     }
+    if (type === "asset") {
+      return res.json({
+        verified: true,
+        type,
+        assetName: data.name,
+        assetCategory: data.category,
+        assetSerial: data.serialNumber,
+        assetCondition: data.condition,
+        assetCustodian: data.custodian,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
   } catch (err: any) {
     return res.status(500).json({ verified: false, error: "Verification server error", details: err.message });
   }
@@ -1738,6 +1751,17 @@ async function fetchCollection(collectionName: string, req: AuthenticatedRequest
         return {
           ...item,
           verificationUrl: `${appUrl}/verify/volunteer_certificate/${item.id}?t=${token}`
+        };
+      });
+    } else if (collectionName === "assets") {
+      // Real, scannable QR per asset card — lets anyone confirm a printed asset tag/
+      // register entry is genuine, same mechanism as every other printable here.
+      items = items.map(item => {
+        const token = generateVerificationToken("asset", item.id);
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        return {
+          ...item,
+          verificationUrl: `${appUrl}/verify/asset/${item.id}?t=${token}`
         };
       });
     }

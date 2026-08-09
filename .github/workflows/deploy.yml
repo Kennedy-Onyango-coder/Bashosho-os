@@ -28,8 +28,6 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-        with:
-          version: 'latest'
 
       - name: Configure Docker for Artifact Registry / gcr.io
         run: gcloud auth configure-docker --quiet
