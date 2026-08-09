@@ -34,7 +34,10 @@ const MODULE_LABELS: Record<PermissionModuleKey, { en: string; sw: string }> = {
   safeguarding: { en: "Safeguarding Reports", sw: "Ripoti za Ulinzi" },
   leadership_appointments: { en: "Leadership Appointments", sw: "Uteuzi wa Uongozi" },
   contract_renewals: { en: "Contract Renewals", sw: "Upyaji wa Mikataba" },
-  activity_log: { en: "Activity Log", sw: "Kumbukumbu za Shughuli" }
+  activity_log: { en: "Activity Log", sw: "Kumbukumbu za Shughuli" },
+  tasks: { en: "Tasks & Action Items", sw: "Majukumu na Vitendo" },
+  program_sessions: { en: "Program Outcomes", sw: "Matokeo ya Mipango" },
+  volunteer_recognition: { en: "Volunteer Recognition", sw: "Utambuzi wa Wanaojitolea" }
 };
 
 const ACTION_LABELS: Record<PermissionAction, { en: string; sw: string }> = {

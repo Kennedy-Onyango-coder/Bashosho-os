@@ -31,6 +31,8 @@ import SignupReviews from "./components/SignupReviews";
 import CmsEditor from "./components/CmsEditor";
 import BeneficiaryRegistration from "./components/BeneficiaryRegistration";
 import SecuritySettingsPanel from "./components/SecuritySettingsPanel";
+import TasksBoard from "./components/TasksBoard";
+import ProgramOutcomesBoard from "./components/ProgramOutcomesBoard";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -49,6 +51,7 @@ import {
   UserCircle2,
   ShieldCheck,
   History,
+  CheckSquare,
   X
 } from "lucide-react";
 
@@ -792,6 +795,34 @@ export default function App() {
                     </button>
                   )}
 
+                  {can("tasks") && (
+                    <button
+                      onClick={() => { setActiveTab("tasks"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-tasks-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "tasks"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <CheckSquare size={14} className="shrink-0" /> {lang === "en" ? "Tasks" : "Majukumu"}
+                    </button>
+                  )}
+
+                  {can("program_sessions") && (
+                    <button
+                      onClick={() => { setActiveTab("program_sessions"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-program-sessions-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "program_sessions"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <BarChart3 size={14} className="shrink-0" /> {lang === "en" ? "Program Outcomes" : "Matokeo ya Mipango"}
+                    </button>
+                  )}
+
                   <button
                     onClick={() => { setActiveTab("my_records"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
                     id="nav-my-records-tab"
@@ -1142,6 +1173,18 @@ export default function App() {
               {activeTab === "activity_log" && (
                 <ErrorBoundary fallbackTitle="Activity Log Failure">
                   <ActivityLogPanel lang={lang} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "tasks" && currentUser && (
+                <ErrorBoundary fallbackTitle="Tasks Board Failure">
+                  <TasksBoard lang={lang} currentUser={currentUser} canAssign={can("tasks", "create")} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "program_sessions" && currentUser && (
+                <ErrorBoundary fallbackTitle="Program Outcomes Failure">
+                  <ProgramOutcomesBoard lang={lang} currentUser={currentUser} canEditAll={can("program_sessions", "edit")} />
                 </ErrorBoundary>
               )}
 

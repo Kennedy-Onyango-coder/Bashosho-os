@@ -304,12 +304,76 @@ export interface Income {
   recordedBy: string;
 }
 
+export interface BroadcastReply {
+  id: string;
+  userId: string;
+  userName: string;
+  message: string;
+  timestamp: string;
+}
+
 export interface Broadcast {
   id: string;
   message: string;
   channel: "sms" | "whatsapp" | "email" | "all";
   sentBy: string;
   sentDate: string;
+  replies?: BroadcastReply[];
+}
+
+export type ProgramArea = "gbv" | "srhr" | "mental_health" | "film_academy" | "taas" | "general";
+
+export type TaskStatus = "pending" | "in_progress" | "completed";
+export type TaskPriority = "low" | "medium" | "high";
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  assignedToId: string;
+  assignedToName: string;
+  assignedById: string;
+  assignedByName: string;
+  programArea: ProgramArea;
+  priority: TaskPriority;
+  dueDate: string;
+  status: TaskStatus;
+  createdDate: string;
+  completedDate?: string;
+}
+
+/** A single logged outreach/rehearsal/training/booking session — the real, countable
+ *  unit behind program reach reporting (GBV, SRHR, Mental Health, Film Academy, TaaS). */
+export interface ProgramSession {
+  id: string;
+  programArea: ProgramArea;
+  title: string;
+  date: string;
+  location: string;
+  facilitators: string;
+  participantsReached: number;
+  maleCount: number;
+  femaleCount: number;
+  childrenCount: number;
+  description: string;
+  outcomeNotes: string;
+  loggedById: string;
+  loggedBy: string;
+  loggedDate: string;
+}
+
+export type RecognitionTier = "bronze" | "silver" | "gold" | "platinum";
+
+export interface VolunteerCertificate {
+  id: string;
+  userId: string;
+  userName: string;
+  tier: RecognitionTier;
+  hoursAtIssue: number;
+  issuedDate: string;
+  issuedBy: string;
+  /** Server-computed, cryptographically signed verification link */
+  verificationUrl?: string;
 }
 
 export interface LeaveRequest {
@@ -396,7 +460,10 @@ export type PermissionModuleKey =
   | "safeguarding"
   | "leadership_appointments"
   | "contract_renewals"
-  | "activity_log";
+  | "activity_log"
+  | "tasks"
+  | "program_sessions"
+  | "volunteer_recognition";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve";
 
@@ -415,7 +482,8 @@ export interface RolePermissions {
 export const PERMISSION_MODULE_KEYS: PermissionModuleKey[] = [
   "dashboard", "documents", "finance", "assets", "grants", "classes", "invoices",
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
-  "safeguarding", "leadership_appointments", "contract_renewals", "activity_log"
+  "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
+  "tasks", "program_sessions", "volunteer_recognition"
 ];
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];

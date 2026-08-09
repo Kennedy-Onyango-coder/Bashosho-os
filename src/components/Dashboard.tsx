@@ -13,6 +13,7 @@ import ViceChairpersonOverview from "./dashboard/ViceChairpersonOverview";
 import TreasurerOverview from "./dashboard/TreasurerOverview";
 import SecretaryOverview, { getMemberAttendanceStats } from "./dashboard/SecretaryOverview";
 import StatCard from "./dashboard/StatCard";
+import VolunteerRecognitionPanel from "./VolunteerRecognitionPanel";
 import { User, ShieldAlert, LayoutDashboard, FileText, Crown, AlertTriangle, Lock, Sparkles, CheckCircle2, Calendar, MapPin, Megaphone, Landmark, Scale, BarChart3, Printer, Wrench, Palmtree, Star, Flame, Check, X, Plus, Info, ChevronRight, FileCheck, RefreshCw, IdCard, Clock, Eye, Package, CheckCircle, Wallet } from "lucide-react";
 
 interface DashboardProps {
@@ -324,6 +325,32 @@ export default function Dashboard({
     const allIds = broadcasts.map(b => b.id);
     setReadBroadcastIds(allIds);
     localStorage.setItem("bashosh_os_read_broadcasts", JSON.stringify(allIds));
+  };
+
+  // Two-way broadcast replies
+  const [replyDrafts, setReplyDrafts] = React.useState<Record<string, string>>({});
+  const [expandedThreadId, setExpandedThreadId] = React.useState<string | null>(null);
+  const [postingReplyId, setPostingReplyId] = React.useState<string | null>(null);
+
+  const handlePostReply = async (broadcastId: string) => {
+    const message = (replyDrafts[broadcastId] || "").trim();
+    if (!message) return;
+    setPostingReplyId(broadcastId);
+    try {
+      const res = await fetch(`/api/broadcasts/${broadcastId}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to post reply");
+      setBroadcasts(prev => prev.map(b => b.id === broadcastId ? { ...b, replies: [...(b.replies || []), data.reply] } : b));
+      setReplyDrafts(prev => ({ ...prev, [broadcastId]: "" }));
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setPostingReplyId(null);
+    }
   };
 
   // Treasurer / Comms Calculations
@@ -1712,6 +1739,10 @@ export default function Dashboard({
                   </span>
                 </div>
               </div>
+
+              <div className="w-full max-w-sm mt-4">
+                <VolunteerRecognitionPanel lang={lang} currentUser={currentUser} volunteerHours={volunteerHours} />
+              </div>
             </div>
 
             {/* Performance/Stipends quick tracks */}
@@ -1823,10 +1854,50 @@ export default function Dashboard({
                             </span>
                           </div>
                           <p className="text-xs text-neutral-800 leading-relaxed font-sans">{b.message}</p>
-                          <div className="mt-2 text-[9px] font-mono text-gray-400 border-t border-gray-100 pt-1 flex justify-between">
+                          <div className="mt-2 text-[9px] font-mono text-gray-400 border-t border-gray-100 pt-1 flex justify-between items-center">
                             <span>Sent by: {b.sentBy}</span>
-                            {read && <span className="text-emerald-600"> Read</span>}
+                            <span className="flex items-center gap-2">
+                              {read && <span className="text-emerald-600">Read</span>}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setExpandedThreadId(expandedThreadId === b.id ? null : b.id); }}
+                                className="text-neutral-500 hover:text-[#E31E24] font-bold cursor-pointer"
+                              >
+                                {(b.replies?.length || 0) > 0
+                                  ? `${b.replies!.length} ${lang === "en" ? "repl" + (b.replies!.length === 1 ? "y" : "ies") : "majibu"}`
+                                  : (lang === "en" ? "Reply" : "Jibu")}
+                              </button>
+                            </span>
                           </div>
+
+                          {expandedThreadId === b.id && (
+                            <div onClick={(e) => e.stopPropagation()} className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                              {(b.replies || []).map(r => (
+                                <div key={r.id} className="bg-neutral-50 rounded-lg px-2.5 py-1.5">
+                                  <div className="flex justify-between items-baseline">
+                                    <span className="text-[10px] font-bold text-neutral-700">{r.userName}</span>
+                                    <span className="text-[9px] font-mono text-neutral-400">{new Date(r.timestamp).toLocaleDateString()}</span>
+                                  </div>
+                                  <p className="text-[11px] text-neutral-600">{r.message}</p>
+                                </div>
+                              ))}
+                              <div className="flex gap-2">
+                                <input
+                                  value={replyDrafts[b.id] || ""}
+                                  onChange={(e) => setReplyDrafts(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                  onKeyDown={(e) => { if (e.key === "Enter") handlePostReply(b.id); }}
+                                  placeholder={lang === "en" ? "Write a reply..." : "Andika jibu..."}
+                                  className="flex-1 bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-[11px]"
+                                />
+                                <button
+                                  onClick={() => handlePostReply(b.id)}
+                                  disabled={postingReplyId === b.id || !(replyDrafts[b.id] || "").trim()}
+                                  className="bg-neutral-900 hover:bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-40"
+                                >
+                                  {lang === "en" ? "Send" : "Tuma"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
