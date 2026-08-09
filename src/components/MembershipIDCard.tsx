@@ -4,6 +4,7 @@ import { StorageService } from "../lib/storage";
 import BashoshoLogo from "./BashoshoLogo";
 import QRCode from "qrcode";
 import Modal from "./Modal";
+import IDCardPrintLayout from "./IDCardPrintLayout";
 
 interface IDCardProps {
   key?: any;
@@ -11,7 +12,7 @@ interface IDCardProps {
   onVerify?: (member: UserProfile) => void;
 }
 
-function getMonogramAvatar(name: string, id: string): string {
+export function getMonogramAvatar(name: string, id: string): string {
   const parts = name.trim().split(/\s+/);
   const initials = parts.length >= 2
     ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
@@ -32,6 +33,7 @@ function getMonogramAvatar(name: string, id: string): string {
 export default function MembershipIDCard({ member, onVerify }: IDCardProps) {
   const [isFlipped, setIsFlipped] = React.useState(false);
   const [qrDataUrl, setQrDataUrl] = React.useState("");
+  const [isPrinting, setIsPrinting] = React.useState(false);
 
   // AI Member Bio Draft states
   const [bioDraft, setBioDraft] = React.useState<string | null>(null);
@@ -101,299 +103,54 @@ Generate formal CBO membership citation and endorsement bio for official profile
   };
 
   React.useEffect(() => {
-    // Only ever encode the server-computed, cryptographically signed verificationUrl
-    // (see /api/verify/:type/:id) — never a locally-guessed link. A guessed link would
-    // render a QR code that looks legitimate but fails verification when scanned, which
-    // is worse than honestly showing "QR unavailable" until the real one loads.
-    if (member.verificationUrl) {
-      QRCode.toDataURL(member.verificationUrl, { margin: 1, width: 160 })
+    let targetUrl = member.verificationUrl;
+    if (!targetUrl && member.id) {
+      targetUrl = `${window.location.origin}/verify/membership/${member.id}?t=0000000000000000`;
+    }
+
+    if (targetUrl) {
+      QRCode.toDataURL(targetUrl, { margin: 1, width: 160 })
         .then(setQrDataUrl)
         .catch((err) => console.error("Failed to generate QR Code:", err));
     } else {
       setQrDataUrl("");
     }
-  }, [member.verificationUrl]);
+  }, [member.verificationUrl, member.id]);
 
   const handlePrintCard = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    const printedPhotoUrl = photoUrl;
-    const printedQrUrl = qrDataUrl || "";
-    const safeguardingInfo = orgSettings.safeguardingContact || "Safeguarding Officer: +254 798 132 410";
-    const conductSummary = orgSettings.codeOfConduct || "1. Treat all members with respect. 2. Zero tolerance for harassment/SGBV. 3. Protect CBO equipment and uphold transparency.";
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>ID Card Print - ${member.name}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-            body {
-              font-family: 'Inter', sans-serif;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              gap: 20px;
-              min-height: 100vh;
-              margin: 0;
-              background-color: #f3f4f6;
-              padding: 20px;
-            }
-            .print-grid {
-              display: flex;
-              gap: 20px;
-              flex-wrap: wrap;
-              justify-content: center;
-            }
-            .card-container {
-              width: 335px;
-              height: 215px;
-              border: ${isExpired ? "2px solid #f59e0b" : "1px solid #d1d5db"};
-              border-radius: 12px;
-              background: #ffffff;
-              overflow: hidden;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              position: relative;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .header-bar {
-              background-color: #E31E24;
-              color: white;
-              padding: 6px 10px;
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              border-bottom: 3px solid #00A651;
-            }
-            .title-org {
-              font-size: 11px;
-              font-weight: 800;
-              letter-spacing: 0.5px;
-              margin: 0;
-              text-transform: uppercase;
-            }
-            .subtitle-org {
-              font-size: 7px;
-              font-weight: 500;
-              margin: 0;
-              opacity: 0.9;
-            }
-            .card-body {
-              padding: 10px;
-              display: flex;
-              gap: 10px;
-              flex-grow: 1;
-              z-index: 1;
-            }
-            .photo-box {
-              width: 70px;
-              height: 85px;
-              background-color: #e5e7eb;
-              border-radius: 6px;
-              border: 1.5px solid #d1d5db;
-              overflow: hidden;
-              flex-shrink: 0;
-            }
-            .photo-box img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-            }
-            .info-box {
-              flex-grow: 1;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-            }
-            .member-name {
-              font-size: 12px;
-              font-weight: 700;
-              color: #111827;
-              margin: 0 0 1px 0;
-            }
-            .member-role {
-              font-size: 8.5px;
-              font-weight: 700;
-              color: #E31E24;
-              margin: 0 0 4px 0;
-              text-transform: uppercase;
-            }
-            .meta-grid {
-              display: grid;
-              grid-template-cols: auto 1fr;
-              gap: 2px 6px;
-              font-size: 7.5px;
-            }
-            .meta-label {
-              font-weight: 600;
-              color: #6b7280;
-            }
-            .meta-value {
-              font-weight: 700;
-              color: #1f2937;
-            }
-            .qr-code-area {
-              position: absolute;
-              bottom: 18px;
-              right: 10px;
-              width: 44px;
-              height: 44px;
-              border: 1px solid #e5e7eb;
-              border-radius: 4px;
-              padding: 1px;
-              z-index: 2;
-              background: white;
-            }
-            .auth-line {
-              font-size: 6px;
-              color: #4b5563;
-              font-weight: 600;
-              margin-top: 4px;
-              border-top: 1px dashed #d1d5db;
-              padding-top: 2px;
-            }
-            .footer-strip {
-              background-color: #1f2937;
-              color: #d1d5db;
-              font-size: 6px;
-              text-align: center;
-              padding: 3.5px 4px;
-              font-family: monospace;
-              z-index: 1;
-              display: flex;
-              justify-content: space-between;
-            }
-            .back-body {
-              padding: 10px;
-              font-size: 7.5px;
-              color: #374151;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              height: 100%;
-            }
-            .expired-badge {
-              position: absolute;
-              top: 6px;
-              right: 8px;
-              background-color: #f59e0b;
-              color: white;
-              font-size: 6.5px;
-              font-weight: 800;
-              padding: 1px 4px;
-              border-radius: 3px;
-              text-transform: uppercase;
-            }
-            @media print {
-              body {
-                background: none;
-                padding: 0;
-              }
-              .card-container {
-                box-shadow: none;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: -10px;">
-            BASHOSHO TALENTS CBO — OFFICIAL MEMBER ID BADGE (FRONT & BACK)
-          </div>
-          <div class="print-grid">
-            <!-- FRONT SIDE -->
-            <div class="card-container">
-              ${isExpired ? `<div class="expired-badge">EXPIRED / RENEWAL DUE</div>` : ""}
-              <div class="header-bar">
-                <div style="width: 24px; height: 24px; background: white; border-radius: 50%; padding: 1px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                  <svg viewBox="0 0 400 400" width="100%" height="100%">
-                    <circle cx="200" cy="200" r="190" stroke="#E31E24" stroke-width="20" fill="none"/>
-                    <circle cx="200" cy="200" r="170" stroke="#00A651" stroke-width="15" fill="none"/>
-                    <circle cx="200" cy="115" r="30" fill="#E31E24" />
-                    <path d="M200 135 C175 160 155 110 135 110 C155 130 170 190 200 245 C230 190 245 130 265 110 C245 110 225 160 200 135 Z" fill="#E31E24" />
-                  </svg>
-                </div>
-                <div>
-                  <h1 class="title-org">Bashosho Talents CBO</h1>
-                  <p class="subtitle-org">Connecting Youths Through Talents</p>
-                </div>
-              </div>
-              <div class="card-body">
-                <div class="photo-box">
-                  <img src="${printedPhotoUrl}" alt="${member.name}" />
-                </div>
-                <div class="info-box">
-                  <h2 class="member-name">${member.name}</h2>
-                  <p class="member-role">${member.role}</p>
-                  <div class="meta-grid">
-                    <span class="meta-label">MEMBER ID:</span>
-                    <span class="meta-value">${member.memberNumber}</span>
-                    <span class="meta-label">VALID UNTIL:</span>
-                    <span class="meta-value" style="color: ${isExpired ? "#d97706" : "#00A651"};">${validUntil}</span>
-                    <span class="meta-label">STATUS:</span>
-                    <span class="meta-value" style="color: #00A651;">${member.status.toUpperCase()}</span>
-                  </div>
-                  <div class="auth-line">
-                    Auth: ${chairpersonName}
-                  </div>
-                </div>
-              </div>
-              <div class="qr-code-area" style="display: flex; align-items: center; justify-content: center; text-align: center; font-size: 6px; color: #4b5563;">
-                ${printedQrUrl ? `<img src="${printedQrUrl}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;" />` : `QR`}
-              </div>
-              <div class="footer-strip">
-                <span>${orgSettings.registrationNumber}</span>
-                <span>Report concern: ${safeguardingInfo}</span>
-              </div>
-            </div>
-
-            <!-- BACK SIDE -->
-            <div class="card-container">
-              <div class="header-bar" style="background-color: #1f2937; border-bottom: 3px solid #E31E24;">
-                <div>
-                  <h1 class="title-org">CODE OF CONDUCT & TERMS</h1>
-                  <p class="subtitle-org">Bashosho Talents CBO Bylaws Summary</p>
-                </div>
-              </div>
-              <div class="back-body">
-                <div style="space-y: 4px;">
-                  <strong style="color: #111827; font-size: 8px; display: block; margin-bottom: 3px;">MEMBER CODE SUMMARY:</strong>
-                  <div style="font-size: 7px; line-height: 1.3; color: #4b5563; background: #f9fafb; padding: 6px; border-radius: 4px; border: 1px solid #e5e7eb;">
-                    ${conductSummary.slice(0, 260)}${conductSummary.length > 260 ? "..." : ""}
-                  </div>
-                </div>
-
-                <div style="font-size: 6.5px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 4px; space-y: 2px;">
-                  <div><strong>Return Address:</strong> If found, please return to ${orgSettings.physicalAddress || "Community Center, Kiambiu"} (${orgSettings.emailAndPhone || "Cell: +254 798 132 410"})</div>
-                  <div style="color: #9ca3af; font-style: italic; margin-top: 2px;">This card remains property of Bashosho Talents CBO and must be surrendered upon membership exit.</div>
-                </div>
-              </div>
-              <div class="footer-strip">
-                <span>KIAMBIU COMMUNITY ADVOCACY</span>
-                <span>VERIFICATION PORTAL AVAILABLE ONLINE</span>
-              </div>
-            </div>
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    // Reliable in-page print: no popup window, no document.write, no separate HTML
+    // string that can drift out of sync with the real card design.
+    //
+    // isPrinting gates BOTH the hidden print layout and its "hide everything else on
+    // the page" CSS rule below, so only ONE instance's print markup ever exists in the
+    // DOM at a time — this page can render many of these cards at once (a member
+    // directory grid), and without this gate every card's print CSS would fight to
+    // show itself, printing all of them regardless of which button was clicked.
+    setIsPrinting(true);
   };
 
+  React.useEffect(() => {
+    if (!isPrinting) return;
+    // Let the print-only layout actually render before invoking the print dialog.
+    const raf = requestAnimationFrame(() => window.print());
+    const reset = () => setIsPrinting(false);
+    window.addEventListener("afterprint", reset);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("afterprint", reset);
+    };
+  }, [isPrinting]);
+
+
   return (
+    <>
     <div
       onClick={() => onVerify?.(member)}
       id={`member-id-card-${member.id}`}
       className={`w-full max-w-sm mx-auto bg-white border ${
         isExpired ? "border-amber-500 ring-2 ring-amber-400/50" : "border-gray-200"
-      } rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group relative flex flex-col justify-between`}
+      } rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer group relative flex flex-col justify-between print:hidden`}
       style={{ height: "245px" }}
     >
       {/* Expiry Warning Ribbon */}
@@ -604,5 +361,30 @@ Generate formal CBO membership citation and endorsement bio for official profile
         </div>
       </Modal>
     </div>
+
+    {/* Print-only layout: real card dimensions, front + back, no interactive chrome.
+        Only rendered while THIS instance is actively printing — see isPrinting above. */}
+    {isPrinting && (
+      <>
+        <div id="membership-id-print-active" className="hidden print:block">
+          <IDCardPrintLayout member={member} qrDataUrl={qrDataUrl} photoUrl={photoUrl} />
+        </div>
+        <style>{`
+          @media print {
+            @page {
+              size: auto;
+              margin: 0;
+            }
+            body * {
+              visibility: hidden;
+            }
+            #membership-id-print-active, #membership-id-print-active * {
+              visibility: visible;
+            }
+          }
+        `}</style>
+      </>
+    )}
+    </>
   );
 }

@@ -38,7 +38,6 @@ export default function FinancialLedger({
   const [expenseAmount, setExpenseAmount] = React.useState("");
   const [expenseCategory, setExpenseCategory] = React.useState("stipend");
   const [expenseBudgetId, setExpenseBudgetId] = React.useState("");
-  const [expenseDate, setExpenseDate] = React.useState(new Date().toISOString().split("T")[0]);
 
   // Form States - Income
   const [showIncomeModal, setShowIncomeModal] = React.useState(false);
@@ -62,12 +61,6 @@ export default function FinancialLedger({
   // Tab State
   const [activeTab, setActiveTab] = React.useState<"expenditures" | "incomes">("expenditures");
 
-  // Year State — records are categorized by the year embedded in their date field.
-  // "all" shows the full lifetime ledger (default); picking a year scopes the whole
-  // dashboard (totals, charts, tables, and the printed statement) to that year alone,
-  // so historic 2022/2023 book records can be entered and reported on independently.
-  const [selectedYear, setSelectedYear] = React.useState<string>("all");
-
   // Deletion Confirmation States
   const [deleteConfirmItem, setDeleteConfirmItem] = React.useState<{ id: string; type: "income" | "expenditure"; desc: string; amount: number } | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -78,40 +71,13 @@ export default function FinancialLedger({
     setIncomes(StorageService.getIncomes());
   }, []);
 
-  // Years present anywhere in the ledger (incomes, expenditures, budgets), plus a
-  // guaranteed floor back to 2022 (when manual book-keeping started) up to the current
-  // year — so the year picker always offers a place to key in old records even before
-  // any of that year's data exists yet.
-  const currentYearNum = new Date().getFullYear();
-  const yearsWithData = new Set<string>();
-  incomes.forEach(inc => { if (inc?.date) yearsWithData.add(inc.date.substring(0, 4)); });
-  expenditures.forEach(exp => { if (exp?.requestDate) yearsWithData.add(exp.requestDate.substring(0, 4)); });
-  budgets.forEach(b => { if (b?.date) yearsWithData.add(b.date.substring(0, 4)); });
-  for (let y = 2022; y <= currentYearNum; y++) yearsWithData.add(String(y));
-  const availableYears = Array.from(yearsWithData).sort((a, b) => Number(b) - Number(a));
-
-  // Records scoped to the selected year (or the full lifetime ledger when "all")
-  const yearIncomes = selectedYear === "all" ? incomes : incomes.filter(inc => inc?.date?.substring(0, 4) === selectedYear);
-  const yearExpenditures = selectedYear === "all" ? expenditures : expenditures.filter(exp => exp?.requestDate?.substring(0, 4) === selectedYear);
-  const yearBudgets = selectedYear === "all" ? budgets : budgets.filter(b => b?.date?.substring(0, 4) === selectedYear);
-
-  // Recalculating metrics based on real logged incomes and approved expenditures, scoped to the selected year
-  const totalIncome = yearIncomes.reduce((acc, inc) => acc + (inc?.amount || 0), 0);
+  // Recalculating metrics based on real logged incomes and approved expenditures
+  const totalIncome = incomes.reduce((acc, inc) => acc + (inc?.amount || 0), 0);
   const totalRevenue = totalIncome; // for backward compatibility
-  const totalApprovedExpense = yearExpenditures
+  const totalApprovedExpense = expenditures
     .filter(e => e?.status === "approved")
     .reduce((acc, e) => acc + (e?.amount || 0), 0);
   const cashReserves = totalIncome - totalApprovedExpense;
-
-  // Default a fresh entry's date into the middle of the year currently being viewed
-  // (unless that's the current year, or "all"), so bulk-entering old book records
-  // doesn't require re-typing the year on every single row.
-  const defaultDateForSelectedYear = () => {
-    if (selectedYear === "all" || selectedYear === String(currentYearNum)) {
-      return new Date().toISOString().split("T")[0];
-    }
-    return `${selectedYear}-01-01`;
-  };
 
   // Filter pending approvals based on role
   const getApprovalStatusText = (status: string) => {
@@ -146,7 +112,6 @@ export default function FinancialLedger({
         description: expenseDesc,
         amount,
         category: expenseCategory,
-        requestDate: expenseDate || existing.requestDate,
         status: recomputedStatus
       };
       const updated = expenditures.map(e2 => (e2.id === editingExpenditureId ? updatedRequest : e2));
@@ -157,7 +122,6 @@ export default function FinancialLedger({
       setExpenseAmount("");
       setExpenseCategory("stipend");
       setExpenseBudgetId("");
-      setExpenseDate(defaultDateForSelectedYear());
       setShowExpenseModal(false);
       return;
     }
@@ -172,7 +136,7 @@ export default function FinancialLedger({
       amount,
       category: expenseCategory,
       requestedBy: currentUser.name,
-      requestDate: expenseDate || new Date().toISOString().split("T")[0],
+      requestDate: new Date().toISOString().split("T")[0],
       status
     };
 
@@ -185,7 +149,6 @@ export default function FinancialLedger({
     setExpenseAmount("");
     setExpenseCategory("stipend");
     setExpenseBudgetId("");
-    setExpenseDate(defaultDateForSelectedYear());
     setShowExpenseModal(false);
   };
 
@@ -195,7 +158,6 @@ export default function FinancialLedger({
     setExpenseAmount(String(req.amount));
     setExpenseCategory(req.category);
     setExpenseBudgetId(req.budgetId || "");
-    setExpenseDate(req.requestDate || new Date().toISOString().split("T")[0]);
     setShowExpenseModal(true);
   };
 
@@ -230,7 +192,7 @@ export default function FinancialLedger({
     setIncomeSource("grant");
     setIncomePartnerId("");
     setIncomeBudgetId("");
-    setIncomeDate(defaultDateForSelectedYear());
+    setIncomeDate(new Date().toISOString().split("T")[0]);
     setShowIncomeModal(false);
   };
 
@@ -374,17 +336,12 @@ export default function FinancialLedger({
 
   // Trigger Letterhead Print Export for Statements with the human-reviewed AI Narrative
   const triggerPrintWithNarrative = () => {
-    const yearLabel = selectedYear === "all" ? (lang === "en" ? "All Years (Lifetime)" : "Miaka Yote") : selectedYear;
-    const title = lang === "en"
-      ? `CBO Statement of Income and Expenditure — ${yearLabel}`
-      : `Ripoti ya Mapato na Matumizi CBO — ${yearLabel}`;
+    const title = lang === "en" ? "CBO Statement of Income and Expenditure" : "Ripoti ya Mapato na Matumizi CBO";
     
     const printContent = (
       <div className="space-y-6 text-neutral-800">
         <p className="text-sm font-sans">
-          {selectedYear === "all"
-            ? `This financial statement presents the accurate cash positions, revenues received from participatory outreaches, and disbursed stipends/operational costs for the fiscal period ending ${new Date().toLocaleDateString("en-KE")}.`
-            : `This financial statement presents the accurate cash positions, revenues received from participatory outreaches, and disbursed stipends/operational costs for the fiscal year ${selectedYear}.`}
+          This financial statement presents the accurate cash positions, revenues received from participatory outreaches, and disbursed stipends/operational costs for the fiscal period ending {new Date().toLocaleDateString("en-KE")}.
         </p>
 
         {narrativeCommentary && (
@@ -425,7 +382,7 @@ export default function FinancialLedger({
             </tr>
           </thead>
           <tbody>
-            {yearExpenditures.filter(e => e.status === "approved").map((exp) => (
+            {expenditures.filter(e => e.status === "approved").map((exp) => (
               <tr key={exp.id} className="border-b border-neutral-150">
                 <td className="py-2 font-mono">{exp.requestDate}</td>
                 <td>{exp.description}</td>
@@ -449,8 +406,8 @@ export default function FinancialLedger({
             </tr>
           </thead>
           <tbody>
-            {yearBudgets.map((b) => {
-              const actuals = yearExpenditures
+            {budgets.map((b) => {
+              const actuals = expenditures
                 .filter(e => e.budgetId === b.id && e.status === "approved")
                 .reduce((sum, e) => sum + (e?.amount || 0), 0);
               return (
@@ -475,10 +432,10 @@ export default function FinancialLedger({
   const handleGenerateNarrative = async () => {
     setIsGeneratingCommentary(true);
     try {
-      const incomesSummary = yearIncomes
+      const incomesSummary = incomes
         .map(inc => `- ${inc.date}: Ksh ${(inc?.amount || 0).toLocaleString()} from ${inc.source} (${inc.description})`)
         .join("\n");
-      const expendituresSummary = yearExpenditures
+      const expendituresSummary = expenditures
         .filter(e => e.status === "approved")
         .map(exp => `- ${exp.requestDate}: Ksh ${(exp?.amount || 0).toLocaleString()} for ${exp.category} (${exp.description})`)
         .join("\n");
@@ -493,8 +450,7 @@ export default function FinancialLedger({
           totalApprovedExpense,
           cashReserves,
           incomesSummary,
-          expendituresSummary,
-          period: selectedYear === "all" ? "lifetime" : selectedYear
+          expendituresSummary
         })
       });
 
@@ -523,14 +479,14 @@ export default function FinancialLedger({
     return idx >= 0 && idx < 12 ? `${monthNames[idx]} '${year.substring(2)}` : yearMonthStr;
   };
 
-  // Get unique months from both Income and approved Expenditures, scoped to the selected year
+  // Get unique months from both Income and approved Expenditures
   const activeMonthsSet = new Set<string>();
-  yearIncomes.forEach(inc => {
+  incomes.forEach(inc => {
     if (inc.date) {
       activeMonthsSet.add(inc.date.substring(0, 7));
     }
   });
-  yearExpenditures.filter(e => e.status === "approved").forEach(exp => {
+  expenditures.filter(e => e.status === "approved").forEach(exp => {
     if (exp.requestDate) {
       activeMonthsSet.add(exp.requestDate.substring(0, 7));
     }
@@ -539,10 +495,10 @@ export default function FinancialLedger({
   const sortedMonths = Array.from(activeMonthsSet).sort();
   let cumulativeReserve = 0;
   const allMonthsData = sortedMonths.map(mStr => {
-    const monthlyIncome = yearIncomes
+    const monthlyIncome = incomes
       .filter(inc => inc && inc.date && inc.date.substring(0, 7) === mStr)
       .reduce((sum, inc) => sum + (inc?.amount || 0), 0);
-    const monthlyApprovedExpense = yearExpenditures
+    const monthlyApprovedExpense = expenditures
       .filter(exp => exp && exp.status === "approved" && exp.requestDate && exp.requestDate.substring(0, 7) === mStr)
       .reduce((sum, exp) => sum + (exp?.amount || 0), 0);
     
@@ -556,10 +512,8 @@ export default function FinancialLedger({
     };
   });
 
-  // Viewing a single year: show all its months so the chart doubles as a full-year report.
-  // Viewing "all": keep the original rolling last-6-months trend view.
-  const chartData = selectedYear === "all" ? allMonthsData.slice(-6) : allMonthsData;
-  const reserveData = selectedYear === "all" ? allMonthsData.slice(-6) : allMonthsData;
+  const chartData = allMonthsData.slice(-6);
+  const reserveData = allMonthsData.slice(-6);
   const showChartEmptyState = sortedMonths.length < 2;
 
   return (
@@ -574,37 +528,16 @@ export default function FinancialLedger({
             {lang === "en" ? "Financial Management" : "Usimamizi wa Kifedha"}
           </h2>
           <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-            {selectedYear === "all"
-              ? (lang === "en"
-                  ? "All expenditures are audited and tied directly to project engagement budgets."
-                  : "Matumizi yote yanakaguliwa na kuunganishwa moja kwa moja na bajeti za miradi.")
-              : (lang === "en"
-                  ? `Showing records for ${selectedYear} only. Switch the year below to enter or view another year's books.`
-                  : `Inaonyesha rekodi za mwaka ${selectedYear} pekee. Badilisha mwaka hapo chini kuona au kuweka rekodi za mwaka mwingine.`)}
+            {lang === "en"
+              ? "All expenditures are audited and tied directly to project engagement budgets."
+              : "Matumizi yote yanakaguliwa na kuunganishwa moja kwa moja na bajeti za miradi."}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div>
-            <label className="block text-[9px] text-neutral-400 font-mono font-bold uppercase tracking-wider mb-1">
-              {lang === "en" ? "Financial Year" : "Mwaka wa Fedha"}
-            </label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              id="finance-year-selector"
-              className="bg-neutral-800 border border-neutral-700 text-neutral-100 text-xs font-bold rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#E31E24] cursor-pointer"
-            >
-              <option value="all">{lang === "en" ? "All Years (Lifetime)" : "Miaka Yote"}</option>
-              {availableYears.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
-
+        <div className="flex gap-3">
           {["chairperson", "treasurer"].includes(currentUser.roleKey || getCanonicalRoleKey(currentUser.role)) && (
             <button
-              onClick={() => { setEditingIncomeId(null); setIncomeDate(defaultDateForSelectedYear()); setShowIncomeModal(true); }}
+              onClick={() => { setEditingIncomeId(null); setShowIncomeModal(true); }}
               id="record-income-btn"
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
             >
@@ -617,7 +550,7 @@ export default function FinancialLedger({
           )}
 
           <button
-            onClick={() => { setEditingExpenditureId(null); setExpenseDate(defaultDateForSelectedYear()); setShowExpenseModal(true); }}
+            onClick={() => { setEditingExpenditureId(null); setShowExpenseModal(true); }}
             id="request-disbursement-btn"
             className="bg-[#E31E24] hover:bg-[#c91a1f] text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
           >
@@ -831,16 +764,14 @@ export default function FinancialLedger({
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
-                {yearExpenditures.length === 0 ? (
+                {expenditures.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-neutral-400 italic">
-                      {selectedYear === "all"
-                        ? (lang === "en" ? "No expenditure records found." : "Hakuna rekodi za matumizi zilizopatikana.")
-                        : (lang === "en" ? `No expenditure records for ${selectedYear} yet.` : `Hakuna rekodi za matumizi za mwaka ${selectedYear} bado.`)}
+                      {lang === "en" ? "No expenditure records found." : "Hakuna rekodi za matumizi zilizopatikana."}
                     </td>
                   </tr>
                 ) : (
-                  yearExpenditures.map((req) => {
+                  expenditures.map((req) => {
                     const isChairperson = getUserRoleKey(currentUser) === UserRole.CHAIRPERSON;
                     const isTreasurer = getUserRoleKey(currentUser) === UserRole.TREASURER;
                     
@@ -997,16 +928,14 @@ export default function FinancialLedger({
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
-                {yearIncomes.length === 0 ? (
+                {incomes.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-neutral-400 italic">
-                      {selectedYear === "all"
-                        ? (lang === "en" ? "No income records found." : "Hakuna rekodi za mapato zilizopatikana.")
-                        : (lang === "en" ? `No income records for ${selectedYear} yet.` : `Hakuna rekodi za mapato za mwaka ${selectedYear} bado.`)}
+                      {lang === "en" ? "No income records found." : "Hakuna rekodi za mapato zilizopatikana."}
                     </td>
                   </tr>
                 ) : (
-                  yearIncomes.map((inc) => (
+                  incomes.map((inc) => (
                     <tr key={inc.id} className="hover:bg-neutral-50/50">
                       <td className="py-3 font-mono font-medium text-neutral-500">{inc.date}</td>
                       <td>
@@ -1136,24 +1065,6 @@ export default function FinancialLedger({
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1 font-mono">
-                  {lang === "en" ? "Expenditure Date" : "Tarehe ya Matumizi"}
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={expenseDate}
-                  onChange={(e) => setExpenseDate(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-medium"
-                />
-                <p className="text-[10px] text-neutral-400 mt-1">
-                  {lang === "en"
-                    ? "Set this to the real date of the expense — including past years — to transfer old book records accurately."
-                    : "Weka tarehe halisi ya matumizi — hata ya miaka iliyopita — ili kuhamisha rekodi za zamani kwa usahihi."}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1 font-mono">
                   {lang === "en" ? "Link to Engagement Budget" : "Unganisha na Bajeti"}
                 </label>
                 <select
@@ -1279,11 +1190,6 @@ export default function FinancialLedger({
                     onChange={(e) => setIncomeDate(e.target.value)}
                     className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
                   />
-                  <p className="text-[10px] text-neutral-400 mt-1">
-                    {lang === "en"
-                      ? "Can be set to a past year to transfer old book records."
-                      : "Inaweza kuwekwa mwaka uliopita kuhamisha rekodi za zamani."}
-                  </p>
                 </div>
 
                 <div>

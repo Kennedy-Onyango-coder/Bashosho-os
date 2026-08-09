@@ -1,5 +1,5 @@
 import React from "react";
-import { CalendarClock, GraduationCap, Timer, Palmtree, FileText } from "lucide-react";
+import { CalendarClock, GraduationCap, Timer, Palmtree, FileText, Users2 } from "lucide-react";
 import { StorageService } from "../../lib/storage";
 import StatCard from "./StatCard";
 import NotificationFeed, { NotificationItem } from "./NotificationFeed";
@@ -34,6 +34,8 @@ export default function ProgramsDirectorOverview({ lang, onNavigateToTab }: Prog
 
   const untranscribedSheets = attendance.filter(a => !a.isTranscribed).length;
   const pendingLeave = leaveRequests.filter(l => l.status === "pending").length;
+  const totalEnrollments = classes.reduce((sum, c) => sum + c.enrolledUserIds.length, 0);
+  const gradedCount = classes.reduce((sum, c) => sum + (c.enrollments || []).filter(en => en.grade).length, 0);
 
   const notifications: NotificationItem[] = [
     {
@@ -58,7 +60,7 @@ export default function ProgramsDirectorOverview({ lang, onNavigateToTab }: Prog
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           label={lang === "en" ? "Upcoming rehearsals" : "Mazoezi yajayo"}
           value={String(upcomingRehearsals.length)}
@@ -70,6 +72,14 @@ export default function ProgramsDirectorOverview({ lang, onNavigateToTab }: Prog
           value={String(activeClasses)}
           icon={<GraduationCap size={17} />}
           accent="community"
+          onClick={() => onNavigateToTab("classes")}
+        />
+        <StatCard
+          label={lang === "en" ? "Total enrollments" : "Waliojiandikisha"}
+          value={String(totalEnrollments)}
+          icon={<Users2 size={17} />}
+          accent="community"
+          delta={gradedCount > 0 ? `${gradedCount} ${lang === "en" ? "graded" : "wamepewa daraja"}` : undefined}
           onClick={() => onNavigateToTab("classes")}
         />
         <StatCard

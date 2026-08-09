@@ -29,10 +29,8 @@ import PublicVerificationScreen from "./components/PublicVerificationScreen";
 import HomePage from "./components/HomePage";
 import SignupReviews from "./components/SignupReviews";
 import CmsEditor from "./components/CmsEditor";
-import BeneficiaryRegistration from "./components/BeneficiaryRegistration";
+import MembersVolunteersPanel from "./components/MembersVolunteersPanel";
 import SecuritySettingsPanel from "./components/SecuritySettingsPanel";
-import TasksBoard from "./components/TasksBoard";
-import ProgramOutcomesBoard from "./components/ProgramOutcomesBoard";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -51,7 +49,6 @@ import {
   UserCircle2,
   ShieldCheck,
   History,
-  CheckSquare,
   X
 } from "lucide-react";
 
@@ -391,13 +388,9 @@ export default function App() {
   };
 
   // Print Document Trigger
-  const handleTriggerPrint = async (doc: Document) => {
-    const printContent = (
-      <div className="space-y-4 text-left font-serif whitespace-pre-wrap leading-relaxed text-sm">
-        {doc.content}
-      </div>
-    );
-    const baseOverlay = {
+  const handleTriggerPrint = (doc: Document) => {
+    const isBudget = doc.type === "budget";
+    setPrintOverlay({
       show: true,
       title: doc.title,
       docType: doc.type.toUpperCase(),
@@ -409,27 +402,13 @@ export default function App() {
       // the honest "Awaiting uploaded signature" placeholder PrintWrapper falls back to.
       authorSignatureUrl: doc.author === currentUser?.name ? currentUser?.signatureUrl : undefined,
       dateString: doc.date,
-      content: printContent
-    };
-
-    // Pull the freshest copy so the QR embeds the real, server-signed verification
-    // link for this exact document rather than a stale/local one — same pattern used
-    // for leadership appointment letters.
-    try {
-      const res = await fetch("/api/documents");
-      if (res.ok) {
-        const latest = await res.json();
-        if (Array.isArray(latest)) {
-          setDocuments(latest);
-          const matched = latest.find((d: any) => d.id === doc.id);
-          setPrintOverlay({ ...baseOverlay, verificationUrl: matched?.verificationUrl });
-          return;
-        }
-      }
-    } catch (err) {
-      console.error("Failed to refresh document verification link before printing:", err);
-    }
-    setPrintOverlay({ ...baseOverlay, verificationUrl: doc.verificationUrl });
+      qrValue: doc.id,
+      content: (
+        <div className="space-y-4 text-left font-serif whitespace-pre-wrap leading-relaxed text-sm">
+          {doc.content}
+        </div>
+      )
+    });
   };
 
   // Direct custom printable layouts
@@ -541,6 +520,18 @@ export default function App() {
                   };
                   setCurrentUser(updated);
                   StorageService.setActiveUser(updated);
+                }}
+                onTriggerPrint={(title, content) => {
+                  setPrintOverlay({
+                    show: true,
+                    title,
+                    docType: "MEMBER HANDBOOK",
+                    content,
+                    authorName: currentUser?.name,
+                    authorRole: currentUser?.role,
+                    authorSignatureUrl: currentUser?.signatureUrl,
+                    dateString: new Date().toLocaleDateString("en-KE"),
+                  });
                 }}
               />
             </ErrorBoundary>
@@ -777,7 +768,7 @@ export default function App() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <Users size={14} className="shrink-0" /> {lang === "en" ? "Beneficiaries" : "Sajili Wafaidika"}
+                      <Users size={14} className="shrink-0" /> {lang === "en" ? "Members & Volunteers" : "Wanachama na Wajitolea"}
                     </button>
                   )}
 
@@ -792,34 +783,6 @@ export default function App() {
                       }`}
                     >
                       <History size={14} className="shrink-0" /> {lang === "en" ? "Activity Log" : "Kumbukumbu za Shughuli"}
-                    </button>
-                  )}
-
-                  {can("tasks") && (
-                    <button
-                      onClick={() => { setActiveTab("tasks"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
-                      id="nav-tasks-tab"
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        activeTab === "tasks"
-                          ? "bg-[#E31E24] text-white shadow-sm"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      <CheckSquare size={14} className="shrink-0" /> {lang === "en" ? "Tasks" : "Majukumu"}
-                    </button>
-                  )}
-
-                  {can("program_sessions") && (
-                    <button
-                      onClick={() => { setActiveTab("program_sessions"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
-                      id="nav-program-sessions-tab"
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        activeTab === "program_sessions"
-                          ? "bg-[#E31E24] text-white shadow-sm"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      <BarChart3 size={14} className="shrink-0" /> {lang === "en" ? "Program Outcomes" : "Matokeo ya Mipango"}
                     </button>
                   )}
 
@@ -1058,9 +1021,21 @@ export default function App() {
                     currentUser={currentUser!}
                     lang={lang}
                     assets={assets}
-                    canManage={can("assets", "create")}
                     onRefresh={() => {
                       setAssets(StorageService.getAssets());
+                    }}
+                    onTriggerPrint={(title, content, verificationUrl) => {
+                      setPrintOverlay({
+                        show: true,
+                        title,
+                        docType: "EQUIPMENT HIRE RECEIPT",
+                        content,
+                        authorName: currentUser?.name,
+                        authorRole: currentUser?.role,
+                        authorSignatureUrl: currentUser?.signatureUrl,
+                        dateString: new Date().toLocaleDateString("en-KE"),
+                        verificationUrl,
+                      });
                     }}
                   />
                 </ErrorBoundary>
@@ -1140,6 +1115,18 @@ export default function App() {
                       StorageService.saveUser(updated);
                     }}
                     onNavigateToSettings={() => setActiveTab("settings")}
+                    onTriggerPrint={(title, content) => {
+                      setPrintOverlay({
+                        show: true,
+                        title,
+                        docType: "MEMBER HANDBOOK",
+                        content,
+                        authorName: currentUser?.name,
+                        authorRole: currentUser?.role,
+                        authorSignatureUrl: currentUser?.signatureUrl,
+                        dateString: new Date().toLocaleDateString("en-KE"),
+                      });
+                    }}
                   />
                 </ErrorBoundary>
               )}
@@ -1166,26 +1153,14 @@ export default function App() {
 
               {/* TAB 11: REGISTER BENEFICIARIES */}
               {activeTab === "beneficiaries" && (
-                <ErrorBoundary fallbackTitle="Beneficiary Directory Failure">
-                  <BeneficiaryRegistration lang={lang} />
+                <ErrorBoundary fallbackTitle="Members & Volunteers Failure">
+                  <MembersVolunteersPanel lang={lang} />
                 </ErrorBoundary>
               )}
 
               {activeTab === "activity_log" && (
                 <ErrorBoundary fallbackTitle="Activity Log Failure">
                   <ActivityLogPanel lang={lang} />
-                </ErrorBoundary>
-              )}
-
-              {activeTab === "tasks" && currentUser && (
-                <ErrorBoundary fallbackTitle="Tasks Board Failure">
-                  <TasksBoard lang={lang} currentUser={currentUser} canAssign={can("tasks", "create")} />
-                </ErrorBoundary>
-              )}
-
-              {activeTab === "program_sessions" && currentUser && (
-                <ErrorBoundary fallbackTitle="Program Outcomes Failure">
-                  <ProgramOutcomesBoard lang={lang} currentUser={currentUser} canEditAll={can("program_sessions", "edit")} />
                 </ErrorBoundary>
               )}
 

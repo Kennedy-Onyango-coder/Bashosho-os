@@ -1,4 +1,5 @@
 import React from "react";
+import Modal from "./Modal";
 import { Document, DocumentType } from "../types";
 import { StorageService } from "../lib/storage";
 
@@ -8,6 +9,7 @@ interface DocumentEditorProps {
   onSave: (doc: Document) => void;
   onCancel: () => void;
   authorName: string;
+  onTriggerPrint?: (title: string, content: React.ReactNode, verificationUrl?: string) => void;
 }
 
 export default function DocumentEditor({
@@ -15,7 +17,8 @@ export default function DocumentEditor({
   lang,
   onSave,
   onCancel,
-  authorName
+  authorName,
+  onTriggerPrint
 }: DocumentEditorProps) {
   const [title, setTitle] = React.useState(document?.title || "");
   const [type, setType] = React.useState<DocumentType>(document?.type || "minutes");
@@ -23,6 +26,7 @@ export default function DocumentEditor({
   const [roughNotes, setRoughNotes] = React.useState("");
   const [isAiLoading, setIsAiLoading] = React.useState(false);
   const [aiError, setAiError] = React.useState<string | null>(null);
+  const [showPrintModal, setShowPrintModal] = React.useState(false);
 
   // Trigger Gemini AI draft endpoint
   const handleAiAssist = async () => {
@@ -168,17 +172,24 @@ export default function DocumentEditor({
               {lang === "en" ? "Discard Draft" : "Tupa Rasimu"}
             </button>
             <button
+              type="button"
+              onClick={() => setShowPrintModal(true)}
+              className="px-4 py-2 bg-neutral-900 hover:bg-black text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M6 9V2h12v7"></path>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              {lang === "en" ? "Print Certified PDF" : "Chapa PDF"}
+            </button>
+            <button
               type="submit"
               className="px-5 py-2 bg-[#00A651] hover:bg-[#008f43] text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               {lang === "en" ? "Save & Approve Document" : "Hifadhi na Thibitisha"}
             </button>
           </div>
-          <p className="text-[10px] text-neutral-400 text-right -mt-2">
-            {lang === "en"
-              ? "Save first, then print the official letterhead copy with a real verification QR from the records list."
-              : "Hifadhi kwanza, kisha uchapishe nakala rasmi yenye QR halisi ya uthibitisho kutoka orodha ya kumbukumbu."}
-          </p>
         </form>
 
         {/* AI Writing assistant Panel - Right */}
@@ -271,6 +282,88 @@ export default function DocumentEditor({
           </div>
         </div>
       </div>
+
+      {/* PRINT CERTIFIED DOCUMENT MODAL */}
+      <Modal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        title={<span className="text-xs font-bold text-neutral-500 uppercase font-mono">Certified Document Preview</span>}
+        maxWidth="max-w-3xl"
+      >
+        <div className="space-y-6 text-neutral-900">
+          <div className="flex justify-end print:hidden">
+            <button
+              onClick={() => window.print()}
+              className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer shadow-xs flex items-center gap-1.5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M6 9V2h12v7"></path>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              {lang === "en" ? "Print / Save PDF" : "Chapa / Hifadhi PDF"}
+            </button>
+          </div>
+
+          {/* Printable Area */}
+          <div className="p-8 border border-neutral-200 bg-white rounded-lg space-y-6 relative overflow-hidden font-serif">
+            {/* CBO Letterhead Header */}
+            <div className="flex justify-between items-start border-b-2 border-neutral-900 pb-4">
+              <div className="space-y-1">
+                <h2 className="text-xl font-black text-[#E31E24] uppercase font-sans tracking-tight">
+                  BASHOSHO TALENTS CBO
+                </h2>
+                <p className="text-[10px] text-neutral-600 font-mono">
+                  Reg No: CBO/KBD/500/2023 | P.O. Box 1234-00100 Nairobi
+                </p>
+                <p className="text-[10px] text-neutral-600 font-mono">
+                  Kiambiu Informal Settlement, Kamukunji, Nairobi, Kenya | Till No: 8671238
+                </p>
+              </div>
+              <div className="text-right space-y-0.5 font-mono text-[10px] text-neutral-500">
+                <p><strong className="text-neutral-900">DATE:</strong> {document?.date || new Date().toISOString().split("T")[0]}</p>
+                <p><strong className="text-neutral-900">TYPE:</strong> {type.toUpperCase()}</p>
+                <p><strong className="text-neutral-900">REF:</strong> DOC-{Date.now().toString().slice(-6)}</p>
+              </div>
+            </div>
+
+            {/* Title & Body */}
+            <div className="space-y-3">
+              <h3 className="text-lg font-black text-neutral-900 uppercase tracking-tight font-sans text-center border-b pb-2">
+                {title || "Official CBO Record"}
+              </h3>
+
+              <div className="text-xs text-neutral-800 leading-relaxed space-y-3 whitespace-pre-wrap font-serif pt-2">
+                {content || "No document body written yet."}
+              </div>
+            </div>
+
+            {/* Signature & Stamp Certification Block */}
+            <div className="pt-8 border-t border-neutral-300 grid grid-cols-2 gap-8 items-end">
+              <div className="space-y-2">
+                <div className="h-10 border-b border-dashed border-neutral-400 flex items-end">
+                  <span className="font-serif italic text-sm text-neutral-800 font-bold">Bashosho Executive Director</span>
+                </div>
+                <p className="text-[10px] font-mono font-bold text-neutral-600">OFFICIAL SIGNATURE & DATE</p>
+                <p className="text-[9px] font-mono text-neutral-400">Author: {authorName}</p>
+              </div>
+
+              {/* Stamp overlay */}
+              <div className="border-2 border-emerald-600 rounded-xl p-3 text-center bg-emerald-50/30 transform -rotate-2">
+                <p className="text-[9px] font-black text-emerald-800 uppercase tracking-widest font-mono">
+                  CERTIFIED OFFICIAL CBO RECORD
+                </p>
+                <p className="text-[8px] font-mono font-bold text-emerald-700">
+                  BASHOSHO TALENTS CBO - KIAMBIU
+                </p>
+                <p className="text-[7px] font-mono text-emerald-600 mt-1">
+                  VERIFIED & APPROVED
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

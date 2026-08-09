@@ -1,8 +1,8 @@
 import React from "react";
-import { Class, UserRole, UserProfile, getCanonicalRoleKey } from "../types";
+import { Class, ClassLesson, ClassEnrollment, UserRole, UserProfile, getCanonicalRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
 import Modal from "./Modal";
-import { Shield, Plus, UserPlus, Trash2, Check, Circle } from "lucide-react";
+import { Shield, Plus, UserPlus, Trash2, Check, Circle, Video, Link2, Radio, ChevronDown, ChevronUp, Award, X } from "lucide-react";
 
 interface ClassesBoardProps {
   currentUser: UserProfile;
@@ -32,6 +32,11 @@ export default function ClassesBoard({ currentUser, lang, onTriggerPrint }: Clas
   const [endDate, setEndDate] = React.useState("");
   const [courseTag, setCourseTag] = React.useState("Theater of the Oppressed");
   const [isAiDrafting, setIsAiDrafting] = React.useState(false);
+  const [deliveryMode, setDeliveryMode] = React.useState<"online" | "in_person" | "hybrid">("in_person");
+  const [lessonDrafts, setLessonDrafts] = React.useState<{ title: string; videoUrl: string; liveLink: string; liveDateTime: string }[]>([]);
+  const [expandedStudent, setExpandedStudent] = React.useState<string | null>(null);
+  const [gradeDrafts, setGradeDrafts] = React.useState<Record<string, string>>({});
+  const [expandedCourse, setExpandedCourse] = React.useState<string | null>(null);
 
   const handleGenerateClassSyllabusAiDraft = async () => {
     setIsAiDrafting(true);
@@ -91,6 +96,17 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
     e.preventDefault();
     if (!name.trim() || !description.trim() || !trainer.trim() || !startDate || !endDate) return;
 
+    const lessons: ClassLesson[] = lessonDrafts
+      .filter((l) => l.title.trim())
+      .map((l, idx) => ({
+        id: `lsn-${Date.now()}-${idx}`,
+        title: l.title.trim(),
+        videoUrl: l.videoUrl.trim() || undefined,
+        liveLink: l.liveLink.trim() || undefined,
+        liveDateTime: l.liveDateTime || undefined,
+        order: idx,
+      }));
+
     const newClass: Class = {
       id: `c-${Date.now()}`,
       name,
@@ -99,6 +115,9 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
       startDate,
       endDate,
       enrolledUserIds: [],
+      deliveryMode,
+      lessons,
+      enrollments: [],
     };
 
     setClasses([...classes, newClass]);
@@ -111,6 +130,8 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
     setTrainer("");
     setStartDate("");
     setEndDate("");
+    setDeliveryMode("in_person");
+    setLessonDrafts([]);
   };
 
   const handleDeleteClass = (classId: string) => {
@@ -125,10 +146,33 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
     let updatedClass: Class | null = null;
     const updated = classes.map(c => {
       if (c.id === classId) {
-        const enrolled = c.enrolledUserIds.includes(userId)
+        const isEnrolled = c.enrolledUserIds.includes(userId);
+        const enrolled = isEnrolled
           ? c.enrolledUserIds.filter(id => id !== userId)
           : [...c.enrolledUserIds, userId];
-        updatedClass = { ...c, enrolledUserIds: enrolled };
+
+        // Keep the richer enrollments[] record in sync with enrolledUserIds, since
+        // certificate verification and the older parts of this UI still check
+        // enrolledUserIds directly.
+        const existingEnrollments = c.enrollments || [];
+        let updatedEnrollments: ClassEnrollment[];
+        if (isEnrolled) {
+          updatedEnrollments = existingEnrollments.filter(en => en.userId !== userId);
+        } else {
+          const student = profiles.find(p => p.id === userId);
+          updatedEnrollments = [
+            ...existingEnrollments,
+            {
+              userId,
+              userName: student?.name || userId,
+              enrolledDate: new Date().toISOString().split("T")[0],
+              completedLessonIds: [],
+              status: "enrolled",
+            },
+          ];
+        }
+
+        updatedClass = { ...c, enrolledUserIds: enrolled, enrollments: updatedEnrollments };
         return updatedClass;
       }
       return c;
@@ -140,6 +184,35 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
     if (showEnrollModal && showEnrollModal.id === classId) {
       setShowEnrollModal(updated.find(c => c.id === classId) || null);
     }
+  };
+
+  const handleToggleLessonComplete = (classItem: Class, userId: string, lessonId: string) => {
+    const enrollments = classItem.enrollments || [];
+    const updatedEnrollments = enrollments.map((en) => {
+      if (en.userId !== userId) return en;
+      const has = en.completedLessonIds.includes(lessonId);
+      const completedLessonIds = has
+        ? en.completedLessonIds.filter((id) => id !== lessonId)
+        : [...en.completedLessonIds, lessonId];
+      const totalLessons = (classItem.lessons || []).length;
+      const status: ClassEnrollment["status"] = totalLessons > 0 && completedLessonIds.length === totalLessons ? "completed" : "enrolled";
+      return { ...en, completedLessonIds, status };
+    });
+    const updatedClass = { ...classItem, enrollments: updatedEnrollments };
+    setClasses(classes.map((c) => (c.id === classItem.id ? updatedClass : c)));
+    StorageService.saveRecord("classes", updatedClass).catch(console.error);
+  };
+
+  const handleSaveGrade = (classItem: Class, userId: string, grade: string) => {
+    const enrollments = classItem.enrollments || [];
+    const updatedEnrollments = enrollments.map((en) =>
+      en.userId === userId
+        ? { ...en, grade, gradedBy: currentUser.name, gradedAt: new Date().toISOString() }
+        : en
+    );
+    const updatedClass = { ...classItem, enrollments: updatedEnrollments };
+    setClasses(classes.map((c) => (c.id === classItem.id ? updatedClass : c)));
+    StorageService.saveRecord("classes", updatedClass).catch(console.error);
   };
 
   const handleVerifyCode = (code: string) => {
@@ -448,7 +521,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                     )}
 
                     <div className="space-y-3">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="bg-neutral-100 text-neutral-700 border border-neutral-200 text-[8px] font-black font-mono uppercase px-2 py-0.5 rounded">
                           {extractedTag}
                         </span>
@@ -465,6 +538,16 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                             ? (lang === "en" ? `In Progress — ${progress}%` : `Yanaendelea — ${progress}%`) 
                             : (lang === "en" ? "Upcoming" : "Inatarajiwa")}
                         </span>
+                        {item.deliveryMode === "online" && (
+                          <span className="bg-purple-50 text-purple-700 border border-purple-200 text-[8px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-0.5">
+                            <Video size={9} /> {lang === "en" ? "Online" : "Mtandaoni"}
+                          </span>
+                        )}
+                        {item.deliveryMode === "hybrid" && (
+                          <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[8px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-0.5">
+                            <Radio size={9} /> {lang === "en" ? "Hybrid" : "Mchanganyiko"}
+                          </span>
+                        )}
                       </div>
 
                       <div className="space-y-1">
@@ -500,7 +583,44 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                           <p className="text-xs font-bold text-neutral-800">{item.trainer}</p>
                         </div>
                       </div>
+
+                      {/* Lessons / online content */}
+                      {item.lessons && item.lessons.length > 0 && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedCourse(expandedCourse === item.id ? null : item.id)}
+                            className="w-full flex items-center justify-between text-[10px] font-bold text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-lg px-2.5 py-1.5 cursor-pointer transition-colors"
+                          >
+                            <span className="flex items-center gap-1"><Video size={11} /> {item.lessons.length} {lang === "en" ? "lessons" : "masomo"}</span>
+                            {expandedCourse === item.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                          </button>
+                          {expandedCourse === item.id && (
+                            <div className="mt-2 space-y-1.5">
+                              {item.lessons.sort((a, b) => a.order - b.order).map((lsn, i) => (
+                                <div key={lsn.id} className="flex items-center justify-between bg-white border border-neutral-100 rounded-lg px-2.5 py-1.5">
+                                  <span className="text-[10px] font-medium text-neutral-700 truncate">{i + 1}. {lsn.title}</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {lsn.videoUrl && isUserEnrolled && (
+                                      <a href={lsn.videoUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-red-600 hover:underline flex items-center gap-0.5">
+                                        <Video size={10} /> {lang === "en" ? "Watch" : "Tazama"}
+                                      </a>
+                                    )}
+                                    {lsn.liveLink && isUserEnrolled && (
+                                      <a href={lsn.liveLink} target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-purple-600 hover:underline flex items-center gap-0.5">
+                                        <Radio size={10} /> {lang === "en" ? "Join Live" : "Jiunge"}
+                                      </a>
+                                    )}
+                                    {!isUserEnrolled && <Link2 size={11} className="text-neutral-300" />}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
+
 
                     <div className="pt-4 mt-4 border-t border-neutral-100 flex items-center justify-between">
                       <div className="text-[10px] font-mono text-neutral-400 space-y-0.5">
@@ -593,6 +713,49 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                           ></div>
                         </div>
                       </div>
+
+                      {(() => {
+                        const myEnrollment = (item.enrollments || []).find((en) => en.userId === currentUser.id);
+                        if (myEnrollment?.grade) {
+                          return (
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 flex items-center gap-1.5 w-fit">
+                              <Award size={11} /> {lang === "en" ? "Grade:" : "Daraja:"} {myEnrollment.grade}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
+                      {item.lessons && item.lessons.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[9px] font-bold text-neutral-400 uppercase flex items-center gap-1">
+                            <Video size={10} /> {lang === "en" ? "Class content" : "Maudhui ya Somo"}
+                          </p>
+                          {item.lessons.sort((a, b) => a.order - b.order).map((lsn, i) => {
+                            const myEnrollment2 = (item.enrollments || []).find((en) => en.userId === currentUser.id);
+                            const done = myEnrollment2?.completedLessonIds.includes(lsn.id);
+                            return (
+                              <div key={lsn.id} className="flex items-center justify-between bg-white border border-neutral-100 rounded-lg px-2.5 py-1.5">
+                                <span className={`text-[10px] font-medium truncate ${done ? "text-emerald-600" : "text-neutral-700"}`}>
+                                  {done && <Check size={10} className="inline mr-0.5" />} {i + 1}. {lsn.title}
+                                </span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {lsn.videoUrl && (
+                                    <a href={lsn.videoUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-red-600 hover:underline flex items-center gap-0.5">
+                                      <Video size={10} /> {lang === "en" ? "Watch" : "Tazama"}
+                                    </a>
+                                  )}
+                                  {lsn.liveLink && (
+                                    <a href={lsn.liveLink} target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-purple-600 hover:underline flex items-center gap-0.5">
+                                      <Radio size={10} /> {lang === "en" ? "Join Live" : "Jiunge"}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-3 border-t border-neutral-150 flex items-center justify-between">
@@ -743,37 +906,108 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                       </div>
                     </div>
 
-                    {/* Enrolled students grid */}
+                    {/* Enrolled students: progress, lesson completion, and grading */}
                     <div className="space-y-2 pt-3 border-t border-neutral-150">
                       <div className="flex justify-between items-center">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                           {lang === "en" ? "Registered Roll Members" : "Wanafunzi Waliosajiliwa"} ({item.enrolledUserIds.length})
                         </p>
-                        <span className="text-[10px] text-neutral-400 italic">
-                          {lang === "en" ? "Graduated students can generate certs" : "Wahitimu wanaweza kutoa vyeti"}
-                        </span>
+                        {item.lessons && item.lessons.length > 0 && (
+                          <span className="text-[10px] text-neutral-400 italic">
+                            {lang === "en" ? "Click a student to mark lessons or grade" : "Bofya mwanafunzi kuweka alama au daraja"}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="space-y-1.5">
                         {item.enrolledUserIds.map(uid => {
                           const userProfile = profiles.find(p => p.id === uid);
                           if (!userProfile) return null;
+                          const enrollment = (item.enrollments || []).find((en) => en.userId === uid);
+                          const totalLessons = (item.lessons || []).length;
+                          const completedCount = enrollment?.completedLessonIds.length || 0;
+                          const rowKey = `${item.id}:${uid}`;
+                          const isExpanded = expandedStudent === rowKey;
+
                           return (
-                            <span 
-                              key={uid} 
-                              className="bg-white border text-neutral-700 text-[10px] font-bold px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs"
-                            >
-                              <span>{userProfile.name} ({userProfile.memberNumber})</span>
-                              {finished && (
-                                <button
-                                  onClick={() => printCertificate(item, userProfile)}
-                                  className="text-[11px] hover:text-red-600 font-bold ml-1 border-l pl-1.5 border-neutral-200"
-                                  title="Print Completion Certificate"
-                                >
-                                   {lang === "en" ? "Cert" : "Vyeti"}
-                                </button>
+                            <div key={uid} className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedStudent(isExpanded ? null : rowKey)}
+                                className="w-full flex items-center justify-between px-3 py-2 text-left cursor-pointer hover:bg-neutral-50 transition-colors"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-[10px] font-bold text-neutral-800 truncate">{userProfile.name}</span>
+                                  <span className="text-[9px] text-neutral-400 font-mono shrink-0">{userProfile.memberNumber}</span>
+                                  {enrollment?.grade && (
+                                    <span className="bg-emerald-50 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5 shrink-0">
+                                      <Award size={9} /> {enrollment.grade}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {totalLessons > 0 && (
+                                    <span className="text-[9px] font-mono font-bold text-neutral-500">{completedCount}/{totalLessons}</span>
+                                  )}
+                                  {finished && (
+                                    <span
+                                      role="button"
+                                      onClick={(e) => { e.stopPropagation(); printCertificate(item, userProfile); }}
+                                      className="text-[9px] font-bold text-red-600 hover:underline cursor-pointer"
+                                    >
+                                      {lang === "en" ? "Cert" : "Vyeti"}
+                                    </span>
+                                  )}
+                                  {isExpanded ? <ChevronUp size={12} className="text-neutral-400" /> : <ChevronDown size={12} className="text-neutral-400" />}
+                                </div>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="border-t border-neutral-100 p-3 space-y-3 bg-neutral-50">
+                                  {totalLessons > 0 && (
+                                    <div className="space-y-1">
+                                      <p className="text-[9px] font-bold text-neutral-400 uppercase">{lang === "en" ? "Mark lessons complete" : "Weka alama za masomo"}</p>
+                                      {item.lessons!.sort((a, b) => a.order - b.order).map((lsn, i) => {
+                                        const done = enrollment?.completedLessonIds.includes(lsn.id) || false;
+                                        return (
+                                          <label key={lsn.id} className="flex items-center gap-2 text-[10px] text-neutral-700 cursor-pointer py-0.5">
+                                            <input
+                                              type="checkbox"
+                                              checked={done}
+                                              onChange={() => handleToggleLessonComplete(item, uid, lsn.id)}
+                                              className="w-3.5 h-3.5 accent-red-600 cursor-pointer"
+                                            />
+                                            <span className={done ? "line-through text-neutral-400" : ""}>{i + 1}. {lsn.title}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      defaultValue={enrollment?.grade || ""}
+                                      onChange={(e) => setGradeDrafts((prev) => ({ ...prev, [rowKey]: e.target.value }))}
+                                      placeholder={lang === "en" ? "Grade (e.g. A, Pass, 92%)" : "Daraja (mf. A, Pass, 92%)"}
+                                      className="flex-1 bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-red-400"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveGrade(item, uid, gradeDrafts[rowKey] ?? enrollment?.grade ?? "")}
+                                      className="bg-neutral-900 hover:bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded-lg cursor-pointer shrink-0"
+                                    >
+                                      {lang === "en" ? "Save Grade" : "Hifadhi"}
+                                    </button>
+                                  </div>
+                                  {enrollment?.gradedBy && (
+                                    <p className="text-[9px] text-neutral-400">
+                                      {lang === "en" ? "Graded by" : "Aliyeweka daraja"} {enrollment.gradedBy}
+                                    </p>
+                                  )}
+                                </div>
                               )}
-                            </span>
+                            </div>
                           );
                         })}
                         {item.enrolledUserIds.length === 0 && (
@@ -822,6 +1056,106 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
               placeholder="e.g. Forum Theatre & Spect-Actor Facilitation"
               className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500"
             />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
+              {lang === "en" ? "Delivery Mode" : "Njia ya Kufundisha"}
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["in_person", "online", "hybrid"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setDeliveryMode(mode)}
+                  className={`text-[10px] font-bold py-2 rounded-lg border transition-colors cursor-pointer capitalize ${
+                    deliveryMode === mode
+                      ? "bg-red-600 text-white border-red-600"
+                      : "bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50"
+                  }`}
+                >
+                  {mode.replace("_", " ")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2 bg-neutral-50 border border-neutral-200 rounded-xl p-3">
+            <div className="flex justify-between items-center">
+              <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
+                {lang === "en" ? "Lessons (optional)" : "Masomo (si lazima)"}
+              </label>
+              <button
+                type="button"
+                onClick={() => setLessonDrafts([...lessonDrafts, { title: "", videoUrl: "", liveLink: "", liveDateTime: "" }])}
+                className="text-[10px] font-bold text-red-600 hover:underline cursor-pointer flex items-center gap-0.5"
+              >
+                <Plus size={11} /> {lang === "en" ? "Add lesson" : "Ongeza somo"}
+              </button>
+            </div>
+            {lessonDrafts.length === 0 && (
+              <p className="text-[10px] text-neutral-400 italic">
+                {lang === "en" ? "Add lessons with a video link (recorded) and/or a live session link so members can access class content online." : "Ongeza masomo na kiungo cha video au kikao cha moja kwa moja ili wanachama wapate maudhui mtandaoni."}
+              </p>
+            )}
+            {lessonDrafts.map((lsn, idx) => (
+              <div key={idx} className="bg-white border border-neutral-200 rounded-lg p-2.5 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={lsn.title}
+                    onChange={(e) => {
+                      const updated = [...lessonDrafts];
+                      updated[idx] = { ...updated[idx], title: e.target.value };
+                      setLessonDrafts(updated);
+                    }}
+                    placeholder={lang === "en" ? `Lesson ${idx + 1} title` : `Kichwa cha somo ${idx + 1}`}
+                    className="flex-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-red-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLessonDrafts(lessonDrafts.filter((_, i) => i !== idx))}
+                    className="text-red-400 hover:text-red-600 cursor-pointer p-1"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+                <input
+                  type="url"
+                  value={lsn.videoUrl}
+                  onChange={(e) => {
+                    const updated = [...lessonDrafts];
+                    updated[idx] = { ...updated[idx], videoUrl: e.target.value };
+                    setLessonDrafts(updated);
+                  }}
+                  placeholder={lang === "en" ? "Recorded video link (YouTube, Drive...)" : "Kiungo cha video (YouTube, Drive...)"}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-red-400"
+                />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input
+                    type="url"
+                    value={lsn.liveLink}
+                    onChange={(e) => {
+                      const updated = [...lessonDrafts];
+                      updated[idx] = { ...updated[idx], liveLink: e.target.value };
+                      setLessonDrafts(updated);
+                    }}
+                    placeholder={lang === "en" ? "Live session link (Zoom, Meet...)" : "Kiungo cha moja kwa moja"}
+                    className="bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-red-400"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={lsn.liveDateTime}
+                    onChange={(e) => {
+                      const updated = [...lessonDrafts];
+                      updated[idx] = { ...updated[idx], liveDateTime: e.target.value };
+                      setLessonDrafts(updated);
+                    }}
+                    className="bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-red-400"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="space-y-1">

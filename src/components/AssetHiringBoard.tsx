@@ -1,6 +1,5 @@
 import React from "react";
 import { Modal } from "./Modal";
-import PrintWrapper from "./PrintWrapper";
 import { Asset, UserProfile, UserRole, Income, Invoice, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
 import { 
@@ -21,12 +20,7 @@ import {
   Printer,
   FileText,
   Download,
-  ShieldCheck,
-  ClipboardCheck,
-  Repeat,
-  Gift,
-  Receipt,
-  AlertTriangle
+  ShieldCheck
 } from "lucide-react";
 
 interface AssetHiringBoardProps {
@@ -34,25 +28,7 @@ interface AssetHiringBoardProps {
   lang: "en" | "sw";
   assets: Asset[];
   onRefresh: () => void;
-  canManage?: boolean;
-}
-
-const INSPECTION_INTERVAL_DAYS = 182; // ~6 months
-
-function getLastInspectionDate(asset: Asset): string | null {
-  if (asset.inspectionHistory && asset.inspectionHistory.length > 0) {
-    return [...asset.inspectionHistory].sort((a, b) => b.date.localeCompare(a.date))[0].date;
-  }
-  return null;
-}
-
-function getInspectionStatus(asset: Asset): { dueDate: string; overdue: boolean; daysUntil: number } {
-  const lastDate = getLastInspectionDate(asset) || asset.purchaseDate || new Date().toISOString().split("T")[0];
-  const due = new Date(lastDate);
-  due.setDate(due.getDate() + INSPECTION_INTERVAL_DAYS);
-  const today = new Date(new Date().toDateString());
-  const daysUntil = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  return { dueDate: due.toISOString().split("T")[0], overdue: daysUntil < 0, daysUntil };
+  onTriggerPrint: (title: string, content: React.ReactNode, verificationUrl?: string) => void;
 }
 
 export default function AssetHiringBoard({
@@ -60,7 +36,7 @@ export default function AssetHiringBoard({
   lang,
   assets,
   onRefresh,
-  canManage
+  onTriggerPrint
 }: AssetHiringBoardProps) {
   const [subTab, setSubTab] = React.useState<"inventory" | "rentals">("inventory");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -78,33 +54,12 @@ export default function AssetHiringBoard({
   const [customRate, setCustomRate] = React.useState("");
   const [paymentStatus, setPaymentStatus] = React.useState<"paid" | "unpaid">("unpaid");
 
-  // Certified Receipt Modal state
-  const [selectedReceiptRental, setSelectedReceiptRental] = React.useState<typeof allRentals[0] | null>(null);
-
   // AI draft description states for rentals
   const [isAiLoading, setIsAiLoading] = React.useState(false);
   const [aiNotes, setAiNotes] = React.useState("");
   const [agreementDraft, setAgreementDraft] = React.useState("");
 
-  // --- New: Asset Registry (create/edit, inspect, reassign, printable card) ---
-  const [showAssetForm, setShowAssetForm] = React.useState(false);
-  const [assetFormMode, setAssetFormMode] = React.useState<"create" | "edit">("create");
-  const [assetForm, setAssetForm] = React.useState<Partial<Asset>>({});
-  const [savingAsset, setSavingAsset] = React.useState(false);
-
-  const [inspectingAsset, setInspectingAsset] = React.useState<Asset | null>(null);
-  const [inspectionCondition, setInspectionCondition] = React.useState<Asset["condition"]>("good");
-  const [inspectionNotes, setInspectionNotes] = React.useState("");
-
-  const [reassigningAsset, setReassigningAsset] = React.useState<Asset | null>(null);
-  const [newCustodian, setNewCustodian] = React.useState("");
-  const [reassignNotes, setReassignNotes] = React.useState("");
-
-  const [printingAsset, setPrintingAsset] = React.useState<Asset | null>(null);
-
-  const isAuthorized = canManage !== undefined
-    ? canManage
-    : [UserRole.CHAIRPERSON, UserRole.TREASURER, UserRole.VICE_CHAIRPERSON].includes(getUserRoleKey(currentUser) as UserRole);
+  const isAuthorized = [UserRole.CHAIRPERSON, UserRole.TREASURER, UserRole.VICE_CHAIRPERSON].includes(getUserRoleKey(currentUser) as UserRole);
 
   // Pre-fill fields when selecting asset in the hire form
   React.useEffect(() => {
@@ -370,128 +325,6 @@ export default function AssetHiringBoard({
     }
   };
 
-  // --- Asset Registry: create / edit ---
-  const openNewAssetForm = () => {
-    setAssetFormMode("create");
-    setAssetForm({
-      name: "", category: "other", serialNumber: "", purchaseDate: new Date().toISOString().split("T")[0],
-      purchaseCost: 0, condition: "good", custodian: "", location: "", acquisitionType: "purchased",
-      hasReceipt: false, availableForHire: false
-    });
-    setShowAssetForm(true);
-  };
-
-  const openEditAssetForm = (asset: Asset) => {
-    setAssetFormMode("edit");
-    setAssetForm({ ...asset });
-    setShowAssetForm(true);
-  };
-
-  const handleSaveAssetForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!assetForm.name || !assetForm.serialNumber || !assetForm.custodian) return;
-    setSavingAsset(true);
-    try {
-      const id = assetFormMode === "create" ? `asset-${Date.now()}` : assetForm.id!;
-      const isNewAsset = assetFormMode === "create";
-      const record: Asset = {
-        id,
-        name: assetForm.name!,
-        category: (assetForm.category as Asset["category"]) || "other",
-        serialNumber: assetForm.serialNumber!,
-        purchaseDate: assetForm.purchaseDate || new Date().toISOString().split("T")[0],
-        purchaseCost: Number(assetForm.purchaseCost) || 0,
-        condition: (assetForm.condition as Asset["condition"]) || "good",
-        custodian: assetForm.custodian!,
-        location: assetForm.location || "",
-        photoUrl: assetForm.photoUrl,
-        availableForHire: !!assetForm.availableForHire,
-        dailyRate: assetForm.dailyRate,
-        acquisitionType: (assetForm.acquisitionType as Asset["acquisitionType"]) || "purchased",
-        donatedBy: assetForm.acquisitionType === "donated" ? assetForm.donatedBy : undefined,
-        hasReceipt: !!assetForm.hasReceipt,
-        receiptRef: assetForm.hasReceipt ? assetForm.receiptRef : undefined,
-        inspectionHistory: assetForm.inspectionHistory || [],
-        // Seed the assignment history with this asset's initial custodian so a real
-        // chain-of-custody log exists from day one, not just the current holder.
-        assignmentHistory: isNewAsset
-          ? [{ id: `assign-${Date.now()}`, custodian: assetForm.custodian!, assignedDate: assetForm.purchaseDate || new Date().toISOString().split("T")[0], assignedBy: currentUser.name, notes: "Initial assignment on registration" }]
-          : (assetForm.assignmentHistory || []),
-        externalRentals: assetForm.externalRentals || [],
-        checkoutHistory: assetForm.checkoutHistory || []
-      };
-      await StorageService.saveRecord("assets", record);
-      setShowAssetForm(false);
-      onRefresh();
-    } catch (err) {
-      console.error("Failed to save asset:", err);
-    } finally {
-      setSavingAsset(false);
-    }
-  };
-
-  // --- Asset Registry: record inspection ---
-  const openInspectionModal = (asset: Asset) => {
-    setInspectingAsset(asset);
-    setInspectionCondition(asset.condition);
-    setInspectionNotes("");
-  };
-
-  const handleRecordInspection = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inspectingAsset) return;
-    try {
-      const entry = {
-        id: `insp-${Date.now()}`,
-        date: new Date().toISOString().split("T")[0],
-        inspectedBy: currentUser.name,
-        condition: inspectionCondition,
-        notes: inspectionNotes || undefined
-      };
-      const updatedAsset: Asset = {
-        ...inspectingAsset,
-        condition: inspectionCondition,
-        inspectionHistory: [...(inspectingAsset.inspectionHistory || []), entry]
-      };
-      await StorageService.saveRecord("assets", updatedAsset);
-      setInspectingAsset(null);
-      onRefresh();
-    } catch (err) {
-      console.error("Failed to record inspection:", err);
-    }
-  };
-
-  // --- Asset Registry: reassign custodian ---
-  const openReassignModal = (asset: Asset) => {
-    setReassigningAsset(asset);
-    setNewCustodian("");
-    setReassignNotes("");
-  };
-
-  const handleReassign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reassigningAsset || !newCustodian.trim()) return;
-    try {
-      const entry = {
-        id: `assign-${Date.now()}`,
-        custodian: newCustodian.trim(),
-        assignedDate: new Date().toISOString().split("T")[0],
-        assignedBy: currentUser.name,
-        notes: reassignNotes || undefined
-      };
-      const updatedAsset: Asset = {
-        ...reassigningAsset,
-        custodian: newCustodian.trim(),
-        assignmentHistory: [...(reassigningAsset.assignmentHistory || []), entry]
-      };
-      await StorageService.saveRecord("assets", updatedAsset);
-      setReassigningAsset(null);
-      onRefresh();
-    } catch (err) {
-      console.error("Failed to reassign asset:", err);
-    }
-  };
-
   return (
     <div className="space-y-6 text-left" id="assets-hiring-component">
       {/* 1. Header Banner */}
@@ -573,22 +406,13 @@ export default function AssetHiringBoard({
             </div>
             
             {isAuthorized && (
-              <div className="flex gap-2">
-                <button
-                  onClick={openNewAssetForm}
-                  className="bg-neutral-900 hover:bg-black text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                >
-                  <Plus size={14} />
-                  {lang === "en" ? "Register New Asset" : "Sajili Kifaa Kipya"}
-                </button>
-                <button
-                  onClick={() => setShowRentalModal(true)}
-                  className="bg-[#00A651] hover:bg-[#008f43] text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                >
-                  <Plus size={14} />
-                  {lang === "en" ? "Record Gear Hire" : "Sajili Ukodishaji Mpya"}
-                </button>
-              </div>
+              <button
+                onClick={() => setShowRentalModal(true)}
+                className="bg-[#00A651] hover:bg-[#008f43] text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              >
+                <Plus size={14} />
+                {lang === "en" ? "Record Gear Hire" : "Sajili Ukodishaji Mpya"}
+              </button>
             )}
           </div>
 
@@ -598,7 +422,6 @@ export default function AssetHiringBoard({
               .filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()))
               .map((item) => {
                 const isEditing = editingAssetId === item.id;
-                const inspectionStatus = getInspectionStatus(item);
                 return (
                   <div key={item.id} className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-red-500/20 transition-all">
                     
@@ -612,19 +435,11 @@ export default function AssetHiringBoard({
                         <p className="text-[9px] font-mono font-semibold text-neutral-400">SERIAL: {item.serialNumber}</p>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold ${
-                          item.condition === "excellent" || item.condition === "good" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"
-                        }`}>
-                          {item.condition.toUpperCase()}
-                        </span>
-                        {inspectionStatus.overdue && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-red-600 text-white">
-                            <AlertTriangle size={9} />
-                            {lang === "en" ? "INSPECTION DUE" : "UKAGUZI UNAHITAJIKA"}
-                          </span>
-                        )}
-                      </div>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                        item.condition === "excellent" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"
+                      }`}>
+                        {item.condition.toUpperCase()}
+                      </span>
                     </div>
 
                     {/* Middle Details */}
@@ -635,59 +450,10 @@ export default function AssetHiringBoard({
                       <p>
                         {lang === "en" ? "Hire Rate" : "Kiwango cha Kukodi"}: {" "}
                         <span className="text-emerald-600 font-bold font-mono">
-                          {item.availableForHire ? `Ksh ${item.dailyRate ? item.dailyRate.toLocaleString() : "500"}/day` : (lang === "en" ? "Not for hire" : "Haikodishwi")}
-                        </span>
-                      </p>
-                      <p className="flex items-center gap-1">
-                        {item.acquisitionType === "donated" ? <Gift size={11} className="text-purple-500" /> : <DollarSign size={11} className="text-neutral-400" />}
-                        {item.acquisitionType === "donated"
-                          ? (lang === "en" ? `Donated by ${item.donatedBy || "—"}` : `Ilitolewa na ${item.donatedBy || "—"}`)
-                          : (lang === "en" ? "Purchased by CBO" : "Ilinunuliwa na CBO")}
-                      </p>
-                      <p className="flex items-center gap-1">
-                        <Receipt size={11} className={item.hasReceipt ? "text-emerald-500" : "text-neutral-300"} />
-                        {item.hasReceipt
-                          ? (lang === "en" ? `Receipt on file${item.receiptRef ? `: ${item.receiptRef}` : ""}` : `Stakabadhi ipo${item.receiptRef ? `: ${item.receiptRef}` : ""}`)
-                          : (lang === "en" ? "No receipt on file" : "Hakuna stakabadhi")}
-                      </p>
-                      <p className="col-span-2 flex items-center gap-1">
-                        <ClipboardCheck size={11} className={inspectionStatus.overdue ? "text-red-500" : "text-neutral-400"} />
-                        {lang === "en" ? "Next inspection due" : "Ukaguzi ujao"}: {" "}
-                        <span className={`font-bold ${inspectionStatus.overdue ? "text-red-600" : "text-neutral-800"}`}>
-                          {inspectionStatus.dueDate}{inspectionStatus.overdue ? (lang === "en" ? " (overdue)" : " (imechelewa)") : ""}
+                          Ksh {item.dailyRate ? item.dailyRate.toLocaleString() : "500"}/day
                         </span>
                       </p>
                     </div>
-
-                    {/* Registry Action Buttons */}
-                    {isAuthorized && (
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <button
-                          onClick={() => openInspectionModal(item)}
-                          className="flex-1 min-w-[100px] bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <ClipboardCheck size={11} /> {lang === "en" ? "Inspect" : "Kagua"}
-                        </button>
-                        <button
-                          onClick={() => openReassignModal(item)}
-                          className="flex-1 min-w-[100px] bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <Repeat size={11} /> {lang === "en" ? "Reassign" : "Hamisha"}
-                        </button>
-                        <button
-                          onClick={() => openEditAssetForm(item)}
-                          className="flex-1 min-w-[100px] bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200 text-[10px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <Sliders size={11} /> {lang === "en" ? "Edit" : "Hariri"}
-                        </button>
-                        <button
-                          onClick={() => setPrintingAsset(item)}
-                          className="flex-1 min-w-[100px] bg-neutral-900 hover:bg-black text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <Printer size={11} /> {lang === "en" ? "Print Card" : "Chapa"}
-                        </button>
-                      </div>
-                    )}
 
                     {/* Hiring Controls Segment */}
                     <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200">
@@ -841,7 +607,77 @@ export default function AssetHiringBoard({
                       <td className="py-3 px-4 text-right">
                         <div className="flex gap-1.5 justify-end">
                           <button
-                            onClick={() => setSelectedReceiptRental(rent)}
+                            onClick={() => {
+                              const receiptContent = (
+                                <div className="space-y-6">
+                                  <div className="grid grid-cols-2 gap-4 text-xs font-sans border-b pb-4">
+                                    <div>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Receipt &amp; Contract Ref</span>
+                                      <span className="font-mono font-bold text-neutral-900 text-sm">BT-RCT-{rent.rentalId.toUpperCase()}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Issue Date</span>
+                                      <span className="font-mono font-semibold text-neutral-800">{rent.startDate}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Renter / Client Name</span>
+                                      <span className="font-bold text-neutral-900 text-sm">{rent.clientName}</span>
+                                      <span className="block text-[10px] font-mono text-neutral-500">{rent.clientPhone}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Rental Duration</span>
+                                      <span className="font-mono font-semibold text-neutral-800">{rent.startDate} to {rent.endDate}</span>
+                                    </div>
+                                  </div>
+
+                                  <table className="w-full text-left text-xs border border-neutral-200 rounded-lg overflow-hidden">
+                                    <thead className="bg-neutral-100 text-[10px] font-bold text-neutral-600 uppercase">
+                                      <tr>
+                                        <th className="py-2.5 px-3">Equipment Item</th>
+                                        <th className="py-2.5 px-3 text-center">Rental Period</th>
+                                        <th className="py-2.5 px-3 text-right">Total Fee</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-200">
+                                      <tr>
+                                        <td className="py-3 px-3 font-bold text-neutral-900">{rent.assetName}</td>
+                                        <td className="py-3 px-3 text-center font-mono text-neutral-600">{rent.startDate} - {rent.endDate}</td>
+                                        <td className="py-3 px-3 text-right font-mono font-black text-neutral-950 text-sm">
+                                          Ksh {rent.totalAmount.toLocaleString()}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+
+                                  <div className="flex flex-wrap justify-between items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                                    <div>
+                                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Payment Instructions / M-Pesa Till</span>
+                                      <p className="text-xs font-medium text-emerald-950">
+                                        Buy Goods Till Number: <strong className="font-mono text-sm font-black text-emerald-700">8671238</strong> (Bashosho Talents CBO)
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Payment Status</span>
+                                      <span className={`px-2 py-0.5 rounded font-mono text-xs font-black uppercase ${
+                                        rent.paymentStatus === "paid" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                                      }`}>
+                                        {rent.paymentStatus.toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="pt-2 grid grid-cols-2 gap-8 items-end">
+                                    <div>
+                                      <div className="border-b border-neutral-400 w-40 h-10 flex items-end font-mono text-xs font-bold text-neutral-800">
+                                        {rent.clientName}
+                                      </div>
+                                      <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mt-1">Client Authorization Signature</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                              onTriggerPrint(`Equipment Hire Receipt - ${rent.assetName}`, receiptContent);
+                            }}
                             className="text-[9px] font-bold bg-neutral-900 hover:bg-black text-white px-2 py-1 rounded cursor-pointer flex items-center gap-1 shadow-xs"
                           >
                             <Printer size={10} />
@@ -1083,515 +919,6 @@ export default function AssetHiringBoard({
             </form>
       </Modal>
 
-      {/* NEW: ASSET REGISTRY — CREATE / EDIT FORM */}
-      <Modal
-        isOpen={showAssetForm}
-        onClose={() => setShowAssetForm(false)}
-        title={
-          <div className="flex items-center gap-2 text-neutral-800 font-bold text-xs uppercase tracking-wider font-mono">
-            <Package size={16} />
-            <span>{assetFormMode === "create" ? (lang === "en" ? "Register New Asset" : "Sajili Kifaa Kipya") : (lang === "en" ? "Edit Asset" : "Hariri Kifaa")}</span>
-          </div>
-        }
-        maxWidth="max-w-2xl"
-      >
-        <form onSubmit={handleSaveAssetForm} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Asset Name" : "Jina la Kifaa"} *</label>
-              <input
-                value={assetForm.name || ""}
-                onChange={e => setAssetForm({ ...assetForm, name: e.target.value })}
-                required
-                placeholder={lang === "en" ? "e.g. Dell Latitude Laptop" : ""}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Category" : "Aina"} *</label>
-              <select
-                value={assetForm.category || "other"}
-                onChange={e => setAssetForm({ ...assetForm, category: e.target.value as Asset["category"] })}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              >
-                <option value="laptop">{lang === "en" ? "Laptop / Computer" : "Kompyuta"}</option>
-                <option value="camera">{lang === "en" ? "Camera" : "Kamera"}</option>
-                <option value="mic">{lang === "en" ? "Microphone" : "Kipaza Sauti"}</option>
-                <option value="sound">{lang === "en" ? "Sound Equipment" : "Vifaa vya Sauti"}</option>
-                <option value="costume">{lang === "en" ? "Costume" : "Mavazi"}</option>
-                <option value="prop">{lang === "en" ? "Prop" : "Kifaa cha Maigizo"}</option>
-                <option value="furniture">{lang === "en" ? "Furniture" : "Samani"}</option>
-                <option value="other">{lang === "en" ? "Other" : "Nyingine"}</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Serial / Tag Number" : "Nambari ya Serial"} *</label>
-              <input
-                value={assetForm.serialNumber || ""}
-                onChange={e => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
-                required
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Condition" : "Hali"}</label>
-              <select
-                value={assetForm.condition || "good"}
-                onChange={e => setAssetForm({ ...assetForm, condition: e.target.value as Asset["condition"] })}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              >
-                <option value="excellent">{lang === "en" ? "Excellent" : "Bora Sana"}</option>
-                <option value="good">{lang === "en" ? "Good" : "Nzuri"}</option>
-                <option value="fair">{lang === "en" ? "Fair" : "Wastani"}</option>
-                <option value="poor">{lang === "en" ? "Poor" : "Mbaya"}</option>
-                <option value="repair_needed">{lang === "en" ? "Repair Needed" : "Inahitaji Ukarabati"}</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Custodian (Who Holds It)" : "Kiongozi wa Kifaa"} *</label>
-              <input
-                value={assetForm.custodian || ""}
-                onChange={e => setAssetForm({ ...assetForm, custodian: e.target.value })}
-                required
-                placeholder={lang === "en" ? "Member/staff name" : ""}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Storage Location" : "Mahali Ilipohifadhiwa"}</label>
-              <input
-                value={assetForm.location || ""}
-                onChange={e => setAssetForm({ ...assetForm, location: e.target.value })}
-                placeholder={lang === "en" ? "e.g. CBO Office, Kiambiu" : ""}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Date Acquired" : "Tarehe ya Kupata"}</label>
-              <input
-                type="date"
-                value={assetForm.purchaseDate || ""}
-                onChange={e => setAssetForm({ ...assetForm, purchaseDate: e.target.value })}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Value / Cost (Ksh)" : "Thamani (Ksh)"}</label>
-              <input
-                type="number"
-                min="0"
-                value={assetForm.purchaseCost ?? ""}
-                onChange={e => setAssetForm({ ...assetForm, purchaseCost: Number(e.target.value) })}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono"
-              />
-            </div>
-          </div>
-
-          {/* Acquisition type */}
-          <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 space-y-3">
-            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "How was this asset acquired?" : "Kifaa hiki kilipatikanaje?"}</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={(assetForm.acquisitionType || "purchased") === "purchased"}
-                  onChange={() => setAssetForm({ ...assetForm, acquisitionType: "purchased" })}
-                />
-                <DollarSign size={12} /> {lang === "en" ? "Purchased by CBO" : "Ilinunuliwa na CBO"}
-              </label>
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={assetForm.acquisitionType === "donated"}
-                  onChange={() => setAssetForm({ ...assetForm, acquisitionType: "donated" })}
-                />
-                <Gift size={12} /> {lang === "en" ? "Donated" : "Ilitolewa"}
-              </label>
-            </div>
-            {assetForm.acquisitionType === "donated" && (
-              <div>
-                <label className="block text-[9px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Donated By" : "Ilitolewa Na"}</label>
-                <input
-                  value={assetForm.donatedBy || ""}
-                  onChange={e => setAssetForm({ ...assetForm, donatedBy: e.target.value })}
-                  placeholder={lang === "en" ? "Donor name or organization" : ""}
-                  className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-                />
-              </div>
-            )}
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 cursor-pointer pt-1 border-t border-neutral-200">
-              <input
-                type="checkbox"
-                checked={!!assetForm.hasReceipt}
-                onChange={e => setAssetForm({ ...assetForm, hasReceipt: e.target.checked })}
-              />
-              <Receipt size={12} /> {lang === "en" ? "A receipt exists for this asset" : "Kuna stakabadhi ya kifaa hiki"}
-            </label>
-            {assetForm.hasReceipt && (
-              <div>
-                <label className="block text-[9px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Receipt Reference" : "Rejea ya Stakabadhi"}</label>
-                <input
-                  value={assetForm.receiptRef || ""}
-                  onChange={e => setAssetForm({ ...assetForm, receiptRef: e.target.value })}
-                  placeholder={lang === "en" ? "Receipt number, filed location, or link" : ""}
-                  className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-                />
-              </div>
-            )}
-          </div>
-
-          <label className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!assetForm.availableForHire}
-              onChange={e => setAssetForm({ ...assetForm, availableForHire: e.target.checked })}
-            />
-            {lang === "en" ? "This asset is also available for external hire" : "Kifaa hiki pia kinaweza kukodishwa nje"}
-          </label>
-
-          <button disabled={savingAsset} className="w-full bg-[#E31E24] hover:bg-[#c21419] text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer">
-            {savingAsset ? (lang === "en" ? "Saving..." : "Inahifadhi...") : (assetFormMode === "create" ? (lang === "en" ? "Register Asset" : "Sajili Kifaa") : (lang === "en" ? "Save Changes" : "Hifadhi Mabadiliko"))}
-          </button>
-        </form>
-      </Modal>
-
-      {/* NEW: RECORD INSPECTION MODAL */}
-      <Modal
-        isOpen={!!inspectingAsset}
-        onClose={() => setInspectingAsset(null)}
-        title={
-          <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase tracking-wider font-mono">
-            <ClipboardCheck size={16} />
-            <span>{lang === "en" ? "Record Inspection" : "Rekodi Ukaguzi"} — {inspectingAsset?.name}</span>
-          </div>
-        }
-        maxWidth="max-w-md"
-      >
-        {inspectingAsset && (
-          <form onSubmit={handleRecordInspection} className="space-y-4">
-            <p className="text-[11px] text-neutral-500">
-              {lang === "en"
-                ? "Every 6 months, physically check this asset and log its real condition here. This resets the next inspection countdown."
-                : "Kila miezi 6, kagua kifaa hiki kimwili na urekodi hali yake halisi hapa."}
-            </p>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Condition Found" : "Hali Iliyopatikana"}</label>
-              <select
-                value={inspectionCondition}
-                onChange={e => setInspectionCondition(e.target.value as Asset["condition"])}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              >
-                <option value="excellent">{lang === "en" ? "Excellent" : "Bora Sana"}</option>
-                <option value="good">{lang === "en" ? "Good" : "Nzuri"}</option>
-                <option value="fair">{lang === "en" ? "Fair" : "Wastani"}</option>
-                <option value="poor">{lang === "en" ? "Poor" : "Mbaya"}</option>
-                <option value="repair_needed">{lang === "en" ? "Repair Needed" : "Inahitaji Ukarabati"}</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Notes" : "Maelezo"}</label>
-              <textarea
-                value={inspectionNotes}
-                onChange={e => setInspectionNotes(e.target.value)}
-                rows={3}
-                placeholder={lang === "en" ? "Any damage, wear, or maintenance needed?" : ""}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              />
-            </div>
-            <button className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer">
-              {lang === "en" ? "Save Inspection Record" : "Hifadhi Ukaguzi"}
-            </button>
-
-            {inspectingAsset.inspectionHistory && inspectingAsset.inspectionHistory.length > 0 && (
-              <div className="pt-3 border-t border-neutral-100 space-y-1.5">
-                <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Past Inspections" : "Ukaguzi Uliopita"}</p>
-                {[...inspectingAsset.inspectionHistory].sort((a, b) => b.date.localeCompare(a.date)).map(h => (
-                  <div key={h.id} className="text-[10px] bg-neutral-50 rounded-lg px-2.5 py-1.5">
-                    <span className="font-bold text-neutral-700">{h.date}</span> — {h.condition} {lang === "en" ? "by" : "na"} {h.inspectedBy}
-                    {h.notes && <p className="text-neutral-500 italic mt-0.5">{h.notes}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </form>
-        )}
-      </Modal>
-
-      {/* NEW: REASSIGN CUSTODIAN MODAL */}
-      <Modal
-        isOpen={!!reassigningAsset}
-        onClose={() => setReassigningAsset(null)}
-        title={
-          <div className="flex items-center gap-2 text-blue-700 font-bold text-xs uppercase tracking-wider font-mono">
-            <Repeat size={16} />
-            <span>{lang === "en" ? "Reassign Custodian" : "Hamisha Kiongozi"} — {reassigningAsset?.name}</span>
-          </div>
-        }
-        maxWidth="max-w-md"
-      >
-        {reassigningAsset && (
-          <form onSubmit={handleReassign} className="space-y-4">
-            <p className="text-[11px] text-neutral-500">
-              {lang === "en" ? `Currently held by: ` : `Kwa sasa yupo kwa: `}<strong className="text-neutral-800">{reassigningAsset.custodian}</strong>
-            </p>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "New Custodian" : "Kiongozi Mpya"} *</label>
-              <input
-                value={newCustodian}
-                onChange={e => setNewCustodian(e.target.value)}
-                required
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Reason / Notes" : "Sababu"}</label>
-              <textarea
-                value={reassignNotes}
-                onChange={e => setReassignNotes(e.target.value)}
-                rows={2}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
-              />
-            </div>
-            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer">
-              {lang === "en" ? "Confirm Reassignment" : "Thibitisha Uhamisho"}
-            </button>
-
-            {reassigningAsset.assignmentHistory && reassigningAsset.assignmentHistory.length > 0 && (
-              <div className="pt-3 border-t border-neutral-100 space-y-1.5">
-                <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Custody Chain" : "Historia ya Umiliki"}</p>
-                {[...reassigningAsset.assignmentHistory].sort((a, b) => b.assignedDate.localeCompare(a.assignedDate)).map(h => (
-                  <div key={h.id} className="text-[10px] bg-neutral-50 rounded-lg px-2.5 py-1.5">
-                    <span className="font-bold text-neutral-700">{h.assignedDate}</span> — {h.custodian} ({lang === "en" ? "by" : "na"} {h.assignedBy})
-                    {h.notes && <p className="text-neutral-500 italic mt-0.5">{h.notes}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </form>
-        )}
-      </Modal>
-
-      {/* NEW: PRINTABLE ASSET CARD — real verified letterhead, matches every other document in this system */}
-      <Modal isOpen={!!printingAsset} onClose={() => setPrintingAsset(null)} maxWidth="max-w-3xl">
-        {printingAsset && (
-          <PrintWrapper
-            title={lang === "en" ? "Organizational Asset Record" : "Kumbukumbu ya Kifaa cha Shirika"}
-            docType="ASSET CARD"
-            authorName={currentUser.name}
-            authorRole="Custodian Record"
-            dateString={new Date().toISOString().split("T")[0]}
-            verificationUrl={printingAsset.verificationUrl}
-          >
-            <div className="space-y-4">
-              {printingAsset.photoUrl && (
-                <img src={printingAsset.photoUrl} alt={printingAsset.name} className="w-full h-40 object-cover rounded-xl border border-neutral-200" />
-              )}
-              <div className="text-center border-b border-neutral-200 pb-3">
-                <h2 className="text-xl font-black text-neutral-900">{printingAsset.name}</h2>
-                <p className="text-xs font-mono text-neutral-500 uppercase">{printingAsset.category} • Serial: {printingAsset.serialNumber}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Current Custodian" : "Kiongozi wa Sasa"}</span><span className="font-bold text-neutral-900">{printingAsset.custodian}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Location" : "Eneo"}</span><span className="font-bold text-neutral-900">{printingAsset.location || "—"}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Condition" : "Hali"}</span><span className="font-bold text-neutral-900 uppercase">{printingAsset.condition}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Date Acquired" : "Tarehe ya Kupata"}</span><span className="font-bold text-neutral-900">{printingAsset.purchaseDate}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Value" : "Thamani"}</span><span className="font-bold text-neutral-900">Ksh {printingAsset.purchaseCost.toLocaleString()}</span></div>
-                <div>
-                  <span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Acquisition" : "Ilipatikanaje"}</span>
-                  <span className="font-bold text-neutral-900">
-                    {printingAsset.acquisitionType === "donated" ? `${lang === "en" ? "Donated by" : "Ilitolewa na"} ${printingAsset.donatedBy || "—"}` : (lang === "en" ? "Purchased" : "Ilinunuliwa")}
-                  </span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Receipt" : "Stakabadhi"}</span>
-                  <span className="font-bold text-neutral-900">
-                    {printingAsset.hasReceipt ? `${lang === "en" ? "On file" : "Ipo"}${printingAsset.receiptRef ? ` — ${printingAsset.receiptRef}` : ""}` : (lang === "en" ? "None on file" : "Haipo")}
-                  </span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Next Inspection Due" : "Ukaguzi Ujao"}</span>
-                  <span className="font-bold text-neutral-900">{getInspectionStatus(printingAsset).dueDate}</span>
-                </div>
-              </div>
-
-              {printingAsset.assignmentHistory && printingAsset.assignmentHistory.length > 0 && (
-                <div className="pt-3 border-t border-neutral-200">
-                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">{lang === "en" ? "Custody Chain" : "Historia ya Umiliki"}</p>
-                  <table className="w-full text-[10px] font-sans">
-                    <thead><tr className="text-neutral-400 uppercase border-b"><th className="text-left py-1">Date</th><th className="text-left py-1">Custodian</th><th className="text-left py-1">Assigned By</th></tr></thead>
-                    <tbody>
-                      {[...printingAsset.assignmentHistory].sort((a, b) => b.assignedDate.localeCompare(a.assignedDate)).map(h => (
-                        <tr key={h.id} className="border-b border-neutral-100"><td className="py-1">{h.assignedDate}</td><td className="py-1 font-bold">{h.custodian}</td><td className="py-1">{h.assignedBy}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {printingAsset.inspectionHistory && printingAsset.inspectionHistory.length > 0 && (
-                <div className="pt-3 border-t border-neutral-200">
-                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">{lang === "en" ? "Inspection History" : "Historia ya Ukaguzi"}</p>
-                  <table className="w-full text-[10px] font-sans">
-                    <thead><tr className="text-neutral-400 uppercase border-b"><th className="text-left py-1">Date</th><th className="text-left py-1">Condition</th><th className="text-left py-1">Inspected By</th></tr></thead>
-                    <tbody>
-                      {[...printingAsset.inspectionHistory].sort((a, b) => b.date.localeCompare(a.date)).map(h => (
-                        <tr key={h.id} className="border-b border-neutral-100"><td className="py-1">{h.date}</td><td className="py-1 font-bold uppercase">{h.condition}</td><td className="py-1">{h.inspectedBy}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </PrintWrapper>
-        )}
-      </Modal>
-
-      {/* 5. MODAL: CERTIFIED RECEIPT / INVOICE PRINT VIEW */}
-      <Modal
-        isOpen={!!selectedReceiptRental}
-        onClose={() => setSelectedReceiptRental(null)}
-        title={
-          <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase tracking-wider font-mono">
-            <ShieldCheck size={16} />
-            <span>{lang === "en" ? "OFFICIAL CERTIFIED RENTAL RECEIPT" : "STAKABADHI RASMI YA KUKODI"}</span>
-          </div>
-        }
-        maxWidth="max-w-2xl"
-      >
-        {selectedReceiptRental && (
-          <div className="space-y-6">
-            <div className="flex justify-end print:hidden">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="bg-[#E31E24] hover:bg-red-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-              >
-                <Printer size={14} />
-                {lang === "en" ? "Print / Save PDF" : "Chapa / Hifadhi PDF"}
-              </button>
-            </div>
-
-            {/* Printable Document Sheet */}
-            <div className="space-y-6 border border-neutral-200 rounded-xl p-6 bg-neutral-50/50 relative overflow-hidden print:border-none print:bg-white print:p-0 text-neutral-900">
-              {/* CBO Letterhead Header */}
-              <div className="border-b-2 border-red-600 pb-4 text-center space-y-1">
-                <p className="text-[10px] font-extrabold text-red-600 tracking-widest uppercase font-mono">
-                  BASHOSHO TALENTS COMMUNITY BASED ORGANIZATION
-                </p>
-                <h1 className="text-xl font-black text-neutral-950 tracking-tight font-sans">
-                  EQUIPMENT HIRE CONTRACT & OFFICIAL RECEIPT
-                </h1>
-                <p className="text-[11px] text-neutral-600 font-medium">
-                  Reg No: <span className="font-bold text-neutral-900">DSD/KAM/CBO/5/4/22/269</span> | M-Pesa Buy Goods Till: <span className="font-bold text-emerald-700 font-mono">8671238</span>
-                </p>
-                <p className="text-[10px] text-neutral-500">
-                  Kiambiu Community Hall, Nairobi, Kenya | Email: barshoshotalents@gmail.com | Cell: +254 798 132 410
-                </p>
-              </div>
-
-              {/* Receipt Metadata Grid */}
-              <div className="grid grid-cols-2 gap-4 text-xs font-sans border-b pb-4">
-                <div>
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Receipt & Contract Ref</span>
-                  <span className="font-mono font-bold text-neutral-900 text-sm">BT-RCT-{selectedReceiptRental.rentalId.toUpperCase()}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Issue Date</span>
-                  <span className="font-mono font-semibold text-neutral-800">{selectedReceiptRental.startDate}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Renter / Client Name</span>
-                  <span className="font-bold text-neutral-900 text-sm">{selectedReceiptRental.clientName}</span>
-                  <span className="block text-[10px] font-mono text-neutral-500">{selectedReceiptRental.clientPhone}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Rental Duration</span>
-                  <span className="font-mono font-semibold text-neutral-800">{selectedReceiptRental.startDate} to {selectedReceiptRental.endDate}</span>
-                </div>
-              </div>
-
-              {/* Itemized Table */}
-              <div>
-                <table className="w-full text-left text-xs border border-neutral-200 rounded-lg overflow-hidden">
-                  <thead className="bg-neutral-100 text-[10px] font-bold text-neutral-600 uppercase">
-                    <tr>
-                      <th className="py-2.5 px-3">Equipment Item</th>
-                      <th className="py-2.5 px-3 text-center">Rental Period</th>
-                      <th className="py-2.5 px-3 text-right">Total Fee</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-200">
-                    <tr>
-                      <td className="py-3 px-3 font-bold text-neutral-900">
-                        {selectedReceiptRental.assetName}
-                      </td>
-                      <td className="py-3 px-3 text-center font-mono text-neutral-600">
-                        {selectedReceiptRental.startDate} - {selectedReceiptRental.endDate}
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono font-black text-neutral-950 text-sm">
-                        Ksh {selectedReceiptRental.totalAmount.toLocaleString()}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Payment Summary & M-Pesa Instructions */}
-              <div className="flex flex-wrap justify-between items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                <div>
-                  <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Payment Instructions / M-Pesa Till</span>
-                  <p className="text-xs font-medium text-emerald-950">
-                    Buy Goods Till Number: <strong className="font-mono text-sm font-black text-emerald-700">8671238</strong> (Bashosho Talents CBO)
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Payment Status</span>
-                  <span className={`px-2 py-0.5 rounded font-mono text-xs font-black uppercase ${
-                    selectedReceiptRental.paymentStatus === "paid"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-red-600 text-white"
-                  }`}>
-                    {selectedReceiptRental.paymentStatus.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Certification Stamp Overlay & Signatures */}
-              <div className="pt-4 grid grid-cols-2 gap-8 items-end relative">
-                {/* Red CBO Official Stamp Overlay */}
-                <div className="absolute right-12 top-0 rotate-[-12deg] pointer-events-none opacity-80 border-4 border-red-600 rounded-full w-28 h-28 flex flex-col items-center justify-center text-center p-1 text-red-600 font-mono font-black tracking-tighter">
-                  <span className="text-[7px] uppercase">Bashosho Talents</span>
-                  <span className="text-[9px] uppercase border-y border-red-600 my-0.5 py-0.5 w-full">CERTIFIED</span>
-                  <span className="text-[6px] uppercase">NAIROBI / KENYA</span>
-                </div>
-
-                <div>
-                  <div className="border-b border-neutral-400 w-40 h-10 flex items-end font-mono text-xs font-bold text-neutral-800">
-                    {selectedReceiptRental.clientName}
-                  </div>
-                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mt-1">Client Authorization Signature</span>
-                </div>
-
-                <div className="text-right">
-                  <div className="border-b border-neutral-400 w-40 h-10 ml-auto flex items-end justify-end font-mono text-xs font-bold text-neutral-800">
-                    Chairperson / Treasurer
-                  </div>
-                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mt-1">CBO Authorized Stamp & Sign</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

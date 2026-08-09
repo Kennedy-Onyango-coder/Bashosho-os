@@ -8,6 +8,7 @@ interface MemberHandbookPanelProps {
   lang: "en" | "sw";
   onAcknowledge?: (version: string) => void;
   onNavigateToSettings?: () => void;
+  onTriggerPrint: (title: string, content: React.ReactNode, verificationUrl?: string) => void;
 }
 
 export default function MemberHandbookPanel({
@@ -15,6 +16,7 @@ export default function MemberHandbookPanel({
   lang,
   onAcknowledge,
   onNavigateToSettings,
+  onTriggerPrint,
 }: MemberHandbookPanelProps) {
   const [settings, setSettings] = React.useState<OrgSettings>(() => StorageService.getOrgSettings());
   const [selectedLang, setSelectedLang] = React.useState<"en" | "sw">(lang);
@@ -87,55 +89,29 @@ export default function MemberHandbookPanel({
   };
 
   const handlePrintHandbook = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    const sectionsHtml = sections
-      .map(
-        (s) => `
-        <div style="margin-bottom: 24px; page-break-inside: avoid;">
-          <h3 style="font-size: 14px; font-weight: 700; color: #111827; border-bottom: 1.5px solid #E31E24; padding-bottom: 4px; margin-bottom: 8px;">
-            ${s.title[selectedLang] || s.title.en}
-          </h3>
-          <p style="font-size: 11px; line-height: 1.6; color: #374151; white-space: pre-line;">
-            ${s.body[selectedLang] || s.body.en}
+    const handbookContent = (
+      <div className="space-y-6">
+        <div className="text-center border-b-2 pb-4" style={{ borderColor: "#00A651" }}>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider font-mono">
+            {settings.registrationNumber} &middot; Version {currentVersion} (Published: {settings.handbookUpdatedAt || "2026-07-22"})
           </p>
         </div>
-      `
-      )
-      .join("");
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${settings.name} — Member Handbook v${currentVersion}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1f2937; line-height: 1.5; }
-            .header { text-align: center; border-bottom: 2px solid #00A651; padding-bottom: 20px; margin-bottom: 30px; }
-            .title { font-size: 20px; font-weight: 800; color: #E31E24; text-transform: uppercase; margin: 0; }
-            .subtitle { font-size: 11px; color: #4b5563; margin-top: 4px; font-weight: 600; }
-            .meta { font-size: 10px; color: #6b7280; margin-top: 10px; font-family: monospace; }
-            .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 12px; text-align: center; font-size: 9px; color: #9ca3af; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1 class="title">${settings.name}</h1>
-            <div class="subtitle">CONSTITUTION & OFFICIAL MEMBER HANDBOOK BYLAWS</div>
-            <div class="meta">${settings.registrationNumber} | Version ${currentVersion} (Published: ${settings.handbookUpdatedAt || "2026-07-22"})</div>
+        {sections.map((s) => (
+          <div key={s.id} style={{ breakInside: "avoid" }}>
+            <h3 className="text-sm font-bold text-neutral-900 border-b pb-1 mb-2" style={{ borderColor: "#E31E24" }}>
+              {s.title[selectedLang] || s.title.en}
+            </h3>
+            <p className="text-xs leading-relaxed text-neutral-700 whitespace-pre-line">
+              {s.body[selectedLang] || s.body.en}
+            </p>
           </div>
-          <div>
-            ${sectionsHtml}
-          </div>
-          <div class="footer">
-            Official Bashosho Talents CBO Document • Safeguarding Contact: ${settings.safeguardingContact || "+254 798 132 410"}
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+        ))}
+        <div className="text-center text-[10px] text-neutral-400 border-t pt-3 mt-8">
+          Safeguarding Contact: {settings.safeguardingContact || "+254 798 132 410"}
+        </div>
+      </div>
+    );
+    onTriggerPrint(`${settings.name} \u2014 Member Handbook v${currentVersion}`, handbookContent);
   };
 
   return (

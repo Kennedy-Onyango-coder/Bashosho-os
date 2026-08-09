@@ -16,19 +16,6 @@ interface VerificationResult {
   appointeeName?: string;
   termStart?: string;
   termEnd?: string;
-  title?: string;
-  docType?: string;
-  author?: string;
-  date?: string;
-  recipientName?: string;
-  tier?: string;
-  hoursAtIssue?: number;
-  issuedDate?: string;
-  assetName?: string;
-  assetCategory?: string;
-  assetSerial?: string;
-  assetCondition?: string;
-  assetCustodian?: string;
 }
 
 export default function PublicVerificationScreen({ path }: { path: string }) {
@@ -199,73 +186,6 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                     <div className="flex justify-between items-baseline">
                       <span className="text-neutral-400 font-medium">Term End Date</span>
                       <span className="font-mono text-neutral-100">{result.termEnd || "Indefinite / Open-ended"}</span>
-                    </div>
-                  </>
-                )}
-
-                {result.type === "document" && (
-                  <>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Document Title</span>
-                      <span className="font-bold text-neutral-100">{result.title}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Type</span>
-                      <span className="font-semibold text-red-400 uppercase">{result.docType}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Author</span>
-                      <span className="font-mono text-neutral-100">{result.author}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Date</span>
-                      <span className="font-mono text-neutral-100">{result.date}</span>
-                    </div>
-                  </>
-                )}
-
-                {result.type === "volunteer_certificate" && (
-                  <>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Recipient</span>
-                      <span className="font-bold text-neutral-100">{result.recipientName}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Recognition Tier</span>
-                      <span className="font-semibold text-red-400 uppercase">{result.tier}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Hours of Service</span>
-                      <span className="font-mono text-neutral-100">{result.hoursAtIssue} Hrs</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Issued Date</span>
-                      <span className="font-mono text-neutral-100">{result.issuedDate}</span>
-                    </div>
-                  </>
-                )}
-
-                {result.type === "asset" && (
-                  <>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Asset Name</span>
-                      <span className="font-bold text-neutral-100">{result.assetName}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Category</span>
-                      <span className="font-semibold text-red-400 uppercase">{result.assetCategory}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Serial Number</span>
-                      <span className="font-mono text-neutral-100">{result.assetSerial}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Condition</span>
-                      <span className="font-mono text-neutral-100 uppercase">{result.assetCondition}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Current Custodian</span>
-                      <span className="font-mono text-neutral-100">{result.assetCustodian}</span>
                     </div>
                   </>
                 )}
