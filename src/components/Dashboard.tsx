@@ -2,7 +2,9 @@ import React from "react";
 import Modal from "./Modal";
 import { UserRole, UserProfile, Document, BudgetEngagement, ExpenditureRequest, SafeguardingReport, Asset, AttendanceSheet, Partner, Broadcast, LeaveRequest, SiteContent, LeadershipAppointment, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService, generateMemberNumber } from "../lib/storage";
-import MembershipIDCard from "./MembershipIDCard";
+import MembershipIDCard, { getMonogramAvatar } from "./MembershipIDCard";
+import IDCardPrintLayout from "./IDCardPrintLayout";
+import QRCode from "qrcode";
 import DocumentEditor from "./DocumentEditor";
 import ContractRenewalPanel from "./ContractRenewalPanel";
 import PrintWrapper from "./PrintWrapper";
@@ -213,6 +215,41 @@ export default function Dashboard({
     return val ? JSON.parse(val) : [];
   });
   const [dashboardSubTab, setDashboardSubTab] = React.useState<"overview" | "renewals" | "appointments">("overview");
+
+  // ID card printing — a single shared print target rather than baking print state into
+  // every card instance, since this page can render many MembershipIDCards at once (the
+  // member directory grid) and only one member's card should print at a time regardless
+  // of how many are on screen.
+  const [printingIdCardMember, setPrintingIdCardMember] = React.useState<UserProfile | null>(null);
+  const [printingIdCardQr, setPrintingIdCardQr] = React.useState("");
+
+  const triggerIdCardPrint = (member: UserProfile) => {
+    const targetUrl = member.verificationUrl || `${window.location.origin}/verify/membership/${member.id}?t=0000000000000000`;
+    QRCode.toDataURL(targetUrl, { margin: 1, width: 160 })
+      .then((qr) => {
+        setPrintingIdCardQr(qr);
+        setPrintingIdCardMember(member);
+      })
+      .catch(() => {
+        setPrintingIdCardQr("");
+        setPrintingIdCardMember(member);
+      });
+  };
+
+  React.useEffect(() => {
+    if (!printingIdCardMember) return;
+    const raf = requestAnimationFrame(() => window.print());
+    const reset = () => {
+      setPrintingIdCardMember(null);
+      setPrintingIdCardQr("");
+    };
+    window.addEventListener("afterprint", reset);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("afterprint", reset);
+    };
+  }, [printingIdCardMember]);
+
 
   React.useEffect(() => {
     const refreshAllDashboardData = () => {
@@ -1556,13 +1593,7 @@ export default function Dashboard({
                         <td className="py-3 px-2 font-mono font-bold text-neutral-800">{hours.toFixed(1)} Hrs</td>
                         <td className="py-3 pl-2 text-right">
                           <button
-                            onClick={() => onPrintReport("Bashosho ID Card - " + member.name, (
-                              <div className="flex justify-center items-center py-10 bg-neutral-100">
-                                <div className="max-w-xs w-full">
-                                  <MembershipIDCard member={member} onVerify={() => {}} />
-                                </div>
-                              </div>
-                            ))}
+                            onClick={() => triggerIdCardPrint(member)}
                             id={`print-id-card-${member.id}`}
                             className="bg-neutral-950 hover:bg-black text-white text-[10px] font-bold px-2.5 py-1.5 rounded transition-all cursor-pointer inline-flex items-center gap-1"
                           >
@@ -2600,6 +2631,37 @@ export default function Dashboard({
           </Modal>
         );
       })()}
+
+      {/* Hidden ID card print target — set via triggerIdCardPrint(member) above.
+          Real card dimensions, front + back, no interactive chrome; only rendered
+          while an actual print is in progress (see the useEffect near the top of
+          this component), so it never interferes with the many interactive
+          MembershipIDCard instances rendered elsewhere on this page. */}
+      {printingIdCardMember && (
+        <>
+          <div id="dashboard-id-card-print-active" className="hidden print:block">
+            <IDCardPrintLayout
+              member={printingIdCardMember}
+              qrDataUrl={printingIdCardQr}
+              photoUrl={printingIdCardMember.avatar || getMonogramAvatar(printingIdCardMember.name, printingIdCardMember.id || printingIdCardMember.memberNumber)}
+            />
+          </div>
+          <style>{`
+            @media print {
+              @page {
+                size: auto;
+                margin: 0;
+              }
+              body * {
+                visibility: hidden;
+              }
+              #dashboard-id-card-print-active, #dashboard-id-card-print-active * {
+                visibility: visible;
+              }
+            }
+          `}</style>
+        </>
+      )}
     </div>
   );
 }

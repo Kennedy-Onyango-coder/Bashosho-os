@@ -521,6 +521,18 @@ export default function App() {
                   setCurrentUser(updated);
                   StorageService.setActiveUser(updated);
                 }}
+                onTriggerPrint={(title, content) => {
+                  setPrintOverlay({
+                    show: true,
+                    title,
+                    docType: "MEMBER HANDBOOK",
+                    content,
+                    authorName: currentUser?.name,
+                    authorRole: currentUser?.role,
+                    authorSignatureUrl: currentUser?.signatureUrl,
+                    dateString: new Date().toLocaleDateString("en-KE"),
+                  });
+                }}
               />
             </ErrorBoundary>
           </div>
@@ -1012,6 +1024,19 @@ export default function App() {
                     onRefresh={() => {
                       setAssets(StorageService.getAssets());
                     }}
+                    onTriggerPrint={(title, content, verificationUrl) => {
+                      setPrintOverlay({
+                        show: true,
+                        title,
+                        docType: "EQUIPMENT HIRE RECEIPT",
+                        content,
+                        authorName: currentUser?.name,
+                        authorRole: currentUser?.role,
+                        authorSignatureUrl: currentUser?.signatureUrl,
+                        dateString: new Date().toLocaleDateString("en-KE"),
+                        verificationUrl,
+                      });
+                    }}
                   />
                 </ErrorBoundary>
               )}
@@ -1090,6 +1115,18 @@ export default function App() {
                       StorageService.saveUser(updated);
                     }}
                     onNavigateToSettings={() => setActiveTab("settings")}
+                    onTriggerPrint={(title, content) => {
+                      setPrintOverlay({
+                        show: true,
+                        title,
+                        docType: "MEMBER HANDBOOK",
+                        content,
+                        authorName: currentUser?.name,
+                        authorRole: currentUser?.role,
+                        authorSignatureUrl: currentUser?.signatureUrl,
+                        dateString: new Date().toLocaleDateString("en-KE"),
+                      });
+                    }}
                   />
                 </ErrorBoundary>
               )}
