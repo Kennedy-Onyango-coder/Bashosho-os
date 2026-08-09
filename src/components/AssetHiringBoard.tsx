@@ -28,15 +28,13 @@ interface AssetHiringBoardProps {
   lang: "en" | "sw";
   assets: Asset[];
   onRefresh: () => void;
-  onTriggerPrint: (title: string, content: React.ReactNode, verificationUrl?: string) => void;
 }
 
 export default function AssetHiringBoard({
   currentUser,
   lang,
   assets,
-  onRefresh,
-  onTriggerPrint
+  onRefresh
 }: AssetHiringBoardProps) {
   const [subTab, setSubTab] = React.useState<"inventory" | "rentals">("inventory");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -53,6 +51,9 @@ export default function AssetHiringBoard({
   const [endDate, setEndDate] = React.useState("");
   const [customRate, setCustomRate] = React.useState("");
   const [paymentStatus, setPaymentStatus] = React.useState<"paid" | "unpaid">("unpaid");
+
+  // Certified Receipt Modal state
+  const [selectedReceiptRental, setSelectedReceiptRental] = React.useState<typeof allRentals[0] | null>(null);
 
   // AI draft description states for rentals
   const [isAiLoading, setIsAiLoading] = React.useState(false);
@@ -607,77 +608,7 @@ export default function AssetHiringBoard({
                       <td className="py-3 px-4 text-right">
                         <div className="flex gap-1.5 justify-end">
                           <button
-                            onClick={() => {
-                              const receiptContent = (
-                                <div className="space-y-6">
-                                  <div className="grid grid-cols-2 gap-4 text-xs font-sans border-b pb-4">
-                                    <div>
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Receipt &amp; Contract Ref</span>
-                                      <span className="font-mono font-bold text-neutral-900 text-sm">BT-RCT-{rent.rentalId.toUpperCase()}</span>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Issue Date</span>
-                                      <span className="font-mono font-semibold text-neutral-800">{rent.startDate}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Renter / Client Name</span>
-                                      <span className="font-bold text-neutral-900 text-sm">{rent.clientName}</span>
-                                      <span className="block text-[10px] font-mono text-neutral-500">{rent.clientPhone}</span>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Rental Duration</span>
-                                      <span className="font-mono font-semibold text-neutral-800">{rent.startDate} to {rent.endDate}</span>
-                                    </div>
-                                  </div>
-
-                                  <table className="w-full text-left text-xs border border-neutral-200 rounded-lg overflow-hidden">
-                                    <thead className="bg-neutral-100 text-[10px] font-bold text-neutral-600 uppercase">
-                                      <tr>
-                                        <th className="py-2.5 px-3">Equipment Item</th>
-                                        <th className="py-2.5 px-3 text-center">Rental Period</th>
-                                        <th className="py-2.5 px-3 text-right">Total Fee</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-neutral-200">
-                                      <tr>
-                                        <td className="py-3 px-3 font-bold text-neutral-900">{rent.assetName}</td>
-                                        <td className="py-3 px-3 text-center font-mono text-neutral-600">{rent.startDate} - {rent.endDate}</td>
-                                        <td className="py-3 px-3 text-right font-mono font-black text-neutral-950 text-sm">
-                                          Ksh {rent.totalAmount.toLocaleString()}
-                                        </td>
-                                      </tr>
-                                    </tbody>
-                                  </table>
-
-                                  <div className="flex flex-wrap justify-between items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                                    <div>
-                                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Payment Instructions / M-Pesa Till</span>
-                                      <p className="text-xs font-medium text-emerald-950">
-                                        Buy Goods Till Number: <strong className="font-mono text-sm font-black text-emerald-700">8671238</strong> (Bashosho Talents CBO)
-                                      </p>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Payment Status</span>
-                                      <span className={`px-2 py-0.5 rounded font-mono text-xs font-black uppercase ${
-                                        rent.paymentStatus === "paid" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
-                                      }`}>
-                                        {rent.paymentStatus.toUpperCase()}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className="pt-2 grid grid-cols-2 gap-8 items-end">
-                                    <div>
-                                      <div className="border-b border-neutral-400 w-40 h-10 flex items-end font-mono text-xs font-bold text-neutral-800">
-                                        {rent.clientName}
-                                      </div>
-                                      <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mt-1">Client Authorization Signature</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                              onTriggerPrint(`Equipment Hire Receipt - ${rent.assetName}`, receiptContent);
-                            }}
+                            onClick={() => setSelectedReceiptRental(rent)}
                             className="text-[9px] font-bold bg-neutral-900 hover:bg-black text-white px-2 py-1 rounded cursor-pointer flex items-center gap-1 shadow-xs"
                           >
                             <Printer size={10} />
@@ -919,6 +850,143 @@ export default function AssetHiringBoard({
             </form>
       </Modal>
 
+      {/* 5. MODAL: CERTIFIED RECEIPT / INVOICE PRINT VIEW */}
+      <Modal
+        isOpen={!!selectedReceiptRental}
+        onClose={() => setSelectedReceiptRental(null)}
+        title={
+          <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase tracking-wider font-mono">
+            <ShieldCheck size={16} />
+            <span>{lang === "en" ? "OFFICIAL CERTIFIED RENTAL RECEIPT" : "STAKABADHI RASMI YA KUKODI"}</span>
+          </div>
+        }
+        maxWidth="max-w-2xl"
+      >
+        {selectedReceiptRental && (
+          <div className="space-y-6">
+            <div className="flex justify-end print:hidden">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="bg-[#E31E24] hover:bg-red-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+              >
+                <Printer size={14} />
+                {lang === "en" ? "Print / Save PDF" : "Chapa / Hifadhi PDF"}
+              </button>
+            </div>
+
+            {/* Printable Document Sheet */}
+            <div className="space-y-6 border border-neutral-200 rounded-xl p-6 bg-neutral-50/50 relative overflow-hidden print:border-none print:bg-white print:p-0 text-neutral-900">
+              {/* CBO Letterhead Header */}
+              <div className="border-b-2 border-red-600 pb-4 text-center space-y-1">
+                <p className="text-[10px] font-extrabold text-red-600 tracking-widest uppercase font-mono">
+                  BASHOSHO TALENTS COMMUNITY BASED ORGANIZATION
+                </p>
+                <h1 className="text-xl font-black text-neutral-950 tracking-tight font-sans">
+                  EQUIPMENT HIRE CONTRACT & OFFICIAL RECEIPT
+                </h1>
+                <p className="text-[11px] text-neutral-600 font-medium">
+                  Reg No: <span className="font-bold text-neutral-900">DSD/KAM/CBO/5/4/22/269</span> | M-Pesa Buy Goods Till: <span className="font-bold text-emerald-700 font-mono">8671238</span>
+                </p>
+                <p className="text-[10px] text-neutral-500">
+                  Kiambiu Community Hall, Nairobi, Kenya | Email: barshoshotalents@gmail.com | Cell: +254 798 132 410
+                </p>
+              </div>
+
+              {/* Receipt Metadata Grid */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-sans border-b pb-4">
+                <div>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Receipt & Contract Ref</span>
+                  <span className="font-mono font-bold text-neutral-900 text-sm">BT-RCT-{selectedReceiptRental.rentalId.toUpperCase()}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Issue Date</span>
+                  <span className="font-mono font-semibold text-neutral-800">{selectedReceiptRental.startDate}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Renter / Client Name</span>
+                  <span className="font-bold text-neutral-900 text-sm">{selectedReceiptRental.clientName}</span>
+                  <span className="block text-[10px] font-mono text-neutral-500">{selectedReceiptRental.clientPhone}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Rental Duration</span>
+                  <span className="font-mono font-semibold text-neutral-800">{selectedReceiptRental.startDate} to {selectedReceiptRental.endDate}</span>
+                </div>
+              </div>
+
+              {/* Itemized Table */}
+              <div>
+                <table className="w-full text-left text-xs border border-neutral-200 rounded-lg overflow-hidden">
+                  <thead className="bg-neutral-100 text-[10px] font-bold text-neutral-600 uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Equipment Item</th>
+                      <th className="py-2.5 px-3 text-center">Rental Period</th>
+                      <th className="py-2.5 px-3 text-right">Total Fee</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-200">
+                    <tr>
+                      <td className="py-3 px-3 font-bold text-neutral-900">
+                        {selectedReceiptRental.assetName}
+                      </td>
+                      <td className="py-3 px-3 text-center font-mono text-neutral-600">
+                        {selectedReceiptRental.startDate} - {selectedReceiptRental.endDate}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono font-black text-neutral-950 text-sm">
+                        Ksh {selectedReceiptRental.totalAmount.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Payment Summary & M-Pesa Instructions */}
+              <div className="flex flex-wrap justify-between items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Payment Instructions / M-Pesa Till</span>
+                  <p className="text-xs font-medium text-emerald-950">
+                    Buy Goods Till Number: <strong className="font-mono text-sm font-black text-emerald-700">8671238</strong> (Bashosho Talents CBO)
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Payment Status</span>
+                  <span className={`px-2 py-0.5 rounded font-mono text-xs font-black uppercase ${
+                    selectedReceiptRental.paymentStatus === "paid"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-red-600 text-white"
+                  }`}>
+                    {selectedReceiptRental.paymentStatus.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Certification Stamp Overlay & Signatures */}
+              <div className="pt-4 grid grid-cols-2 gap-8 items-end relative">
+                {/* Red CBO Official Stamp Overlay */}
+                <div className="absolute right-12 top-0 rotate-[-12deg] pointer-events-none opacity-80 border-4 border-red-600 rounded-full w-28 h-28 flex flex-col items-center justify-center text-center p-1 text-red-600 font-mono font-black tracking-tighter">
+                  <span className="text-[7px] uppercase">Bashosho Talents</span>
+                  <span className="text-[9px] uppercase border-y border-red-600 my-0.5 py-0.5 w-full">CERTIFIED</span>
+                  <span className="text-[6px] uppercase">NAIROBI / KENYA</span>
+                </div>
+
+                <div>
+                  <div className="border-b border-neutral-400 w-40 h-10 flex items-end font-mono text-xs font-bold text-neutral-800">
+                    {selectedReceiptRental.clientName}
+                  </div>
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mt-1">Client Authorization Signature</span>
+                </div>
+
+                <div className="text-right">
+                  <div className="border-b border-neutral-400 w-40 h-10 ml-auto flex items-end justify-end font-mono text-xs font-bold text-neutral-800">
+                    Chairperson / Treasurer
+                  </div>
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mt-1">CBO Authorized Stamp & Sign</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

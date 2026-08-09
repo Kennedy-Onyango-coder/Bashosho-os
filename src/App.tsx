@@ -388,9 +388,13 @@ export default function App() {
   };
 
   // Print Document Trigger
-  const handleTriggerPrint = (doc: Document) => {
-    const isBudget = doc.type === "budget";
-    setPrintOverlay({
+  const handleTriggerPrint = async (doc: Document) => {
+    const printContent = (
+      <div className="space-y-4 text-left font-serif whitespace-pre-wrap leading-relaxed text-sm">
+        {doc.content}
+      </div>
+    );
+    const baseOverlay = {
       show: true,
       title: doc.title,
       docType: doc.type.toUpperCase(),
@@ -402,13 +406,27 @@ export default function App() {
       // the honest "Awaiting uploaded signature" placeholder PrintWrapper falls back to.
       authorSignatureUrl: doc.author === currentUser?.name ? currentUser?.signatureUrl : undefined,
       dateString: doc.date,
-      qrValue: doc.id,
-      content: (
-        <div className="space-y-4 text-left font-serif whitespace-pre-wrap leading-relaxed text-sm">
-          {doc.content}
-        </div>
-      )
-    });
+      content: printContent
+    };
+
+    // Pull the freshest copy so the QR embeds the real, server-signed verification
+    // link for this exact document rather than a stale/local one — same pattern used
+    // for leadership appointment letters.
+    try {
+      const res = await fetch("/api/documents");
+      if (res.ok) {
+        const latest = await res.json();
+        if (Array.isArray(latest)) {
+          setDocuments(latest);
+          const matched = latest.find((d: any) => d.id === doc.id);
+          setPrintOverlay({ ...baseOverlay, verificationUrl: matched?.verificationUrl });
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to refresh document verification link before printing:", err);
+    }
+    setPrintOverlay({ ...baseOverlay, verificationUrl: doc.verificationUrl });
   };
 
   // Direct custom printable layouts
@@ -520,18 +538,6 @@ export default function App() {
                   };
                   setCurrentUser(updated);
                   StorageService.setActiveUser(updated);
-                }}
-                onTriggerPrint={(title, content) => {
-                  setPrintOverlay({
-                    show: true,
-                    title,
-                    docType: "MEMBER HANDBOOK",
-                    content,
-                    authorName: currentUser?.name,
-                    authorRole: currentUser?.role,
-                    authorSignatureUrl: currentUser?.signatureUrl,
-                    dateString: new Date().toLocaleDateString("en-KE"),
-                  });
                 }}
               />
             </ErrorBoundary>
@@ -1024,19 +1030,6 @@ export default function App() {
                     onRefresh={() => {
                       setAssets(StorageService.getAssets());
                     }}
-                    onTriggerPrint={(title, content, verificationUrl) => {
-                      setPrintOverlay({
-                        show: true,
-                        title,
-                        docType: "EQUIPMENT HIRE RECEIPT",
-                        content,
-                        authorName: currentUser?.name,
-                        authorRole: currentUser?.role,
-                        authorSignatureUrl: currentUser?.signatureUrl,
-                        dateString: new Date().toLocaleDateString("en-KE"),
-                        verificationUrl,
-                      });
-                    }}
                   />
                 </ErrorBoundary>
               )}
@@ -1115,18 +1108,6 @@ export default function App() {
                       StorageService.saveUser(updated);
                     }}
                     onNavigateToSettings={() => setActiveTab("settings")}
-                    onTriggerPrint={(title, content) => {
-                      setPrintOverlay({
-                        show: true,
-                        title,
-                        docType: "MEMBER HANDBOOK",
-                        content,
-                        authorName: currentUser?.name,
-                        authorRole: currentUser?.role,
-                        authorSignatureUrl: currentUser?.signatureUrl,
-                        dateString: new Date().toLocaleDateString("en-KE"),
-                      });
-                    }}
                   />
                 </ErrorBoundary>
               )}

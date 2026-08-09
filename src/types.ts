@@ -128,6 +128,8 @@ export interface Document {
     notes?: string;
   }[];
   partnerId?: string; // Linked partner CRM if any
+  /** Server-computed, cryptographically signed verification link (see /api/verify/document/:id) */
+  verificationUrl?: string;
 }
 
 export interface BudgetEngagement {

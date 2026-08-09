@@ -1550,7 +1550,8 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
     membership: "profiles", 
     class_certificate: "classes", 
     invoice: "invoices",
-    leadership_appointment: "leadership_appointments"
+    leadership_appointment: "leadership_appointments",
+    document: "documents"
   };
   const collection = collectionMap[type];
   if (!collection) return res.status(400).json({ verified: false, error: "Unknown document type" });
@@ -1607,6 +1608,17 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
         orgName: "Bashosho Talents CBO",
       });
     }
+    if (type === "document") {
+      return res.json({
+        verified: true,
+        type,
+        title: data.title,
+        docType: data.type,
+        author: data.author,
+        date: data.date,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
   } catch (err: any) {
     return res.status(500).json({ verified: false, error: "Verification server error", details: err.message });
   }
@@ -1658,6 +1670,18 @@ async function fetchCollection(collectionName: string, req: AuthenticatedRequest
         return {
           ...item,
           verificationUrl: `${appUrl}/verify/invoice/${item.id}?t=${token}`
+        };
+      });
+    } else if (collectionName === "documents") {
+      // Gives every printed letter/minutes/activity-report/budget-explanation a real,
+      // scannable verification QR — same mechanism as profiles/classes/invoices above —
+      // rather than the document print flow having no working verification at all.
+      items = items.map(item => {
+        const token = generateVerificationToken("document", item.id);
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        return {
+          ...item,
+          verificationUrl: `${appUrl}/verify/document/${item.id}?t=${token}`
         };
       });
     }
