@@ -1,53 +1,28 @@
-import { Lock, Pencil, Trash2, Globe, Landmark, TrendingUp, Trophy, Clock3, ExternalLink, Sparkles } from "lucide-react";
+import { Lock, AlertTriangle, Link, Pencil, Trash2, X, Sparkles, Globe } from "lucide-react";
 import React from "react";
 import Modal from "./Modal";
 import { Grant, UserRole, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
-import StatCard from "./dashboard/StatCard";
 
 interface GrantsBoardProps {
   currentUser: any;
   lang: "en" | "sw";
 }
 
-const SYSTEM_DATE = new Date("2026-07-12");
-
 const COLUMNS = [
-  { id: "identified", labelEn: "Identified", labelSw: "Zilizotambuliwa", dot: "bg-blue-500", header: "bg-blue-50/60 border-blue-200/80" },
-  { id: "preparing", labelEn: "Preparing", labelSw: "Zinaandaliwa", dot: "bg-amber-500", header: "bg-amber-50/60 border-amber-200/80" },
-  { id: "submitted", labelEn: "Submitted", labelSw: "Zilizowasilishwa", dot: "bg-purple-500", header: "bg-purple-50/60 border-purple-200/80" },
-  { id: "awarded", labelEn: "Awarded", labelSw: "Zilizofadhiliwa", dot: "bg-emerald-500", header: "bg-emerald-50/60 border-emerald-200/80" },
-  { id: "declined", labelEn: "Declined", labelSw: "Zilizokataliwa", dot: "bg-neutral-400", header: "bg-neutral-50 border-neutral-200" },
-] as const;
-
-const CARD_ACCENT: Record<string, string> = {
-  identified: "border-l-blue-400",
-  preparing: "border-l-amber-400",
-  submitted: "border-l-purple-400",
-  awarded: "border-l-emerald-500",
-  declined: "border-l-neutral-300",
-};
-
-function fmtKsh(n: number) {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
-  return String(n);
-}
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("") || "?";
-}
+  { id: "identified", labelEn: "Identified", labelSw: "Zilizotambuliwa", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { id: "preparing", labelEn: "Preparing", labelSw: "Zinaandaliwa", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  { id: "submitted", labelEn: "Submitted", labelSw: "Zilizowasilishwa", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  { id: "awarded", labelEn: "Awarded", labelSw: "Zilizofadhiliwa", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { id: "declined", labelEn: "Declined", labelSw: "Zilizokataliwa", color: "bg-neutral-50 text-neutral-600 border-neutral-200" },
+];
 
 export default function GrantsBoard({ currentUser, lang }: GrantsBoardProps) {
   const [grants, setGrants] = React.useState<Grant[]>([]);
   const [showModal, setShowModal] = React.useState(false);
   const [editingGrant, setEditingGrant] = React.useState<Grant | null>(null);
 
+  // Form states
   const [name, setName] = React.useState("");
   const [funder, setFunder] = React.useState("");
   const [deadline, setDeadline] = React.useState("");
@@ -109,7 +84,7 @@ Notes context: ${notes || "None provided"}`,
     setDeadline(grant.deadline || "");
     setAmount((grant?.amount || 0).toString());
     setNotes(grant.notes);
-    setLink(grant.link || "");
+    setLink(grant.link);
     setStatus(grant.status);
     setShowModal(true);
   };
@@ -119,6 +94,7 @@ Notes context: ${notes || "None provided"}`,
     if (!name.trim() || !funder.trim() || !deadline || !amount) return;
 
     const parsedAmount = parseFloat(amount) || 0;
+
     let finalGrant: Grant;
 
     if (editingGrant) {
@@ -138,7 +114,8 @@ Notes context: ${notes || "None provided"}`,
       };
       setGrants([finalGrant, ...grants]);
     }
-
+    
+    // Explicitly call saveRecord to perform a clean write
     StorageService.saveRecord("grants", finalGrant).catch(console.error);
     setShowModal(false);
   };
@@ -147,6 +124,8 @@ Notes context: ${notes || "None provided"}`,
     if (confirm(lang === "en" ? "Are you sure you want to delete this grant?" : "Je, una uhakika unataka kufuta ruzuku hii?")) {
       const updated = grants.filter(g => g.id !== id);
       setGrants(updated);
+      
+      // Explicitly call deleteRecord to perform a clean server and cache deletion
       StorageService.deleteRecord("grants", id).catch(console.error);
     }
   };
@@ -155,27 +134,23 @@ Notes context: ${notes || "None provided"}`,
     const updatedGrant = { ...grant, status: nextStatus };
     const updated = grants.map(g => g.id === grant.id ? updatedGrant : g);
     setGrants(updated);
+    
+    // Explicitly call saveRecord for status update
     StorageService.saveRecord("grants", updatedGrant).catch(console.error);
   };
 
+  // Check if a grant is close to deadline (<14 days) and not submitted
   const isUrgent = (grant: Grant) => {
     if (grant.status === "submitted" || grant.status === "awarded" || grant.status === "declined") return false;
     const deadlineDate = new Date(grant.deadline);
     if (isNaN(deadlineDate.getTime())) return false;
-    const diffDays = Math.ceil((deadlineDate.getTime() - SYSTEM_DATE.getTime()) / (1000 * 60 * 60 * 24));
+    const systemDate = new Date("2026-07-12"); // system default date
+    const diffTime = deadlineDate.getTime() - systemDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 14;
   };
 
   const isAuthorized = [UserRole.CHAIRPERSON, UserRole.TREASURER].includes(getUserRoleKey(currentUser) as UserRole);
-
-  const activePipelineValue = grants
-    .filter(g => !["awarded", "declined"].includes(g.status))
-    .reduce((sum, g) => sum + (g.amount || 0), 0);
-  const awardedValue = grants.filter(g => g.status === "awarded").reduce((sum, g) => sum + (g.amount || 0), 0);
-  const activeCount = grants.filter(g => !["awarded", "declined"].includes(g.status)).length;
-  const decidedCount = grants.filter(g => g.status === "awarded" || g.status === "declined").length;
-  const winRate = decidedCount > 0 ? Math.round((grants.filter(g => g.status === "awarded").length / decidedCount) * 100) : null;
-  const urgentCount = grants.filter(isUrgent).length;
 
   if (!isAuthorized) {
     return (
@@ -195,15 +170,16 @@ Notes context: ${notes || "None provided"}`,
 
   return (
     <div className="space-y-6 text-left" id="grants-board-module">
-      <div className="bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-2xl p-6 shadow-sm flex flex-wrap justify-between items-center gap-4">
+      {/* Module Header */}
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-xs flex flex-wrap justify-between items-center gap-4">
         <div>
-          <span className="text-red-400 font-mono text-[9px] font-bold tracking-widest uppercase bg-red-500/10 border border-red-500/20 rounded px-1.5 py-0.5">
+          <span className="text-red-600 font-mono text-[9px] font-bold tracking-widest uppercase bg-red-50 border border-red-100 rounded px-1.5 py-0.5">
             {lang === "en" ? "RESOURCE PIPELINE" : "IDARA YA FEDHA ZA RUZUKU"}
           </span>
-          <h2 className="text-xl font-black text-white mt-1.5 font-sans">
+          <h2 className="text-xl font-black text-neutral-900 mt-1.5 font-sans">
             {lang === "en" ? "CBO Fundraising & Grants Board" : "Bodi ya Maombi ya Ruzuku"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <p className="text-xs text-neutral-500 mt-0.5">
             {lang === "en"
               ? "Track active proposals from identification through preparations to submission and awards."
               : "Fuatilia maombi ya ruzuku tangu mwanzo, maandalizi, uwasilishaji, hadi kupata ufadhili."}
@@ -212,7 +188,7 @@ Notes context: ${notes || "None provided"}`,
 
         <button
           onClick={handleOpenAdd}
-          className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+          className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -222,172 +198,129 @@ Notes context: ${notes || "None provided"}`,
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          label={lang === "en" ? "Active pipeline value" : "Thamani ya maombi hai"}
-          value={`Ksh ${fmtKsh(activePipelineValue)}`}
-          icon={<TrendingUp size={17} />}
-          accent="finance"
-        />
-        <StatCard
-          label={lang === "en" ? "Awarded to date" : "Zilizofadhiliwa"}
-          value={`Ksh ${fmtKsh(awardedValue)}`}
-          icon={<Trophy size={17} />}
-          accent="finance"
-        />
-        <StatCard
-          label={lang === "en" ? "Active proposals" : "Maombi hai"}
-          value={String(activeCount)}
-          icon={<Landmark size={17} />}
-          accent="neutral"
-        />
-        <StatCard
-          label={lang === "en" ? "Win rate" : "Kiwango cha ushindi"}
-          value={winRate === null ? "\u2014" : `${winRate}%`}
-          icon={<Sparkles size={17} />}
-          accent={urgentCount > 0 ? "danger" : "community"}
-          delta={urgentCount > 0 ? `${urgentCount} ${lang === "en" ? "urgent deadline(s)" : "muhula wa haraka"}` : undefined}
-          deltaDirection={urgentCount > 0 ? "down" : "neutral"}
-        />
-      </div>
-
+      {/* Kanban Board Container */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-start">
         {COLUMNS.map(col => {
           const colGrants = grants.filter(g => g.status === col.id);
-          const colValue = colGrants.reduce((sum, g) => sum + (g.amount || 0), 0);
           return (
-            <div key={col.id} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-3 min-h-[520px] flex flex-col">
-              <div className={`flex items-center justify-between rounded-xl border px-3 py-2.5 mb-3 ${col.header}`}>
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${col.dot}`} />
-                  <h3 className="text-xs font-bold text-neutral-800">
-                    {lang === "en" ? col.labelEn : col.labelSw}
-                  </h3>
-                </div>
-                <span className="bg-white border border-neutral-200 text-neutral-600 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+            <div key={col.id} className="bg-gray-50/50 border border-neutral-150 rounded-2xl p-4 min-h-[500px] flex flex-col space-y-3">
+              {/* Column Header */}
+              <div className="flex items-center justify-between border-b pb-2 mb-2">
+                <h3 className="text-xs font-bold text-neutral-900">
+                  {lang === "en" ? col.labelEn : col.labelSw}
+                </h3>
+                <span className="bg-white border text-neutral-500 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
                   {colGrants.length}
                 </span>
               </div>
-              {colValue > 0 && (
-                <p className="text-[10px] font-mono font-bold text-neutral-400 px-1 mb-2 -mt-1">
-                  Ksh {fmtKsh(colValue)} {lang === "en" ? "total" : "jumla"}
-                </p>
-              )}
 
+              {/* Column Cards */}
               <div className="space-y-3 flex-grow overflow-y-auto">
                 {colGrants.map(grant => {
                   const urgent = isUrgent(grant);
-                  const daysRemaining = Math.ceil((new Date(grant.deadline).getTime() - SYSTEM_DATE.getTime()) / (1000 * 60 * 60 * 24));
+                  const daysRemaining = Math.ceil((new Date(grant.deadline).getTime() - new Date("2026-07-12").getTime()) / (1000 * 60 * 60 * 24));
 
                   return (
                     <div
                       key={grant.id}
-                      className={`bg-white border border-l-4 rounded-xl p-3.5 shadow-sm space-y-3 relative hover:shadow-md transition-shadow border-neutral-200 ${CARD_ACCENT[grant.status]}`}
+                      className={`bg-white border rounded-xl p-4 shadow-2xs space-y-3 relative hover:border-red-500/30 transition-all ${
+                        urgent ? "border-l-4 border-l-red-600 border-red-200" : "border-neutral-200"
+                      }`}
                     >
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">
-                          {initials(grant.funder)}
+                      {urgent && (
+                        <div className="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-red-200 inline-block uppercase tracking-wider font-mono">
+                          {daysRemaining} {lang === "en" ? "days left!" : "siku zimebaki!"}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-xs font-bold text-neutral-950 leading-snug line-clamp-2">{grant.name}</h4>
-                          <p className="text-[10px] text-neutral-500 font-medium truncate">{grant.funder}</p>
+                      )}
+
+                      {grant.source === "public_website" && (
+                        <div className="bg-blue-50 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1 uppercase tracking-wider font-mono w-fit">
+                          <Globe size={9} /> {lang === "en" ? "From Website" : "Kutoka Tovutini"}
                         </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-neutral-950 line-clamp-2">{grant.name}</h4>
+                        <p className="text-[10px] text-neutral-500 font-medium">{grant.funder}</p>
+                        {grant.source === "public_website" && grant.contactPhone && (
+                          <p className="text-[10px] text-blue-600 font-mono font-bold">📞 {grant.contactPhone}</p>
+                        )}
                       </div>
 
-                      {(urgent || grant.source === "public_website") && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {urgent && (
-                            <div className="bg-red-50 text-red-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-red-200 inline-flex items-center gap-1 uppercase tracking-wider font-mono">
-                              <Clock3 size={9} /> {daysRemaining} {lang === "en" ? "days left" : "siku"}
-                            </div>
-                          )}
-                          {grant.source === "public_website" && (
-                            <div className="bg-blue-50 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1 uppercase tracking-wider font-mono">
-                              <Globe size={9} /> {lang === "en" ? "Website" : "Tovuti"}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {grant.source === "public_website" && grant.contactPhone && (
-                        <p className="text-[10px] text-blue-600 font-mono font-bold">{grant.contactPhone}</p>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-neutral-500 bg-neutral-50 p-2 rounded-lg border border-neutral-100">
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-neutral-500 bg-neutral-50 p-2 rounded-lg">
                         <div>
-                          <span className="block text-[8px] text-neutral-400 font-bold uppercase tracking-wider">
-                            {lang === "en" ? "Amount" : "Kiasi"}
-                          </span>
+                          <span className="block text-[8px] text-neutral-400 font-bold uppercase tracking-wider">Amount</span>
                           <span className="text-neutral-800 font-mono font-bold">Ksh {(grant?.amount || 0).toLocaleString()}</span>
                         </div>
                         <div>
-                          <span className="block text-[8px] text-neutral-400 font-bold uppercase tracking-wider">
-                            {lang === "en" ? "Deadline" : "Mwisho"}
-                          </span>
+                          <span className="block text-[8px] text-neutral-400 font-bold uppercase tracking-wider">Deadline</span>
                           <span className="text-neutral-800 font-mono font-bold">{grant.deadline}</span>
                         </div>
                       </div>
 
                       {grant.notes && (
-                        <p className="text-[10px] text-neutral-500 line-clamp-2 italic border-l-2 border-neutral-200 pl-2">
-                          {grant.notes}
+                        <p className="text-[10px] text-neutral-500 line-clamp-2 font-serif italic">
+                          "{grant.notes}"
                         </p>
                       )}
 
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-100">
+                      {/* Action buttons & Card control row */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-neutral-100">
+                        {/* External link */}
                         {grant.link ? (
                           <a
                             href={grant.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[10px] font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1"
+                            className="text-[10px] font-bold text-red-600 hover:underline flex items-center gap-0.5"
                           >
-                            <ExternalLink size={11} /> {lang === "en" ? "Open link" : "Fungua kiungo"}
+                            {lang === "en" ? "Link" : "Tovuti"}
                           </a>
                         ) : (
-                          <span />
+                          <div />
                         )}
 
-                        <div className="flex items-center gap-1">
+                        {/* Standard controls */}
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => handleOpenEdit(grant)}
-                            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-500 hover:text-neutral-800 cursor-pointer transition-colors"
-                            title={lang === "en" ? "Edit" : "Hariri"}
+                            className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                            title="Edit"
                           >
-                            <Pencil size={12} />
+                            
                           </button>
                           <button
                             onClick={() => handleDelete(grant.id)}
-                            className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 cursor-pointer transition-colors"
-                            title={lang === "en" ? "Delete" : "Futa"}
+                            className="p-1 hover:bg-neutral-100 rounded text-red-500 hover:text-red-700 cursor-pointer"
+                            title="Delete"
                           >
-                            <Trash2 size={12} />
+                            
                           </button>
                         </div>
                       </div>
 
-                      <select
-                        value={grant.status}
-                        onChange={(e) => moveStatus(grant, e.target.value as Grant["status"])}
-                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1.5 text-[10px] font-bold text-neutral-600 focus:outline-none focus:ring-1 focus:ring-neutral-400 cursor-pointer"
-                      >
-                        <option value="identified">{lang === "en" ? "Stage: Identified" : "Hatua: Tambuliwa"}</option>
-                        <option value="preparing">{lang === "en" ? "Stage: Preparing" : "Hatua: Maandalizi"}</option>
-                        <option value="submitted">{lang === "en" ? "Stage: Submitted" : "Hatua: Wasilishwa"}</option>
-                        <option value="awarded">{lang === "en" ? "Stage: Awarded" : "Hatua: Kupata fedha"}</option>
-                        <option value="declined">{lang === "en" ? "Stage: Declined" : "Hatua: Kataliwa"}</option>
-                      </select>
+                      {/* Movement controls for columns */}
+                      <div className="flex justify-between items-center bg-neutral-50 p-1.5 rounded-lg border border-neutral-100">
+                        <select
+                          value={grant.status}
+                          onChange={(e) => moveStatus(grant, e.target.value as Grant["status"])}
+                          className="bg-transparent text-[9px] font-bold text-neutral-600 focus:outline-none w-full cursor-pointer"
+                        >
+                          <option value="identified">{lang === "en" ? "Stage: Identified" : "Hatua: Tambuliwa"}</option>
+                          <option value="preparing">{lang === "en" ? "Stage: Preparing" : "Hatua: Maandalizi"}</option>
+                          <option value="submitted">{lang === "en" ? "Stage: Submitted" : "Hatua: Wasilishwa"}</option>
+                          <option value="awarded">{lang === "en" ? "Stage: Awarded" : "Hatua: Kupata fedha"}</option>
+                          <option value="declined">{lang === "en" ? "Stage: Declined" : "Hatua: Kataliwa"}</option>
+                        </select>
+                      </div>
                     </div>
                   );
                 })}
 
                 {colGrants.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <div className={`w-8 h-8 rounded-full ${col.dot} opacity-20 mb-2`} />
-                    <p className="text-[10px] text-neutral-400 font-medium">
-                      {lang === "en" ? "No proposals here" : "Hakuna maombi hapa"}
-                    </p>
-                  </div>
+                  <p className="text-[10px] text-neutral-400 text-center py-10 font-medium">
+                    {lang === "en" ? "No proposals here" : "Hakuna maombi hapa"}
+                  </p>
                 )}
               </div>
             </div>
@@ -395,12 +328,13 @@ Notes context: ${notes || "None provided"}`,
         })}
       </div>
 
+      {/* Grant Entry Modal */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={
-          editingGrant
-            ? (lang === "en" ? "Edit Grant Proposal" : "Hariri Ombi la Ruzuku")
+          editingGrant 
+            ? (lang === "en" ? "Edit Grant Proposal" : "Hariri Ombi la Ruzuku") 
             : (lang === "en" ? "Add New Grant Proposal" : "Weka Ombi Jipya la Ruzuku")
         }
         maxWidth="max-w-md"
@@ -530,8 +464,8 @@ Notes context: ${notes || "None provided"}`,
                   type="submit"
                   className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer shadow-sm transition-colors"
                 >
-                  {editingGrant
-                    ? (lang === "en" ? "Save Changes" : "Hifadhi Mabadiliko")
+                  {editingGrant 
+                    ? (lang === "en" ? "Save Changes" : "Hifadhi Mabadiliko") 
                     : (lang === "en" ? "Add Proposal" : "Weka Ombi")}
                 </button>
               </div>

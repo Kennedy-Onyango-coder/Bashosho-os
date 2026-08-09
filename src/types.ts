@@ -128,6 +128,8 @@ export interface Document {
     notes?: string;
   }[];
   partnerId?: string; // Linked partner CRM if any
+  /** Server-computed, cryptographically signed verification link (see /api/verify/document/:id) */
+  verificationUrl?: string;
 }
 
 export interface BudgetEngagement {
@@ -211,6 +213,36 @@ export interface Asset {
   photoUrl?: string;
   availableForHire?: boolean;
   dailyRate?: number;
+  /** How the CBO came to own this asset — purchased outright, or received as a donation. */
+  acquisitionType?: "purchased" | "donated";
+  /** Only meaningful when acquisitionType is "donated". */
+  donatedBy?: string;
+  /** Whether a purchase/donation receipt exists for this asset (paper or digital). */
+  hasReceipt?: boolean;
+  /** Free-text reference to the receipt — a filed document number, folder name, or link. */
+  receiptRef?: string;
+  /** Every physical inspection this asset has been through — the record behind the
+   *  6-month re-inspection cycle. Most recent entry's date drives the "next inspection
+   *  due" calculation shown in the UI. */
+  inspectionHistory?: {
+    id: string;
+    date: string;
+    inspectedBy: string;
+    condition: Asset["condition"];
+    notes?: string;
+  }[];
+  /** Every time this asset's custodian changed — a real chain-of-custody log, not just
+   *  the current holder. */
+  assignmentHistory?: {
+    id: string;
+    custodian: string;
+    assignedDate: string;
+    assignedBy: string;
+    notes?: string;
+  }[];
+  /** Server-computed, cryptographically signed verification link for the printable
+   *  asset card (see /api/verify/asset/:id) */
+  verificationUrl?: string;
   externalRentals?: {
     id: string;
     clientName: string;
@@ -261,29 +293,6 @@ export interface Partner {
   pipelineStage?: "contacted" | "negotiating" | "confirmed" | "delivered" | "reported";
 }
 
-export interface ClassLesson {
-  id: string;
-  title: string;
-  /** Recorded video link (YouTube, Google Drive, etc.) for on-demand/self-paced viewing. */
-  videoUrl?: string;
-  /** Live online session link (Zoom, Google Meet, etc.), for a scheduled live class. */
-  liveLink?: string;
-  liveDateTime?: string;
-  order: number;
-}
-
-export interface ClassEnrollment {
-  userId: string;
-  userName: string;
-  enrolledDate: string;
-  completedLessonIds: string[];
-  grade?: string;
-  gradeNotes?: string;
-  gradedBy?: string;
-  gradedAt?: string;
-  status: "enrolled" | "completed" | "dropped";
-}
-
 export interface Class {
   id: string;
   name: string;
@@ -293,18 +302,6 @@ export interface Class {
   endDate: string;
   enrolledUserIds: string[];
   verificationUrl?: string;
-  /** How this class is delivered. Defaults to in_person for existing classes created
-   *  before this field existed. */
-  deliveryMode?: "online" | "in_person" | "hybrid";
-  /** Ordered lesson/session list — each can carry a recorded video link and/or a live
-   *  session link, enabling this class to run fully online. Optional so existing simple
-   *  classes (no lesson breakdown) keep working exactly as before. */
-  lessons?: ClassLesson[];
-  /** Richer per-student tracking (progress per lesson, grade) layered on top of the
-   *  original enrolledUserIds list. enrolledUserIds is kept in sync automatically
-   *  whenever this changes, so existing certificate verification logic (which checks
-   *  enrolledUserIds) keeps working unchanged. */
-  enrollments?: ClassEnrollment[];
 }
 
 export interface Grant {
@@ -337,12 +334,76 @@ export interface Income {
   recordedBy: string;
 }
 
+export interface BroadcastReply {
+  id: string;
+  userId: string;
+  userName: string;
+  message: string;
+  timestamp: string;
+}
+
 export interface Broadcast {
   id: string;
   message: string;
   channel: "sms" | "whatsapp" | "email" | "all";
   sentBy: string;
   sentDate: string;
+  replies?: BroadcastReply[];
+}
+
+export type ProgramArea = "gbv" | "srhr" | "mental_health" | "film_academy" | "taas" | "general";
+
+export type TaskStatus = "pending" | "in_progress" | "completed";
+export type TaskPriority = "low" | "medium" | "high";
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  assignedToId: string;
+  assignedToName: string;
+  assignedById: string;
+  assignedByName: string;
+  programArea: ProgramArea;
+  priority: TaskPriority;
+  dueDate: string;
+  status: TaskStatus;
+  createdDate: string;
+  completedDate?: string;
+}
+
+/** A single logged outreach/rehearsal/training/booking session — the real, countable
+ *  unit behind program reach reporting (GBV, SRHR, Mental Health, Film Academy, TaaS). */
+export interface ProgramSession {
+  id: string;
+  programArea: ProgramArea;
+  title: string;
+  date: string;
+  location: string;
+  facilitators: string;
+  participantsReached: number;
+  maleCount: number;
+  femaleCount: number;
+  childrenCount: number;
+  description: string;
+  outcomeNotes: string;
+  loggedById: string;
+  loggedBy: string;
+  loggedDate: string;
+}
+
+export type RecognitionTier = "bronze" | "silver" | "gold" | "platinum";
+
+export interface VolunteerCertificate {
+  id: string;
+  userId: string;
+  userName: string;
+  tier: RecognitionTier;
+  hoursAtIssue: number;
+  issuedDate: string;
+  issuedBy: string;
+  /** Server-computed, cryptographically signed verification link */
+  verificationUrl?: string;
 }
 
 export interface LeaveRequest {
@@ -429,7 +490,10 @@ export type PermissionModuleKey =
   | "safeguarding"
   | "leadership_appointments"
   | "contract_renewals"
-  | "activity_log";
+  | "activity_log"
+  | "tasks"
+  | "program_sessions"
+  | "volunteer_recognition";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve";
 
@@ -448,7 +512,8 @@ export interface RolePermissions {
 export const PERMISSION_MODULE_KEYS: PermissionModuleKey[] = [
   "dashboard", "documents", "finance", "assets", "grants", "classes", "invoices",
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
-  "safeguarding", "leadership_appointments", "contract_renewals", "activity_log"
+  "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
+  "tasks", "program_sessions", "volunteer_recognition"
 ];
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];

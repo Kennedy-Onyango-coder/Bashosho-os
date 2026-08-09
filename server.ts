@@ -330,7 +330,8 @@ function requireRole(allowedRoleKeys: string[]) {
 const PERMISSION_MODULE_KEYS = [
   "dashboard", "documents", "finance", "assets", "grants", "classes", "invoices",
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
-  "safeguarding", "leadership_appointments", "contract_renewals", "activity_log"
+  "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
+  "tasks", "program_sessions", "volunteer_recognition"
 ];
 const PERMISSION_ACTIONS = ["view", "create", "edit", "delete", "approve"];
 
@@ -363,6 +364,20 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
   view("handbook");
   view("classes");
 
+  // Tasks: everyone can see and update their own assigned/created tasks (baseline
+  // "view" — the tasks endpoint itself further restricts non-leadership users to only
+  // their own tasks, see GET /api/tasks). Only leadership roles (granted below) can
+  // assign a task to someone else.
+  view("tasks");
+  // Program outcomes: transparency by default — every role, including volunteers who
+  // ran a session, can log and see program reach numbers (GBV/SRHR/Mental Health/Film
+  // Academy/TaaS). Editing someone else's logged session is leadership-only, below.
+  view("program_sessions"); p.program_sessions.create = true;
+  // Volunteer recognition: self-service — anyone can view their own progress and
+  // generate their own certificate once real logged hours clear a tier threshold
+  // (server recomputes hours from attendance records, never trusts a client figure).
+  view("volunteer_recognition"); p.volunteer_recognition.create = true;
+
   switch (roleKey) {
     case "chairperson":
       // Chairperson: full access everywhere, matches old `[..].includes` superset + all
@@ -391,6 +406,9 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       view("contract_renewals");
       view("activity_log");
       full("classes"); p.classes.delete = false; // class delete was chairperson+programs_director only
+      p.tasks.create = true; p.tasks.edit = true;
+      p.program_sessions.edit = true;
+      p.volunteer_recognition.edit = true;
       break;
 
     case "programs_director":
@@ -402,6 +420,9 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       view("finance"); // budgets creation allowed per old requireRole(["chairperson","treasurer","programs_director","vice_chairperson"])
       p.finance.create = true;
       p.classes.create = true; p.classes.edit = true; p.classes.delete = true; // matches old attendance-create + generic-delete route access
+      p.tasks.create = true; p.tasks.edit = true;
+      p.program_sessions.edit = true; p.program_sessions.delete = true;
+      p.volunteer_recognition.edit = true;
       break;
 
     case "secretary":
@@ -409,6 +430,7 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       view("beneficiaries"); p.beneficiaries.create = true; p.beneficiaries.edit = true;
       full("settings"); p.settings.delete = false; p.settings.edit = false; // secretary sees settings tab but org_settings save is chairperson-only historically
       view("safeguarding");
+      p.tasks.create = true; p.tasks.edit = true;
       break;
 
     case "treasurer":
@@ -417,12 +439,14 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       full("grants"); // old generic-delete route allowed treasurer to delete grants
       full("invoices"); // old generic-delete route allowed treasurer to delete invoices
       p.finance.create = true;
+      p.tasks.create = true; p.tasks.edit = true;
       break;
 
     case "safeguarding_officer":
       full("documents"); p.documents.delete = false;
       full("safeguarding"); p.safeguarding.delete = false;
       view("beneficiaries"); p.beneficiaries.create = true; p.beneficiaries.edit = true;
+      p.tasks.create = true; p.tasks.edit = true;
       break;
 
     case "program_member":
@@ -506,6 +530,15 @@ async function userHasPermission(req: AuthenticatedRequest, moduleKey: string, a
   const userRoleKey = req.user?.roleKey || getCanonicalRoleKey(req.user?.role);
   if (userRoleKey === "chairperson") return true;
   const rp = await getRolePermissionsForRoleKey(userRoleKey);
+  // A module key added to PERMISSION_MODULE_KEYS after this role's permissions doc was
+  // already seeded/saved won't exist on rp.permissions yet — fall back to that role's
+  // computed default for the new module instead of silently treating it as all-false,
+  // so newly-added features (e.g. tasks, program_sessions) work without a manual
+  // migration/reseed of every existing role_permissions document.
+  if (rp?.permissions && rp.permissions[moduleKey] === undefined) {
+    const fallback = buildDefaultPermissionsForRole(userRoleKey);
+    return !!(fallback[moduleKey] && fallback[moduleKey][action]);
+  }
   return !!(rp?.permissions?.[moduleKey] && rp.permissions[moduleKey][action]);
 }
 
@@ -1550,7 +1583,10 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
     membership: "profiles", 
     class_certificate: "classes", 
     invoice: "invoices",
-    leadership_appointment: "leadership_appointments"
+    leadership_appointment: "leadership_appointments",
+    document: "documents",
+    volunteer_certificate: "volunteer_certificates",
+    asset: "assets"
   };
   const collection = collectionMap[type];
   if (!collection) return res.status(400).json({ verified: false, error: "Unknown document type" });
@@ -1607,6 +1643,40 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
         orgName: "Bashosho Talents CBO",
       });
     }
+    if (type === "document") {
+      return res.json({
+        verified: true,
+        type,
+        title: data.title,
+        docType: data.type,
+        author: data.author,
+        date: data.date,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
+    if (type === "volunteer_certificate") {
+      return res.json({
+        verified: true,
+        type,
+        recipientName: data.userName,
+        tier: data.tier,
+        hoursAtIssue: data.hoursAtIssue,
+        issuedDate: data.issuedDate,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
+    if (type === "asset") {
+      return res.json({
+        verified: true,
+        type,
+        assetName: data.name,
+        assetCategory: data.category,
+        assetSerial: data.serialNumber,
+        assetCondition: data.condition,
+        assetCustodian: data.custodian,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
   } catch (err: any) {
     return res.status(500).json({ verified: false, error: "Verification server error", details: err.message });
   }
@@ -1658,6 +1728,40 @@ async function fetchCollection(collectionName: string, req: AuthenticatedRequest
         return {
           ...item,
           verificationUrl: `${appUrl}/verify/invoice/${item.id}?t=${token}`
+        };
+      });
+    } else if (collectionName === "documents") {
+      // Gives every printed letter/minutes/activity-report/budget-explanation a real,
+      // scannable verification QR — same mechanism as profiles/classes/invoices above —
+      // rather than the document print flow having no working verification at all.
+      items = items.map(item => {
+        const token = generateVerificationToken("document", item.id);
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        return {
+          ...item,
+          verificationUrl: `${appUrl}/verify/document/${item.id}?t=${token}`
+        };
+      });
+    } else if (collectionName === "volunteer_certificates") {
+      // Real, scannable QR per certificate — same signed-token mechanism as every
+      // other printable in this system.
+      items = items.map(item => {
+        const token = generateVerificationToken("volunteer_certificate", item.id);
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        return {
+          ...item,
+          verificationUrl: `${appUrl}/verify/volunteer_certificate/${item.id}?t=${token}`
+        };
+      });
+    } else if (collectionName === "assets") {
+      // Real, scannable QR per asset card — lets anyone confirm a printed asset tag/
+      // register entry is genuine, same mechanism as every other printable here.
+      items = items.map(item => {
+        const token = generateVerificationToken("asset", item.id);
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        return {
+          ...item,
+          verificationUrl: `${appUrl}/verify/asset/${item.id}?t=${token}`
         };
       });
     }
@@ -2480,7 +2584,10 @@ const DELETE_COLLECTION_MODULE_MAP: Record<string, string> = {
   documents: "documents",
   beneficiaries: "beneficiaries",
   leadership_appointments: "leadership_appointments",
-  partners: "invoices"
+  partners: "invoices",
+  tasks: "tasks",
+  program_sessions: "program_sessions",
+  volunteer_certificates: "volunteer_recognition"
 };
 
 // These collections must never be deletable through the generic endpoint below, by ANY
@@ -2978,6 +3085,260 @@ app.post("/api/leadership_appointments/:id/acknowledge", requireAuth, async (req
 });
 
 
+// 18. TASKS / ACTION ITEMS
+// Any of the 6 leadership roleKeys (everyone except program_member/volunteer) may
+// assign a task to any member or volunteer. The assignee can always update their own
+// task's status even without general "tasks.edit" permission — that's what lets a
+// volunteer with no other write access still mark their own task done.
+const LEADERSHIP_ROLE_KEYS = new Set([
+  "chairperson", "vice_chairperson", "programs_director", "secretary", "treasurer", "safeguarding_officer"
+]);
+
+app.get("/api/tasks", requireAuth, requirePermission("tasks", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("tasks").get();
+    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (LEADERSHIP_ROLE_KEYS.has(userRoleKey)) {
+      return res.json(items);
+    }
+    // Non-leadership: only see tasks assigned to them or that they created.
+    return res.json(items.filter(t => t.assignedToId === req.user!.id || t.assignedById === req.user!.id));
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to fetch tasks", details: err.message });
+  }
+});
+
+app.post("/api/tasks", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    const existing = req.body.id ? (await db.collection("tasks").doc(req.body.id).get()) : null;
+
+    if (existing && existing.exists) {
+      // Update: either the assignee updating their own status, or a leader with
+      // tasks.edit permission editing/reassigning the task.
+      const data = existing.data()!;
+      const isOwnStatusUpdate = req.user!.id === data.assignedToId;
+      const canFullEdit = await userHasPermission(req, "tasks", "edit");
+      if (!isOwnStatusUpdate && !canFullEdit) {
+        return res.status(403).json({ error: "Access denied: you can only update tasks assigned to you, or manage tasks you have edit rights to." });
+      }
+      const updated: any = isOwnStatusUpdate && !canFullEdit
+        ? { ...data, status: req.body.status || data.status, completedDate: req.body.status === "completed" ? new Date().toISOString() : data.completedDate }
+        : {
+            ...data,
+            title: req.body.title ?? data.title,
+            description: req.body.description ?? data.description,
+            programArea: req.body.programArea ?? data.programArea,
+            priority: req.body.priority ?? data.priority,
+            dueDate: req.body.dueDate ?? data.dueDate,
+            status: req.body.status ?? data.status,
+            completedDate: req.body.status === "completed" ? (data.completedDate || new Date().toISOString()) : (req.body.status ? undefined : data.completedDate),
+            assignedToId: req.body.assignedToId ?? data.assignedToId,
+            assignedToName: req.body.assignedToId && req.body.assignedToId !== data.assignedToId
+              ? (await db.collection("profiles").doc(req.body.assignedToId).get()).data()?.name || data.assignedToName
+              : data.assignedToName,
+            // Who originally assigned the task is never editable via this endpoint — it's
+            // an audit fact, not a mutable field a reassigning leader should overwrite.
+            assignedById: data.assignedById,
+            assignedByName: data.assignedByName,
+            id: existing.id
+          };
+      logActivity(req, "tasks", "edit", existing.id, updated.title, data, updated);
+      return saveDocument("tasks", existing.id, updated, req, res);
+    }
+
+    // Create: only leadership roles may assign a NEW task to someone else.
+    if (!LEADERSHIP_ROLE_KEYS.has(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only leadership roles can assign new tasks." });
+    }
+    if (!req.body.title || !req.body.assignedToId) {
+      return res.status(400).json({ error: "title and assignedToId are required" });
+    }
+    const assigneeSnap = await db.collection("profiles").doc(req.body.assignedToId).get();
+    if (!assigneeSnap.exists) {
+      return res.status(400).json({ error: "assignedToId does not match a real member profile" });
+    }
+    const assignee = assigneeSnap.data()!;
+    const id = req.body.id || `task-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const task = {
+      id,
+      title: req.body.title,
+      description: req.body.description || "",
+      assignedToId: req.body.assignedToId,
+      assignedToName: assignee.name,
+      // Set server-side from the authenticated session — never trust a client-supplied
+      // assigner identity, same convention used throughout this file.
+      assignedById: req.user!.id,
+      assignedByName: req.user!.name,
+      programArea: req.body.programArea || "general",
+      priority: req.body.priority || "medium",
+      dueDate: req.body.dueDate || "",
+      status: "pending",
+      createdDate: new Date().toISOString().split("T")[0]
+    };
+    logActivity(req, "tasks", "create", id, task.title);
+    return saveDocument("tasks", id, task, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to save task", details: err.message });
+  }
+});
+
+// 19. PROGRAM OUTCOMES / M&E SESSIONS
+// Logs a real outreach/rehearsal/training/booking session against one of the org's
+// actual program areas (GBV, SRHR, Mental Health, Film Academy, TaaS) with participant
+// reach numbers — the data donor reports actually need, which nothing in this system
+// captured before. Anyone can log a session they ran; only leadership can edit/delete
+// someone else's entry.
+app.get("/api/program_sessions", requireAuth, requirePermission("program_sessions", "view"), (req, res) => fetchCollection("program_sessions", req, res));
+
+app.post("/api/program_sessions", requireAuth, requirePermission("program_sessions", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const existingId = req.body.id;
+    if (existingId) {
+      const snap = await db.collection("program_sessions").doc(existingId).get();
+      if (snap.exists) {
+        const data = snap.data()!;
+        const isOwner = data.loggedById === req.user!.id;
+        const canEdit = await userHasPermission(req, "program_sessions", "edit");
+        if (!isOwner && !canEdit) {
+          return res.status(403).json({ error: "Access denied: you can only edit sessions you logged yourself." });
+        }
+      }
+    }
+    if (!req.body.title || !req.body.programArea) {
+      return res.status(400).json({ error: "title and programArea are required" });
+    }
+    const id = existingId || `session-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const session = {
+      id,
+      programArea: req.body.programArea,
+      title: req.body.title,
+      date: req.body.date || new Date().toISOString().split("T")[0],
+      location: req.body.location || "",
+      facilitators: req.body.facilitators || req.user!.name,
+      participantsReached: Number(req.body.participantsReached) || 0,
+      maleCount: Number(req.body.maleCount) || 0,
+      femaleCount: Number(req.body.femaleCount) || 0,
+      childrenCount: Number(req.body.childrenCount) || 0,
+      description: req.body.description || "",
+      outcomeNotes: req.body.outcomeNotes || "",
+      loggedById: req.user!.id,
+      loggedBy: req.user!.name,
+      loggedDate: existingId ? req.body.loggedDate : new Date().toISOString().split("T")[0]
+    };
+    logActivity(req, "program_sessions", existingId ? "edit" : "create", id, session.title);
+    return saveDocument("program_sessions", id, session, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to save program session", details: err.message });
+  }
+});
+
+// 20. VOLUNTEER RECOGNITION / SERVICE CERTIFICATES
+// Self-service certificate issuance: hours are ALWAYS recomputed server-side from real
+// attendance records, never taken from client input, so this can be safely left
+// self-service without a leadership approval step — a member cannot certify more
+// hours than they actually logged.
+const RECOGNITION_TIERS: { tier: string; minHours: number }[] = [
+  { tier: "platinum", minHours: 200 },
+  { tier: "gold", minHours: 100 },
+  { tier: "silver", minHours: 50 },
+  { tier: "bronze", minHours: 10 }
+];
+
+async function computeVolunteerHours(userId: string): Promise<number> {
+  const snap = await db.collection("attendance").get();
+  let hours = 0;
+  snap.docs.forEach(doc => {
+    const sheet = doc.data() as any;
+    (sheet.records || []).forEach((rec: any) => {
+      if (rec.userId === userId) hours += Number(rec.volunteerHours) || 0;
+    });
+  });
+  return hours;
+}
+
+app.get("/api/volunteer_certificates", requireAuth, requirePermission("volunteer_recognition", "view"), (req, res) => fetchCollection("volunteer_certificates", req, res));
+
+app.post("/api/volunteer_certificates", requireAuth, requirePermission("volunteer_recognition", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    // Chairperson/leadership may issue on behalf of someone else (edit permission);
+    // everyone else may only issue their own, earned certificate.
+    const targetUserId = req.body.userId || req.user!.id;
+    if (targetUserId !== req.user!.id) {
+      const canEdit = await userHasPermission(req, "volunteer_recognition", "edit");
+      if (!canEdit) {
+        return res.status(403).json({ error: "Access denied: you can only generate your own certificate." });
+      }
+    }
+    const targetSnap = await db.collection("profiles").doc(targetUserId).get();
+    if (!targetSnap.exists) return res.status(400).json({ error: "userId does not match a real member profile" });
+    const target = targetSnap.data()!;
+
+    const hours = await computeVolunteerHours(targetUserId);
+    const matched = RECOGNITION_TIERS.find(t => hours >= t.minHours);
+    if (!matched) {
+      return res.status(400).json({ error: `Not enough logged volunteer hours yet (${hours} hrs). The first tier (Bronze) requires 10 hrs.` });
+    }
+    const requestedTier = req.body.tier;
+    if (requestedTier && RECOGNITION_TIERS.some(t => t.tier === requestedTier)) {
+      const requested = RECOGNITION_TIERS.find(t => t.tier === requestedTier)!;
+      if (hours < requested.minHours) {
+        return res.status(400).json({ error: `You have ${hours} logged hours — not enough for the ${requestedTier} tier (needs ${requested.minHours}+).` });
+      }
+    }
+    const tier = (requestedTier && RECOGNITION_TIERS.some(t => t.tier === requestedTier)) ? requestedTier : matched.tier;
+
+    const id = `volcert-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const cert = {
+      id,
+      userId: targetUserId,
+      userName: target.name,
+      tier,
+      hoursAtIssue: hours,
+      issuedDate: new Date().toISOString().split("T")[0],
+      issuedBy: req.user!.name
+    };
+    logActivity(req, "volunteer_recognition", "create", id, `${target.name} — ${tier}`);
+    return saveDocument("volunteer_certificates", id, cert, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to generate certificate", details: err.message });
+  }
+});
+
+// 21. BROADCAST REPLIES (two-way communication on top of existing one-way broadcasts)
+// Any authenticated user may reply to a broadcast they received — replies are appended
+// to that broadcast's own document rather than a separate collection, since they only
+// ever need to be read alongside their parent message.
+app.post("/api/broadcasts/:id/reply", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ error: "message is required" });
+    }
+    const docRef = db.collection("broadcasts").doc(id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Broadcast not found" });
+
+    const data = snap.data()!;
+    const reply = {
+      id: `reply-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      userId: req.user!.id,
+      userName: req.user!.name,
+      message: String(message).trim().slice(0, 1000),
+      timestamp: new Date().toISOString()
+    };
+    const replies = Array.isArray(data.replies) ? [...data.replies, reply] : [reply];
+    await docRef.set({ replies, updatedAt: new Date().toISOString() }, { merge: true });
+    logActivity(req, "cms_editor", "reply", id, `Reply on: ${data.message?.slice(0, 40) || id}`);
+    return res.json({ success: true, reply });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to post reply", details: err.message });
+  }
+});
+
+
 // --- BACKEND BULK SYNC ENDPOINT WITH CONFLICT RESOLUTION ---
 app.post("/api/sync", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   const { queue } = req.body;
@@ -3067,7 +3428,8 @@ app.get("/api/admin/export", requireAuth, requireRole(["chairperson"]), async (r
       "profiles", "documents", "budgets", "expenditures", "safeguarding_reports",
       "assets", "attendance_sheets", "partners", "incomes", "grants", "classes",
       "broadcasts", "leave_requests", "invoices", "org_settings", "contract_renewals",
-      "safeguarding_access_logs", "financial_audit_trails"
+      "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
+      "volunteer_certificates"
     ];
 
     const backupData: any = {
@@ -3110,7 +3472,8 @@ app.post("/api/admin/purge-data", requireAuth, requireRole(["chairperson"]), asy
       "documents", "budgets", "expenditures", "safeguarding_reports",
       "assets", "attendance_sheets", "partners", "incomes", "grants", "classes",
       "broadcasts", "leave_requests", "invoices", "contract_renewals",
-      "safeguarding_access_logs", "financial_audit_trails"
+      "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
+      "volunteer_certificates"
     ];
 
     console.log(`[Purge] Initiating database purge by ${req.user!.name}...`);

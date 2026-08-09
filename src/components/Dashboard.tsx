@@ -2,9 +2,7 @@ import React from "react";
 import Modal from "./Modal";
 import { UserRole, UserProfile, Document, BudgetEngagement, ExpenditureRequest, SafeguardingReport, Asset, AttendanceSheet, Partner, Broadcast, LeaveRequest, SiteContent, LeadershipAppointment, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService, generateMemberNumber } from "../lib/storage";
-import MembershipIDCard, { getMonogramAvatar } from "./MembershipIDCard";
-import IDCardPrintLayout from "./IDCardPrintLayout";
-import QRCode from "qrcode";
+import MembershipIDCard from "./MembershipIDCard";
 import DocumentEditor from "./DocumentEditor";
 import ContractRenewalPanel from "./ContractRenewalPanel";
 import PrintWrapper from "./PrintWrapper";
@@ -15,6 +13,7 @@ import ViceChairpersonOverview from "./dashboard/ViceChairpersonOverview";
 import TreasurerOverview from "./dashboard/TreasurerOverview";
 import SecretaryOverview, { getMemberAttendanceStats } from "./dashboard/SecretaryOverview";
 import StatCard from "./dashboard/StatCard";
+import VolunteerRecognitionPanel from "./VolunteerRecognitionPanel";
 import { User, ShieldAlert, LayoutDashboard, FileText, Crown, AlertTriangle, Lock, Sparkles, CheckCircle2, Calendar, MapPin, Megaphone, Landmark, Scale, BarChart3, Printer, Wrench, Palmtree, Star, Flame, Check, X, Plus, Info, ChevronRight, FileCheck, RefreshCw, IdCard, Clock, Eye, Package, CheckCircle, Wallet } from "lucide-react";
 
 interface DashboardProps {
@@ -216,41 +215,6 @@ export default function Dashboard({
   });
   const [dashboardSubTab, setDashboardSubTab] = React.useState<"overview" | "renewals" | "appointments">("overview");
 
-  // ID card printing — a single shared print target rather than baking print state into
-  // every card instance, since this page can render many MembershipIDCards at once (the
-  // member directory grid) and only one member's card should print at a time regardless
-  // of how many are on screen.
-  const [printingIdCardMember, setPrintingIdCardMember] = React.useState<UserProfile | null>(null);
-  const [printingIdCardQr, setPrintingIdCardQr] = React.useState("");
-
-  const triggerIdCardPrint = (member: UserProfile) => {
-    const targetUrl = member.verificationUrl || `${window.location.origin}/verify/membership/${member.id}?t=0000000000000000`;
-    QRCode.toDataURL(targetUrl, { margin: 1, width: 160 })
-      .then((qr) => {
-        setPrintingIdCardQr(qr);
-        setPrintingIdCardMember(member);
-      })
-      .catch(() => {
-        setPrintingIdCardQr("");
-        setPrintingIdCardMember(member);
-      });
-  };
-
-  React.useEffect(() => {
-    if (!printingIdCardMember) return;
-    const raf = requestAnimationFrame(() => window.print());
-    const reset = () => {
-      setPrintingIdCardMember(null);
-      setPrintingIdCardQr("");
-    };
-    window.addEventListener("afterprint", reset);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("afterprint", reset);
-    };
-  }, [printingIdCardMember]);
-
-
   React.useEffect(() => {
     const refreshAllDashboardData = () => {
       setProfiles(StorageService.getProfiles());
@@ -361,6 +325,32 @@ export default function Dashboard({
     const allIds = broadcasts.map(b => b.id);
     setReadBroadcastIds(allIds);
     localStorage.setItem("bashosh_os_read_broadcasts", JSON.stringify(allIds));
+  };
+
+  // Two-way broadcast replies
+  const [replyDrafts, setReplyDrafts] = React.useState<Record<string, string>>({});
+  const [expandedThreadId, setExpandedThreadId] = React.useState<string | null>(null);
+  const [postingReplyId, setPostingReplyId] = React.useState<string | null>(null);
+
+  const handlePostReply = async (broadcastId: string) => {
+    const message = (replyDrafts[broadcastId] || "").trim();
+    if (!message) return;
+    setPostingReplyId(broadcastId);
+    try {
+      const res = await fetch(`/api/broadcasts/${broadcastId}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to post reply");
+      setBroadcasts(prev => prev.map(b => b.id === broadcastId ? { ...b, replies: [...(b.replies || []), data.reply] } : b));
+      setReplyDrafts(prev => ({ ...prev, [broadcastId]: "" }));
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setPostingReplyId(null);
+    }
   };
 
   // Treasurer / Comms Calculations
@@ -1593,7 +1583,13 @@ export default function Dashboard({
                         <td className="py-3 px-2 font-mono font-bold text-neutral-800">{hours.toFixed(1)} Hrs</td>
                         <td className="py-3 pl-2 text-right">
                           <button
-                            onClick={() => triggerIdCardPrint(member)}
+                            onClick={() => onPrintReport("Bashosho ID Card - " + member.name, (
+                              <div className="flex justify-center items-center py-10 bg-neutral-100">
+                                <div className="max-w-xs w-full">
+                                  <MembershipIDCard member={member} onVerify={() => {}} />
+                                </div>
+                              </div>
+                            ))}
                             id={`print-id-card-${member.id}`}
                             className="bg-neutral-950 hover:bg-black text-white text-[10px] font-bold px-2.5 py-1.5 rounded transition-all cursor-pointer inline-flex items-center gap-1"
                           >
@@ -1743,6 +1739,10 @@ export default function Dashboard({
                   </span>
                 </div>
               </div>
+
+              <div className="w-full max-w-sm mt-4">
+                <VolunteerRecognitionPanel lang={lang} currentUser={currentUser} volunteerHours={volunteerHours} />
+              </div>
             </div>
 
             {/* Performance/Stipends quick tracks */}
@@ -1854,10 +1854,50 @@ export default function Dashboard({
                             </span>
                           </div>
                           <p className="text-xs text-neutral-800 leading-relaxed font-sans">{b.message}</p>
-                          <div className="mt-2 text-[9px] font-mono text-gray-400 border-t border-gray-100 pt-1 flex justify-between">
+                          <div className="mt-2 text-[9px] font-mono text-gray-400 border-t border-gray-100 pt-1 flex justify-between items-center">
                             <span>Sent by: {b.sentBy}</span>
-                            {read && <span className="text-emerald-600"> Read</span>}
+                            <span className="flex items-center gap-2">
+                              {read && <span className="text-emerald-600">Read</span>}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setExpandedThreadId(expandedThreadId === b.id ? null : b.id); }}
+                                className="text-neutral-500 hover:text-[#E31E24] font-bold cursor-pointer"
+                              >
+                                {(b.replies?.length || 0) > 0
+                                  ? `${b.replies!.length} ${lang === "en" ? "repl" + (b.replies!.length === 1 ? "y" : "ies") : "majibu"}`
+                                  : (lang === "en" ? "Reply" : "Jibu")}
+                              </button>
+                            </span>
                           </div>
+
+                          {expandedThreadId === b.id && (
+                            <div onClick={(e) => e.stopPropagation()} className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                              {(b.replies || []).map(r => (
+                                <div key={r.id} className="bg-neutral-50 rounded-lg px-2.5 py-1.5">
+                                  <div className="flex justify-between items-baseline">
+                                    <span className="text-[10px] font-bold text-neutral-700">{r.userName}</span>
+                                    <span className="text-[9px] font-mono text-neutral-400">{new Date(r.timestamp).toLocaleDateString()}</span>
+                                  </div>
+                                  <p className="text-[11px] text-neutral-600">{r.message}</p>
+                                </div>
+                              ))}
+                              <div className="flex gap-2">
+                                <input
+                                  value={replyDrafts[b.id] || ""}
+                                  onChange={(e) => setReplyDrafts(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                  onKeyDown={(e) => { if (e.key === "Enter") handlePostReply(b.id); }}
+                                  placeholder={lang === "en" ? "Write a reply..." : "Andika jibu..."}
+                                  className="flex-1 bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-[11px]"
+                                />
+                                <button
+                                  onClick={() => handlePostReply(b.id)}
+                                  disabled={postingReplyId === b.id || !(replyDrafts[b.id] || "").trim()}
+                                  className="bg-neutral-900 hover:bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-40"
+                                >
+                                  {lang === "en" ? "Send" : "Tuma"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -2631,37 +2671,6 @@ export default function Dashboard({
           </Modal>
         );
       })()}
-
-      {/* Hidden ID card print target — set via triggerIdCardPrint(member) above.
-          Real card dimensions, front + back, no interactive chrome; only rendered
-          while an actual print is in progress (see the useEffect near the top of
-          this component), so it never interferes with the many interactive
-          MembershipIDCard instances rendered elsewhere on this page. */}
-      {printingIdCardMember && (
-        <>
-          <div id="dashboard-id-card-print-active" className="hidden print:block">
-            <IDCardPrintLayout
-              member={printingIdCardMember}
-              qrDataUrl={printingIdCardQr}
-              photoUrl={printingIdCardMember.avatar || getMonogramAvatar(printingIdCardMember.name, printingIdCardMember.id || printingIdCardMember.memberNumber)}
-            />
-          </div>
-          <style>{`
-            @media print {
-              @page {
-                size: auto;
-                margin: 0;
-              }
-              body * {
-                visibility: hidden;
-              }
-              #dashboard-id-card-print-active, #dashboard-id-card-print-active * {
-                visibility: visible;
-              }
-            }
-          `}</style>
-        </>
-      )}
     </div>
   );
 }
