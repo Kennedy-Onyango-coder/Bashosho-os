@@ -5,6 +5,7 @@ import { StorageService } from "../lib/storage";
 import { convertToWebP } from "../lib/imageUtils";
 import BashoshoLogo from "./BashoshoLogo";
 import { motion, AnimatePresence } from "motion/react";
+import { Reveal, RevealStagger, RevealItem, ParallaxLayer, HeroSlideshow, AnimatedCounter, TiltCard, StaggerText } from "./motion-primitives";
 import { 
   Lock, 
   Sparkles, 
@@ -24,6 +25,7 @@ import {
   Globe,
   Film,
   Play,
+  Maximize2,
   Users,
   Calendar,
   Building2,
@@ -638,84 +640,133 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
       {/* 2. HERO SECTION */}
       <section className="relative min-h-[85vh] md:min-h-[75vh] flex items-center justify-center overflow-hidden bg-neutral-950 text-white py-16 md:py-24">
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/85 via-neutral-950/35 to-neutral-900/25 z-10"></div>
-        {/* Dynamic backplate */}
-        <div className="absolute inset-0 opacity-80 bg-cover bg-center scale-105 transform transition-transform duration-1000" style={{ backgroundImage: `url('${content.heroImageUrl || "/public/assets/theatre_transformation_hero.jpg"}')` }}></div>
+        {/* Auto-rotating, crossfading slideshow with a slow Ken Burns zoom per slide */}
+        <HeroSlideshow
+          images={[
+            content.heroImageUrl || "/public/assets/theatre_transformation_hero.jpg",
+            ...(galleryImages && galleryImages.length > 0
+              ? galleryImages.slice(0, 4).map(g => (g as any).imageUrl || (g as any).url)
+              : [
+                  "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1600&auto=format&fit=crop&q=80",
+                  "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1600&auto=format&fit=crop&q=80",
+                  "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=1600&auto=format&fit=crop&q=80"
+                ])
+          ]}
+        />
         
         {/* Top Accent Band */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#E31E24] z-20"></div>
 
         <div className="max-w-5xl mx-auto px-6 text-center space-y-6 relative z-20">
           {/* Credibility Strip */}
-          <div className="inline-flex items-center gap-2 bg-neutral-900/90 border border-neutral-700/80 px-3.5 py-1.5 rounded-full backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="inline-flex items-center gap-2 bg-neutral-900/90 border border-neutral-700/80 px-3.5 py-1.5 rounded-full backdrop-blur-md"
+          >
             <ShieldCheck size={14} className="text-[#00A651]" />
             <span className="text-[10px] md:text-xs font-bold font-mono tracking-widest uppercase text-neutral-200">
               Est. 2020 • Registered CBO 2022 • Kiambiu, Nairobi
             </span>
-          </div>
+          </motion.div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black leading-tight tracking-tight font-sans text-white max-w-4xl mx-auto">
-            {content.heroTitle?.[lang] || content.heroTitle?.en || "Connecting Youths Through Talents"}
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black leading-tight tracking-tight font-sans text-white max-w-4xl mx-auto" style={{ perspective: 800 }}>
+            <StaggerText text={content.heroTitle?.[lang] || content.heroTitle?.en || "Connecting Youths Through Talents"} />
           </h1>
 
-          <p className="text-sm md:text-base text-neutral-300 max-w-3xl mx-auto leading-relaxed font-sans font-medium">
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="text-sm md:text-base text-neutral-300 max-w-3xl mx-auto leading-relaxed font-sans font-medium"
+          >
             {content.heroSubtitle?.[lang] || content.heroSubtitle?.en ||
               (lang === "en"
                 ? "A community-based organization using theatre and film to raise awareness on GBV, SRHR and Mental Health — and to train the next generation of Kenyan filmmakers."
                 : "Shirika la kijamii linalotumia maigizo na filamu kuhamasisha uelewa kuhusu GBV, SRHR na Afya ya Akili — na kufundisha kizazi kijacho cha watengenezaji filamu wa Kenya.")}
-          </p>
+          </motion.p>
 
           {/* Program Tag Pills Row */}
-          <div className="flex flex-wrap justify-center gap-2 pt-1 max-w-3xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.7, delay: 0.65 }}
+            className="flex flex-wrap justify-center gap-2 pt-1 max-w-3xl mx-auto"
+          >
             {["GBV Awareness & Referral", "SRHR Support", "Mental Health", "Theatre as a Service", "Bashosho Film Academy"].map((tag, idx) => (
-              <span key={idx} className="bg-neutral-800/90 border border-neutral-700 text-neutral-300 text-[10px] font-mono font-bold px-2.5 py-1 rounded-md">
+              <motion.span
+                key={idx}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, delay: 0.7 + idx * 0.06 }}
+                className="bg-neutral-800/90 border border-neutral-700 text-neutral-300 text-[10px] font-mono font-bold px-2.5 py-1 rounded-md"
+              >
                 {tag}
-              </span>
+              </motion.span>
             ))}
-          </div>
+          </motion.div>
 
           {/* 3 Primary CTAs */}
-          <div className="pt-6 flex flex-wrap justify-center items-center gap-3">
-            <a
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.85, ease: [0.16, 1, 0.3, 1] }}
+            className="pt-6 flex flex-wrap justify-center items-center gap-3"
+          >
+            <motion.a
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.97 }}
               href="#get-involved-section"
-              className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-extrabold px-6 py-3.5 rounded-xl cursor-pointer shadow-md transition-all flex items-center gap-2"
+              className="bg-[#E31E24] hover:bg-red-700 text-white text-xs font-extrabold px-6 py-3.5 rounded-xl cursor-pointer shadow-md transition-colors flex items-center gap-2"
             >
               <Heart size={15} className="fill-white" />
               {lang === "en" ? "Support Us" : "Tusaidie"}
-            </a>
+            </motion.a>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => openProgramInquiry({
                 id: "prog-partner-hero",
                 title: { en: "Institutional Partnership & Support", sw: "Ushirikiano na Usaidizi wa Kitaasisi" },
                 description: { en: "Partner with Bashosho Talents CBO for community outreach and programs.", sw: "Shirikiana na Bashosho Talents CBO kwa ajili ya miradi ya jamii." },
                 photoUrl: ""
               }, "partner")}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-6 py-3.5 rounded-xl transition-all cursor-pointer shadow-md flex items-center gap-2"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-6 py-3.5 rounded-xl transition-colors cursor-pointer shadow-md flex items-center gap-2"
             >
               <Building2 size={15} />
               {lang === "en" ? "Partner With Us" : "Shirikiana Nasi"}
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => setShowTaasModal(true)}
-              className="bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white text-xs font-extrabold px-6 py-3.5 rounded-xl transition-all cursor-pointer shadow-md flex items-center gap-2"
+              className="bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white text-xs font-extrabold px-6 py-3.5 rounded-xl transition-colors cursor-pointer shadow-md flex items-center gap-2"
             >
               <Theater size={15} className="text-[#E31E24]" />
               {lang === "en" ? "Hire Us (TaaS)" : "Kodi Wasanii (TaaS)"}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
           {/* Bottom Credibility Line */}
-          <div className="pt-4 border-t border-neutral-800/80 max-w-xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.7, delay: 1.1 }}
+            className="pt-4 border-t border-neutral-800/80 max-w-xl mx-auto"
+          >
             <p className="text-[11px] font-mono text-neutral-400 font-medium">
               Kiambiu Informal Settlement, Kamukunji, Nairobi · Registration No. <span className="text-white font-bold">DSD/KAM/CBO/5/4/22/269</span>
             </p>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* 3. ABOUT US SECTION (WHO WE ARE) */}
       <section id="about-section" className="py-16 md:py-24 bg-white border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           {/* Section Header */}
           <div className="space-y-2">
@@ -788,10 +839,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </div>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* 4. VISION & MISSION */}
       <section className="py-16 md:py-20 bg-neutral-950 text-white border-b border-neutral-800 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Vision Card */}
@@ -829,10 +882,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </div>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* 5. OUR APPROACH / METHODOLOGY */}
       <section id="approach-section" className="py-16 md:py-24 bg-neutral-50 border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -864,10 +919,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             })}
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* 6. OUR CORE PROGRAMS */}
       <section id="programs-section" className="py-16 md:py-24 bg-white border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2 border-b border-neutral-200 pb-6">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -881,11 +938,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <RevealStagger className="grid grid-cols-1 md:grid-cols-2 gap-8" staggerDelay={0.15}>
             {content.programs.map((prog) => (
-              <div
-                key={prog.id}
-                className="bg-neutral-50 border border-neutral-200 rounded-3xl overflow-hidden shadow-xs hover:border-[#E31E24]/40 hover:shadow-md transition-all flex flex-col justify-between text-left group"
+              <React.Fragment key={prog.id}>
+              <RevealItem>
+              <TiltCard
+                className="bg-neutral-50 border border-neutral-200 rounded-3xl overflow-hidden shadow-xs hover:border-[#E31E24]/40 hover:shadow-xl transition-colors flex flex-col justify-between text-left group h-full"
               >
                 {/* Program Header Image Banner */}
                 <div className="h-52 bg-neutral-900 relative overflow-hidden shrink-0 flex items-center justify-center">
@@ -1018,14 +1076,22 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                     </div>
                   </div>
                 </div>
-              </div>
+              </TiltCard>
+              </RevealItem>
+              </React.Fragment>
             ))}
-          </div>
+          </RevealStagger>
         </div>
+        </Reveal>
       </section>
 
       {/* 7. BASHOSHO FILM ACADEMY */}
       <section id="academy-section" className="py-16 md:py-24 bg-neutral-900 text-white border-b border-neutral-800 text-left relative overflow-hidden">
+        <ParallaxLayer speed={0.4} className="absolute inset-0 z-0">
+          <div className="absolute -top-20 -right-20 w-96 h-96 bg-[#E31E24]/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-[#00A651]/10 rounded-full blur-3xl"></div>
+        </ParallaxLayer>
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-7 space-y-6">
@@ -1094,10 +1160,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </div>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* 8. OUR FILMS */}
       <section id="films-section" className="py-16 md:py-24 bg-white border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -1111,7 +1179,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <RevealStagger className="grid grid-cols-1 md:grid-cols-2 gap-8" staggerDelay={0.15}>
             {(content.projects && content.projects.length > 0 ? content.projects : [
               {
                 id: "proj-kenda",
@@ -1138,12 +1206,30 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                 crew: { en: "16 Days of Activism Release • 12,000+ Views", sw: "Maonyesho ya Siku 16 za Uanaharakati • Tazamwa Mara 12,000+" }
               }
             ]).map((proj) => (
-              <div key={proj.id} className="bg-neutral-900 text-white rounded-3xl overflow-hidden border border-neutral-800 shadow-md flex flex-col justify-between">
+              <React.Fragment key={proj.id}>
+              <RevealItem>
+              <TiltCard className="bg-neutral-900 text-white rounded-3xl overflow-hidden border border-neutral-800 shadow-md flex flex-col justify-between h-full">
                 <div className="p-7 md:p-8 space-y-4">
                   {proj.photoUrl && (
-                    <div className="w-full h-48 rounded-2xl overflow-hidden bg-neutral-800 mb-3 border border-neutral-700/50">
-                      <img src={proj.photoUrl} alt={proj.title[lang] || proj.title.en} className="w-full h-full object-cover" />
-                    </div>
+                    <a
+                      href={proj.youtubeUrl || undefined}
+                      target={proj.youtubeUrl ? "_blank" : undefined}
+                      rel={proj.youtubeUrl ? "noreferrer" : undefined}
+                      className="group relative block w-full h-48 rounded-2xl overflow-hidden bg-neutral-800 mb-3 border border-neutral-700/50"
+                    >
+                      <img src={proj.photoUrl} alt={proj.title[lang] || proj.title.en} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                      {proj.youtubeUrl && (
+                        <div className="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                          <motion.div
+                            initial={{ scale: 0.7 }}
+                            whileHover={{ scale: 1 }}
+                            className="w-14 h-14 rounded-full bg-[#E31E24] flex items-center justify-center shadow-lg"
+                          >
+                            <Play size={22} className="fill-white text-white ml-1" />
+                          </motion.div>
+                        </div>
+                      )}
+                    </a>
                   )}
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -1197,9 +1283,11 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                     <Heart size={13} /> {lang === "en" ? "Support This Production" : "Changia Uzalishaji Huu"}
                   </button>
                 </div>
-              </div>
+              </TiltCard>
+              </RevealItem>
+              </React.Fragment>
             ))}
-          </div>
+          </RevealStagger>
 
           {/* Channel Link Banner */}
           <div className="bg-neutral-100 border border-neutral-300 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
@@ -1219,10 +1307,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </a>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* 9. BEHIND THE SCENES / GALLERY */}
       <section id="gallery-section" className="py-16 md:py-24 bg-neutral-50 border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -1253,25 +1343,34 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                   ? img.caption
                   : (img.caption?.[lang] || img.caption?.en || "");
               return (
-              <div
+              <motion.div
                 key={i}
                 onClick={() => setActiveLightboxImage(img.imageUrl || img.url)}
-                className="group relative h-56 bg-neutral-900 rounded-2xl overflow-hidden cursor-pointer border border-neutral-200 shadow-xs hover:border-[#E31E24] transition-all"
+                initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.5, delay: (i % 8) * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                whileHover={{ y: -6 }}
+                className="group relative h-56 bg-neutral-900 rounded-2xl overflow-hidden cursor-pointer border border-neutral-200 shadow-xs hover:border-[#E31E24] hover:shadow-lg transition-colors"
               >
                 <img
                   src={img.imageUrl || img.url}
                   alt={captionText || "Gallery"}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
                   <p className="text-white text-xs font-bold font-sans line-clamp-2">{captionText}</p>
                 </div>
-              </div>
+                <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/0 group-hover:bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <Maximize2 size={14} className="text-neutral-900" />
+                </div>
+              </motion.div>
               );
             })}
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* 9b. PRODUCTION & SOUND GEAR HIRE — previously fully built (fetch, booking modal,
@@ -1279,6 +1378,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
            page, so it was completely unreachable by visitors. */}
       {hireableAssets.length > 0 && (
         <section id="equipment-section" className="py-16 md:py-24 bg-neutral-50 border-b border-neutral-200 text-left">
+          <Reveal>
           <div className="max-w-6xl mx-auto px-6 space-y-12">
             <div className="space-y-2 border-b border-neutral-200 pb-6">
               <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -1328,11 +1428,13 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               ))}
             </div>
           </div>
+          </Reveal>
         </section>
       )}
 
       {/* 10. IMPACT & OUTREACH */}
       <section id="impact-section" className="py-16 md:py-24 bg-white border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2 border-b border-neutral-200 pb-6">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -1346,21 +1448,38 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </p>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {(content.impactStats && content.impactStats.length > 0 ? content.impactStats : DEFAULT_IMPACT_STATS).map((stat, idx) => (
-              <div key={stat.id} className="bg-neutral-50 border border-neutral-200 p-6 rounded-3xl space-y-2">
-                <span className={`text-3xl md:text-4xl font-black font-mono ${STAT_COLORS[idx % STAT_COLORS.length]}`}>{stat.value}</span>
-                <h4 className="text-sm font-bold text-neutral-900">{stat.label[lang] || stat.label.en}</h4>
-                <p className="text-xs text-neutral-600 font-medium">{stat.description[lang] || stat.description.en}</p>
-              </div>
-            ))}
-          </div>
+          <RevealStagger className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {(content.impactStats && content.impactStats.length > 0 ? content.impactStats : DEFAULT_IMPACT_STATS).map((stat, idx) => {
+              const numericMatch = String(stat.value).match(/[\d,]+/);
+              const numericValue = numericMatch ? Number(numericMatch[0].replace(/,/g, "")) : null;
+              const suffix = numericMatch ? String(stat.value).slice(numericMatch.index! + numericMatch[0].length) : "";
+              return (
+                <React.Fragment key={stat.id}>
+                <RevealItem>
+                  <TiltCard className="bg-neutral-50 border border-neutral-200 p-6 rounded-3xl space-y-2 h-full">
+                    <span className={`text-3xl md:text-4xl font-black font-mono ${STAT_COLORS[idx % STAT_COLORS.length]}`}>
+                      {numericValue !== null ? <AnimatedCounter value={numericValue} suffix={suffix} /> : stat.value}
+                    </span>
+                    <h4 className="text-sm font-bold text-neutral-900">{stat.label[lang] || stat.label.en}</h4>
+                    <p className="text-xs text-neutral-600 font-medium">{stat.description[lang] || stat.description.en}</p>
+                  </TiltCard>
+                </RevealItem>
+                </React.Fragment>
+              );
+            })}
+          </RevealStagger>
         </div>
+        </Reveal>
       </section>
 
       {/* 11. WORK WITH US / SUPPORT OUR WORK */}
-      <section id="support-work-section" className="py-16 md:py-24 bg-neutral-900 text-white border-b border-neutral-800 text-left">
-        <div className="max-w-6xl mx-auto px-6 space-y-12">
+      <section id="support-work-section" className="py-16 md:py-24 bg-neutral-900 text-white border-b border-neutral-800 text-left relative overflow-hidden">
+        <ParallaxLayer speed={0.4} className="absolute inset-0 z-0">
+          <div className="absolute top-10 left-10 w-80 h-80 bg-[#E31E24]/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-10 right-10 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl"></div>
+        </ParallaxLayer>
+        <Reveal>
+        <div className="max-w-6xl mx-auto px-6 space-y-12 relative z-10">
           <div className="space-y-2">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
               WORK WITH US
@@ -1448,10 +1567,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </div>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* 12. OUR TRUSTED PARTNERS */}
       <section id="partners-section" className="py-16 md:py-24 bg-white border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-10">
           <div className="space-y-2 border-b border-neutral-200 pb-6">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -1465,7 +1586,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <RevealStagger className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4" staggerDelay={0.05}>
             {(content.partnersList && content.partnersList.length > 0
               ? content.partnersList
               : [
@@ -1480,9 +1601,12 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                   { id: "p9", name: "Peace at Heart Initiative", category: "Community Network" }
                 ]
             ).map((partner) => (
-              <div
-                key={partner.id}
-                className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2 shadow-2xs hover:border-[#E31E24] hover:bg-white transition-all group min-h-[95px]"
+              <React.Fragment key={partner.id}>
+              <RevealItem y={16}>
+              <motion.div
+                whileHover={{ scale: 1.06, y: -4 }}
+                transition={{ duration: 0.25 }}
+                className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2 shadow-2xs hover:border-[#E31E24] hover:bg-white transition-colors group min-h-[95px]"
               >
                 {partner.logoUrl ? (
                   <img
@@ -1503,14 +1627,18 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                     {partner.category}
                   </span>
                 )}
-              </div>
+              </motion.div>
+              </RevealItem>
+              </React.Fragment>
             ))}
-          </div>
+          </RevealStagger>
         </div>
+        </Reveal>
       </section>
 
       {/* 13. LEADERSHIP & TEAM */}
       <section id="team-section" className="py-16 md:py-24 bg-neutral-50 border-b border-neutral-200 text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -1524,7 +1652,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <RevealStagger className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6" staggerDelay={0.08}>
             {(content.teamMembers && content.teamMembers.length > 0 ? content.teamMembers : [
               { id: "tm-1", name: "Kennedy Onyango", title: "Executive Director", bio: "Leading strategy, donor partnerships, organizational governance, and grassroots advocacy in Kiambiu." },
               { id: "tm-2", name: "Michael Kamande", title: "Communications & Marketing", bio: "Directing public relations, media engagement, digital storytelling, and brand outreach." },
@@ -1533,7 +1661,9 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               { id: "tm-5", name: "Paul Ngala", title: "Safeguarding & Field Officer", bio: "Ensuring community safety, ethical referral pathways, and child protection standards." },
               { id: "tm-6", name: "Shaniz Fabrizia", title: "Youth & Gender Officer", bio: "Facilitating youth empowerment, SRHR peer education, and gender equality circles." }
             ]).map((member) => (
-              <div key={member.id} className="bg-white border border-neutral-200 rounded-3xl p-6 space-y-4 shadow-2xs hover:border-[#E31E24]/50 transition-all flex flex-col justify-between">
+              <React.Fragment key={member.id}>
+              <RevealItem>
+              <TiltCard className="bg-white border border-neutral-200 rounded-3xl p-6 space-y-4 shadow-2xs hover:border-[#E31E24]/50 transition-colors flex flex-col justify-between h-full">
                 <div className="space-y-3">
                   <div className="w-16 h-16 rounded-2xl bg-neutral-100 border border-neutral-200 overflow-hidden flex items-center justify-center text-neutral-400 font-bold">
                     {member.photoUrl ? (
@@ -1550,14 +1680,18 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
 
                   <p className="text-xs text-neutral-600 font-medium leading-relaxed">{member.bio}</p>
                 </div>
-              </div>
+              </TiltCard>
+              </RevealItem>
+              </React.Fragment>
             ))}
-          </div>
+          </RevealStagger>
         </div>
+        </Reveal>
       </section>
 
       {/* 14. SUPPORT US & GET INVOLVED */}
       <section id="get-involved-section" className="py-16 md:py-24 bg-white text-left">
+        <Reveal>
         <div className="max-w-6xl mx-auto px-6 space-y-12">
           <div className="space-y-2 border-b border-neutral-200 pb-6">
             <span className="text-xs font-black tracking-widest text-[#E31E24] uppercase block font-mono">
@@ -1638,6 +1772,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </div>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* FOOTER */}
@@ -1722,9 +1857,13 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
       >
         {activeLightboxImage && (
           <div className="flex flex-col items-center justify-center p-2">
-            <img
+            <motion.img
+              key={activeLightboxImage}
               src={activeLightboxImage}
               alt="Enlarged gallery view"
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-full max-h-[80vh] object-contain rounded-xl border border-neutral-200 shadow-md"
               referrerPolicy="no-referrer"
             />
