@@ -3579,7 +3579,114 @@ app.post("/api/cast_payment_lists/:id/decision", requireAuth, async (req: Authen
   }
 });
 
-// 24. BANK RECONCILIATION
+// 24. BANK STATEMENT UPLOAD & PARSE (best-effort extraction, treasurer reviews before
+// reconciling). Handles password-protected PDFs — most banks email statements locked
+// with a PIN/password. This never trusts the extracted numbers as final; it only
+// pre-fills the reconciliation form below for the Treasurer to check against the real
+// statement before saving.
+app.post("/api/bank_statements/parse", requireAuth, requirePermission("finance", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { fileBase64, password } = req.body;
+    if (!fileBase64) {
+      return res.status(400).json({ error: "fileBase64 is required" });
+    }
+    const cleanBase64 = String(fileBase64).replace(/^data:application\/pdf;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+
+    // pdfjs-dist's legacy Node build is ESM-only; dynamic import works fine from this
+    // CJS-bundled server.
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+    let doc;
+    try {
+      const loadingTask = getDocument({ data: new Uint8Array(buffer), password: password || undefined, verbosity: 0 });
+      doc = await loadingTask.promise;
+    } catch (err: any) {
+      if (err?.name === "PasswordException") {
+        if (err.code === 1) {
+          return res.status(400).json({ error: "password_required", message: "This statement is password-protected. Enter the password your bank sent and try again." });
+        }
+        return res.status(400).json({ error: "incorrect_password", message: "That password didn't work. Double-check it and try again." });
+      }
+      return res.status(400).json({ error: "unreadable_pdf", message: "Couldn't read this file as a PDF. Make sure it's the original statement file, not a screenshot or scanned image." });
+    }
+
+    // Group text items into lines by y-position (pdf.js gives x/y per text fragment,
+    // not line breaks) so each table row can be regex-matched as a whole line rather
+    // than one long run-on string.
+    const lineMap = new Map<number, { x: number; str: string }[]>();
+    for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
+      const page = await doc.getPage(pageNum);
+      const content = await page.getTextContent();
+      for (const item of content.items as any[]) {
+        if (!("str" in item) || !item.str.trim()) continue;
+        const y = Math.round(item.transform[5] / 3) * 3; // 3pt tolerance bucket
+        const key = pageNum * 100000 + (10000 - y); // keeps page+top-to-bottom order
+        if (!lineMap.has(key)) lineMap.set(key, []);
+        lineMap.get(key)!.push({ x: item.transform[4], str: item.str });
+      }
+    }
+    const lines = Array.from(lineMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, frags]) => frags.sort((a, b) => a.x - b.x).map(f => f.str).join(" ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+
+    const fullText = lines.join("\n");
+
+    // Best-effort transaction line extraction: a date, a description, and one or more
+    // money amounts on the same line. Bank statement layouts vary hugely, so this is
+    // deliberately permissive — the Treasurer reviews and edits every row before saving.
+    const datePattern = /\b(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})\b/;
+    const amountPattern = /\(?-?[\d,]+\.\d{2}\)?/g;
+    const transactions: { date: string; description: string; amount: number }[] = [];
+    for (const line of lines) {
+      const dateMatch = line.match(datePattern);
+      if (!dateMatch) continue;
+      const amounts = line.match(amountPattern);
+      if (!amounts || amounts.length === 0) continue;
+      const parseAmt = (s: string) => {
+        const negative = s.includes("(") || s.trim().startsWith("-");
+        const num = Number(s.replace(/[(),\-]/g, "").replace(/,/g, ""));
+        return negative ? -num : num;
+      };
+      // Description = whatever's left after stripping the date and the LAST amount
+      // (assume the last number on the row is the transaction amount; an earlier one,
+      // if present, is often a running balance and is ignored here).
+      const lastAmountStr = amounts[amounts.length - 1];
+      const description = line
+        .replace(dateMatch[0], "")
+        .replace(lastAmountStr, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      transactions.push({ date: dateMatch[0], description: description.slice(0, 120), amount: parseAmt(lastAmountStr) });
+    }
+
+    // Closing balance: look for an explicit label first (most reliable); fall back to
+    // leaving it blank rather than guessing from an arbitrary transaction amount.
+    let extractedClosingBalance: number | null = null;
+    const balanceLabelPattern = /(closing balance|ending balance|balance carried forward|closing bal)[^\d\-(]*(\(?-?[\d,]+\.\d{2}\)?)/gi;
+    const labelMatches = [...fullText.matchAll(balanceLabelPattern)];
+    if (labelMatches.length > 0) {
+      const last = labelMatches[labelMatches.length - 1];
+      const raw = last[2];
+      const negative = raw.includes("(") || raw.trim().startsWith("-");
+      const num = Number(raw.replace(/[(),\-]/g, "").replace(/,/g, ""));
+      extractedClosingBalance = negative ? -num : num;
+    }
+
+    logActivity(req, "finance", "parse_statement", undefined, "Bank statement uploaded for reconciliation");
+    return res.json({
+      extractedClosingBalance,
+      transactions: transactions.slice(0, 200), // sane cap
+      pageCount: doc.numPages,
+      warning: "This is a best-effort automatic reading of the PDF — always check the closing balance and transaction rows against the real statement before reconciling."
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to parse bank statement", details: err.message });
+  }
+});
+
+// 25. BANK RECONCILIATION
 // Compares the CBO's own recorded books (incomes minus approved expenditures, up to
 // the statement end date) against a real bank statement balance received by email —
 // the systemBalance is captured at the moment of reconciliation, not recalculated

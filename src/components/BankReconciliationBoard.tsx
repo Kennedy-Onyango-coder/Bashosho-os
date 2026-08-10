@@ -1,5 +1,5 @@
 import React from "react";
-import { Landmark, Plus, CheckCircle2, AlertTriangle, UserPlus, Trash2 } from "lucide-react";
+import { Landmark, Plus, CheckCircle2, AlertTriangle, UserPlus, Trash2, Upload, Lock, FileText, X } from "lucide-react";
 import { BankReconciliation } from "../types";
 
 interface BankReconciliationBoardProps {
@@ -20,6 +20,15 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
   const [notes, setNotes] = React.useState("");
   const [lines, setLines] = React.useState<{ date: string; description: string; amount: string }[]>([]);
 
+  // Statement upload/parse state
+  const [uploadedFile, setUploadedFile] = React.useState<File | null>(null);
+  const [statementPassword, setStatementPassword] = React.useState("");
+  const [needsPassword, setNeedsPassword] = React.useState(false);
+  const [parsing, setParsing] = React.useState(false);
+  const [parseError, setParseError] = React.useState<string | null>(null);
+  const [parseWarning, setParseWarning] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const fetchRecords = async () => {
     try {
       setLoading(true);
@@ -38,6 +47,70 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
   const removeLine = (idx: number) => setLines(lines.filter((_, i) => i !== idx));
   const updateLine = (idx: number, field: string, value: string) => {
     setLines(lines.map((l, i) => i === idx ? { ...l, [field]: value } : l));
+  };
+
+  const readFileAsBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handleFileSelected = async (file: File) => {
+    setUploadedFile(file);
+    setParseError(null);
+    setParseWarning(null);
+    setNeedsPassword(false);
+    await parseStatement(file, "");
+  };
+
+  const parseStatement = async (file: File, password: string) => {
+    setParsing(true);
+    setParseError(null);
+    try {
+      const fileBase64 = await readFileAsBase64(file);
+      const res = await fetch("/api/bank_statements/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileBase64, password: password || undefined })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === "password_required" || data.error === "incorrect_password") {
+          setNeedsPassword(true);
+          setParseError(data.error === "incorrect_password" ? data.message : null);
+          return;
+        }
+        throw new Error(data.message || data.error || "Failed to read statement");
+      }
+      // Pre-fill the reconciliation form from the extraction — the Treasurer still
+      // reviews and can edit every value before running the actual reconciliation.
+      setNeedsPassword(false);
+      setParseWarning(data.warning || null);
+      if (data.extractedClosingBalance !== null && data.extractedClosingBalance !== undefined) {
+        setBankBalance(String(data.extractedClosingBalance));
+      }
+      if (Array.isArray(data.transactions) && data.transactions.length > 0) {
+        setLines(data.transactions.map((t: any) => ({ date: t.date, description: t.description, amount: String(t.amount) })));
+      }
+    } catch (err: any) {
+      setParseError(err.message);
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleRetryWithPassword = () => {
+    if (uploadedFile) parseStatement(uploadedFile, statementPassword);
+  };
+
+  const clearUpload = () => {
+    setUploadedFile(null);
+    setStatementPassword("");
+    setNeedsPassword(false);
+    setParseError(null);
+    setParseWarning(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,6 +138,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
       if (!res.ok) throw new Error(data.error || "Failed to save reconciliation");
       setResultMsg({ status: data.status, difference: data.difference });
       setPeriodStart(""); setBankBalance(""); setNotes(""); setLines([]);
+      clearUpload();
       fetchRecords();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -100,6 +174,59 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm space-y-4">
           {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+
+          {/* Statement upload */}
+          <div className="bg-neutral-50 border border-dashed border-neutral-300 rounded-xl p-4 space-y-3">
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Upload size={12} /> {lang === "en" ? "Upload Bank Statement (PDF)" : "Pakia Taarifa ya Benki (PDF)"}
+            </p>
+            <p className="text-[10px] text-neutral-400">
+              {lang === "en"
+                ? "Upload the statement PDF your bank emailed — if it's password-protected, we'll ask for the password. This auto-fills the balance and transactions below for you to review, it doesn't save anything automatically."
+                : "Pakia PDF ya taarifa iliyotumwa na benki kwa barua pepe — ikiwa ina password, tutakuuliza. Hii itajaza kiasi na miamala hapa chini kwa ukague, haihifadhi chochote moja kwa moja."}
+            </p>
+
+            {!uploadedFile ? (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => e.target.files?.[0] && handleFileSelected(e.target.files[0])}
+                className="w-full text-xs bg-white border border-neutral-200 rounded-lg px-3 py-2 cursor-pointer"
+              />
+            ) : (
+              <div className="flex items-center justify-between bg-white border border-neutral-200 rounded-lg px-3 py-2">
+                <span className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5"><FileText size={13} /> {uploadedFile.name}</span>
+                <button type="button" onClick={clearUpload} className="text-neutral-400 hover:text-red-600 cursor-pointer"><X size={14} /></button>
+              </div>
+            )}
+
+            {parsing && <p className="text-[11px] text-neutral-500">{lang === "en" ? "Reading statement..." : "Inasoma taarifa..."}</p>}
+
+            {needsPassword && (
+              <div className="flex gap-2 items-center">
+                <div className="flex-1 relative">
+                  <Lock size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                  <input
+                    type="password"
+                    value={statementPassword}
+                    onChange={e => setStatementPassword(e.target.value)}
+                    placeholder={lang === "en" ? "Statement password from your bank" : "Password ya taarifa"}
+                    className="w-full bg-white border border-neutral-200 rounded-lg pl-7 pr-3 py-2 text-xs"
+                  />
+                </div>
+                <button type="button" onClick={handleRetryWithPassword} className="bg-neutral-900 hover:bg-black text-white text-[10px] font-bold px-3 py-2 rounded-lg cursor-pointer">
+                  {lang === "en" ? "Unlock" : "Fungua"}
+                </button>
+              </div>
+            )}
+
+            {parseError && <p className="text-[11px] text-red-600 font-semibold">{parseError}</p>}
+            {parseWarning && (
+              <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{parseWarning}</p>
+            )}
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Statement Period Start" : "Mwanzo wa Kipindi"}</label>
