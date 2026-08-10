@@ -1,0 +1,326 @@
+import React from "react";
+import { Users, Plus, UserPlus, Trash2, CheckCircle2, XCircle, Printer, AlertTriangle } from "lucide-react";
+import { CastPaymentList, ExpenditureRequest, UserProfile } from "../types";
+import Modal from "./Modal";
+import PrintWrapper from "./PrintWrapper";
+
+interface CastPaymentListsBoardProps {
+  lang: "en" | "sw";
+  currentUser: UserProfile;
+  canSubmit: boolean; // Treasurer (or Chairperson)
+  canReview: boolean; // Chairperson / Vice Chairperson
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  pending_review: "bg-amber-50 text-amber-700 border-amber-200",
+  approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  rejected: "bg-red-50 text-red-700 border-red-200"
+};
+
+export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, canReview }: CastPaymentListsBoardProps) {
+  const [lists, setLists] = React.useState<CastPaymentList[]>([]);
+  const [expenditures, setExpenditures] = React.useState<ExpenditureRequest[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [showForm, setShowForm] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [printingList, setPrintingList] = React.useState<CastPaymentList | null>(null);
+  const [rejectingId, setRejectingId] = React.useState<string | null>(null);
+  const [rejectReason, setRejectReason] = React.useState("");
+
+  const [title, setTitle] = React.useState("");
+  const [eventName, setEventName] = React.useState("");
+  const [date, setDate] = React.useState(new Date().toISOString().split("T")[0]);
+  const [expenditureRequestId, setExpenditureRequestId] = React.useState("");
+  const [rows, setRows] = React.useState<{ name: string; role: string; phone: string; amount: string }[]>([
+    { name: "", role: "", phone: "", amount: "" }
+  ]);
+
+  const fetchAll = async () => {
+    try {
+      setLoading(true);
+      const [lRes, eRes] = await Promise.all([fetch("/api/cast_payment_lists"), fetch("/api/expenditures")]);
+      if (lRes.ok) setLists(await lRes.json());
+      if (eRes.ok) setExpenditures(await eRes.json());
+    } catch (err) {
+      console.error("Failed to load cast payment lists:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => { fetchAll(); }, []);
+
+  const approvedExpenditures = expenditures.filter(e => e.status === "approved");
+  const linkedExpenditure = expenditures.find(e => e.id === expenditureRequestId);
+  const rowsTotal = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const amountMismatch = linkedExpenditure ? Math.abs(rowsTotal - linkedExpenditure.amount) > 0.01 : false;
+
+  const addRow = () => setRows([...rows, { name: "", role: "", phone: "", amount: "" }]);
+  const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx));
+  const updateRow = (idx: number, field: string, value: string) => {
+    setRows(rows.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    const validRows = rows.filter(r => r.name.trim() && Number(r.amount) > 0);
+    if (!title.trim() || !eventName.trim() || !expenditureRequestId || validRows.length === 0) {
+      setErrorMsg(lang === "en" ? "Title, event, linked expenditure, and at least one payment row are required." : "Kichwa, tukio, matumizi yaliyounganishwa, na malipo angalau yanahitajika.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/cast_payment_lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title, eventName, date, expenditureRequestId,
+          payments: validRows.map(r => ({ name: r.name, role: r.role, phone: r.phone, amount: Number(r.amount) }))
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save payment list");
+      setTitle(""); setEventName(""); setExpenditureRequestId(""); setDate(new Date().toISOString().split("T")[0]);
+      setRows([{ name: "", role: "", phone: "", amount: "" }]);
+      setShowForm(false);
+      fetchAll();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleApprove = async (list: CastPaymentList) => {
+    try {
+      const res = await fetch(`/api/cast_payment_lists/${list.id}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve" })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to approve");
+      fetchAll();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingId) return;
+    try {
+      const res = await fetch(`/api/cast_payment_lists/${rejectingId}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject", reason: rejectReason })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reject");
+      setRejectingId(null);
+      setRejectReason("");
+      fetchAll();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const sortedLists = [...lists].sort((a, b) => (b.submittedDate || "").localeCompare(a.submittedDate || ""));
+
+  return (
+    <div className="space-y-6 text-left">
+      <div className="flex justify-between items-start flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-extrabold text-neutral-900 flex items-center gap-2">
+            <Users className="text-[#E31E24]" size={20} />
+            {lang === "en" ? "Cast & Crew Payment Lists" : "Orodha za Malipo ya Wasanii"}
+          </h2>
+          <p className="text-xs text-neutral-400 mt-1">
+            {lang === "en"
+              ? "Every payout list must be tied to an approved expenditure and matches its amount exactly. Chairperson or Vice Chairperson reviews before it's final."
+              : "Kila orodha ya malipo lazima iunganishwe na matumizi yaliyoidhinishwa na ilingane kikamilifu. Mwenyekiti au Makamu wanaikagua kabla ya kukamilika."}
+          </p>
+        </div>
+        {canSubmit && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-[#E31E24] hover:bg-[#c21419] text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus size={14} /> {lang === "en" ? "New Payment List" : "Orodha Mpya"}
+          </button>
+        )}
+      </div>
+
+      {showForm && canSubmit && (
+        <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm space-y-4">
+          {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "List Title" : "Kichwa"} *</label>
+              <input value={title} onChange={e => setTitle(e.target.value)} required placeholder={lang === "en" ? "e.g. KENDA Cast Stipends" : ""} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Event Name" : "Jina la Tukio"} *</label>
+              <input value={eventName} onChange={e => setEventName(e.target.value)} required className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Payment Date" : "Tarehe ya Malipo"}</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Linked Approved Expenditure" : "Matumizi Yaliyoidhinishwa"} *</label>
+              <select value={expenditureRequestId} onChange={e => setExpenditureRequestId(e.target.value)} required className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs">
+                <option value="">{lang === "en" ? "Select expenditure request" : "Chagua ombi la matumizi"}</option>
+                {approvedExpenditures.map(e => (
+                  <option key={e.id} value={e.id}>{e.description} — Ksh {e.amount.toLocaleString()}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {linkedExpenditure && (
+            <div className={`rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-2 ${amountMismatch ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+              {amountMismatch && <AlertTriangle size={14} />}
+              {lang === "en" ? "Approved amount" : "Kiasi kilichoidhinishwa"}: Ksh {linkedExpenditure.amount.toLocaleString()} · {lang === "en" ? "Rows total" : "Jumla ya Safu"}: Ksh {rowsTotal.toLocaleString()}
+              {amountMismatch && ` — ${lang === "en" ? "must match exactly before saving" : "lazima ilingane kabla ya kuhifadhi"}`}
+            </div>
+          )}
+
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Payees (from the paper list)" : "Waliolipwa"}</label>
+              <button type="button" onClick={addRow} className="text-[10px] font-bold text-[#E31E24] hover:underline cursor-pointer flex items-center gap-1">
+                <UserPlus size={12} /> {lang === "en" ? "Add Row" : "Ongeza"}
+              </button>
+            </div>
+            <div className="space-y-2">
+              {rows.map((row, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                  <input placeholder={lang === "en" ? "Full name" : "Jina kamili"} value={row.name} onChange={e => updateRow(idx, "name", e.target.value)} className="col-span-4 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
+                  <input placeholder={lang === "en" ? "Role" : "Wadhifa"} value={row.role} onChange={e => updateRow(idx, "role", e.target.value)} className="col-span-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
+                  <input placeholder={lang === "en" ? "Phone" : "Simu"} value={row.phone} onChange={e => updateRow(idx, "phone", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
+                  <input type="number" min="0" placeholder="Ksh" value={row.amount} onChange={e => updateRow(idx, "amount", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-mono" />
+                  <button type="button" onClick={() => removeRow(idx)} className="col-span-1 text-neutral-400 hover:text-red-600 cursor-pointer flex justify-center">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button disabled={submitting || amountMismatch} className="bg-neutral-900 hover:bg-black text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer disabled:opacity-40">
+            {submitting ? (lang === "en" ? "Submitting..." : "Inatuma...") : (lang === "en" ? "Submit for Review" : "Wasilisha Kukaguliwa")}
+          </button>
+        </form>
+      )}
+
+      {loading ? (
+        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading payment lists..." : "Inapakia..."}</p>
+      ) : sortedLists.length === 0 ? (
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+          {lang === "en" ? "No payment lists recorded yet." : "Hakuna orodha za malipo bado."}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sortedLists.map(list => {
+            const total = list.payments.reduce((s, p) => s + p.amount, 0);
+            return (
+              <div key={list.id} className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
+                <div className="flex justify-between items-start gap-3 flex-wrap">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h4 className="text-sm font-bold text-neutral-900">{list.title}</h4>
+                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[list.status]}`}>{list.status.replace("_", " ")}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-400 flex-wrap">
+                      <span>{list.eventName}</span>
+                      <span>{list.date}</span>
+                      <span>{list.payments.length} {lang === "en" ? "payees" : "waliolipwa"}</span>
+                      <span className="font-bold text-neutral-700">Ksh {total.toLocaleString()}</span>
+                      <span>{lang === "en" ? "by" : "na"} {list.submittedBy}</span>
+                    </div>
+                    {list.rejectionReason && (
+                      <p className="text-[10px] text-red-600 italic mt-1">{lang === "en" ? "Rejected" : "Imekataliwa"}: {list.rejectionReason}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {canReview && list.status === "pending_review" && list.submittedBy !== currentUser.name && (
+                      <>
+                        <button onClick={() => handleApprove(list)} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer flex items-center gap-1">
+                          <CheckCircle2 size={12} /> {lang === "en" ? "Approve" : "Idhinisha"}
+                        </button>
+                        <button onClick={() => setRejectingId(list.id)} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 cursor-pointer flex items-center gap-1">
+                          <XCircle size={12} /> {lang === "en" ? "Reject" : "Kataa"}
+                        </button>
+                      </>
+                    )}
+                    {list.status === "approved" && (
+                      <button onClick={() => setPrintingList(list)} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-neutral-900 text-white hover:bg-black cursor-pointer flex items-center gap-1">
+                        <Printer size={12} /> {lang === "en" ? "Print" : "Chapa"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Modal isOpen={!!rejectingId} onClose={() => setRejectingId(null)} maxWidth="max-w-sm">
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-neutral-900">{lang === "en" ? "Reason for rejection" : "Sababu ya kukataa"}</h3>
+          <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />
+          <button onClick={handleReject} className="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer">
+            {lang === "en" ? "Confirm Rejection" : "Thibitisha Kukataa"}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!printingList} onClose={() => setPrintingList(null)} maxWidth="max-w-3xl">
+        {printingList && (
+          <PrintWrapper
+            title={printingList.title}
+            docType="PAYMENT LIST"
+            authorName={printingList.reviewedBy || ""}
+            authorRole="Chairperson / Vice Chairperson"
+            dateString={printingList.date}
+            verificationUrl={printingList.verificationUrl}
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-xs border-b border-neutral-200 pb-3">
+                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Event" : "Tukio"}</span><span className="font-bold text-neutral-900">{printingList.eventName}</span></div>
+                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Submitted By" : "Iliwasilishwa Na"}</span><span className="font-bold text-neutral-900">{printingList.submittedBy}</span></div>
+                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Reviewed By" : "Ilikaguliwa Na"}</span><span className="font-bold text-neutral-900">{printingList.reviewedBy} ({printingList.reviewedDate})</span></div>
+                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Total Paid" : "Jumla"}</span><span className="font-bold text-neutral-900">Ksh {printingList.payments.reduce((s, p) => s + p.amount, 0).toLocaleString()}</span></div>
+              </div>
+              <table className="w-full text-xs font-sans text-left border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-neutral-300 text-neutral-500 uppercase text-[10px]">
+                    <th className="py-2">#</th>
+                    <th>{lang === "en" ? "Name" : "Jina"}</th>
+                    <th>{lang === "en" ? "Role" : "Wadhifa"}</th>
+                    <th>{lang === "en" ? "Phone" : "Simu"}</th>
+                    <th className="text-right">{lang === "en" ? "Amount (Ksh)" : "Kiasi"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printingList.payments.map((p, idx) => (
+                    <tr key={p.id} className="border-b border-neutral-150">
+                      <td className="py-1.5">{idx + 1}</td>
+                      <td className="font-bold">{p.name}</td>
+                      <td>{p.role || "—"}</td>
+                      <td>{p.phone || "—"}</td>
+                      <td className="text-right font-mono font-bold">{p.amount.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </PrintWrapper>
+        )}
+      </Modal>
+    </div>
+  );
+}

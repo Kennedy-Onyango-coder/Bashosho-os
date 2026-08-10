@@ -29,6 +29,16 @@ interface VerificationResult {
   assetSerial?: string;
   assetCondition?: string;
   assetCustodian?: string;
+  eventTitle?: string;
+  eventType?: string;
+  eventVenue?: string;
+  eventDate?: string;
+  attendeeCount?: number;
+  approvalStatus?: string;
+  eventName?: string;
+  paymentDate?: string;
+  payeeCount?: number;
+  totalAmount?: number;
 }
 
 export default function PublicVerificationScreen({ path }: { path: string }) {
@@ -266,6 +276,60 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                     <div className="flex justify-between items-baseline">
                       <span className="text-neutral-400 font-medium">Current Custodian</span>
                       <span className="font-mono text-neutral-100">{result.assetCustodian}</span>
+                    </div>
+                  </>
+                )}
+
+                {result.type === "attendance_register" && (
+                  <>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Event</span>
+                      <span className="font-bold text-neutral-100">{result.eventTitle}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Type</span>
+                      <span className="font-semibold text-red-400 uppercase">{result.eventType}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Venue</span>
+                      <span className="font-mono text-neutral-100">{result.eventVenue}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Date</span>
+                      <span className="font-mono text-neutral-100">{result.eventDate}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Attendees Recorded</span>
+                      <span className="font-mono text-neutral-100">{result.attendeeCount}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-neutral-400 font-medium">Approval Status</span>
+                      <span className="font-mono text-neutral-100 uppercase">{result.approvalStatus}</span>
+                    </div>
+                  </>
+                )}
+
+                {result.type === "cast_payment_list" && (
+                  <>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Event</span>
+                      <span className="font-bold text-neutral-100">{result.eventName}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Payment Date</span>
+                      <span className="font-mono text-neutral-100">{result.paymentDate}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Payees</span>
+                      <span className="font-mono text-neutral-100">{result.payeeCount}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Total Amount</span>
+                      <span className="font-mono text-neutral-100">Ksh {result.totalAmount?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-neutral-400 font-medium">Approval Status</span>
+                      <span className="font-mono text-neutral-100 uppercase">{result.approvalStatus}</span>
                     </div>
                   </>
                 )}

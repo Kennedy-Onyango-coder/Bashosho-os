@@ -331,7 +331,7 @@ const PERMISSION_MODULE_KEYS = [
   "dashboard", "documents", "finance", "assets", "grants", "classes", "invoices",
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
-  "tasks", "program_sessions", "volunteer_recognition"
+  "tasks", "program_sessions", "volunteer_recognition", "attendance_registers"
 ];
 const PERMISSION_ACTIONS = ["view", "create", "edit", "delete", "approve"];
 
@@ -377,6 +377,10 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
   // generate their own certificate once real logged hours clear a tier threshold
   // (server recomputes hours from attendance records, never trusts a client figure).
   view("volunteer_recognition"); p.volunteer_recognition.create = true;
+  // Attendance registers (transcribed paper sign-in sheets): everyone can view the
+  // approved roster archive; only Secretary/Programs Director/Chairperson can submit
+  // or move one through the approval chain (granted per-role below).
+  view("attendance_registers");
 
   switch (roleKey) {
     case "chairperson":
@@ -423,6 +427,7 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       p.tasks.create = true; p.tasks.edit = true;
       p.program_sessions.edit = true; p.program_sessions.delete = true;
       p.volunteer_recognition.edit = true;
+      p.attendance_registers.edit = true; // approves the Programs stage
       break;
 
     case "secretary":
@@ -431,6 +436,7 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       full("settings"); p.settings.delete = false; p.settings.edit = false; // secretary sees settings tab but org_settings save is chairperson-only historically
       view("safeguarding");
       p.tasks.create = true; p.tasks.edit = true;
+      p.attendance_registers.create = true; p.attendance_registers.edit = true;
       break;
 
     case "treasurer":
@@ -1586,7 +1592,9 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
     leadership_appointment: "leadership_appointments",
     document: "documents",
     volunteer_certificate: "volunteer_certificates",
-    asset: "assets"
+    asset: "assets",
+    attendance_register: "attendance_sheets",
+    cast_payment_list: "cast_payment_lists"
   };
   const collection = collectionMap[type];
   if (!collection) return res.status(400).json({ verified: false, error: "Unknown document type" });
@@ -1677,6 +1685,32 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
         orgName: "Bashosho Talents CBO",
       });
     }
+    if (type === "attendance_register") {
+      return res.json({
+        verified: true,
+        type,
+        eventTitle: data.title,
+        eventType: data.type,
+        eventVenue: data.venue,
+        eventDate: data.date,
+        attendeeCount: Array.isArray(data.records) ? data.records.length : 0,
+        approvalStatus: data.approvalStatus,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
+    if (type === "cast_payment_list") {
+      const total = Array.isArray(data.payments) ? data.payments.reduce((s: number, p: any) => s + (p.amount || 0), 0) : 0;
+      return res.json({
+        verified: true,
+        type,
+        eventName: data.eventName,
+        paymentDate: data.date,
+        payeeCount: Array.isArray(data.payments) ? data.payments.length : 0,
+        totalAmount: total,
+        approvalStatus: data.status,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
   } catch (err: any) {
     return res.status(500).json({ verified: false, error: "Verification server error", details: err.message });
   }
@@ -1762,6 +1796,24 @@ async function fetchCollection(collectionName: string, req: AuthenticatedRequest
         return {
           ...item,
           verificationUrl: `${appUrl}/verify/asset/${item.id}?t=${token}`
+        };
+      });
+    } else if (collectionName === "attendance_sheets") {
+      items = items.map(item => {
+        const token = generateVerificationToken("attendance_register", item.id);
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        return {
+          ...item,
+          verificationUrl: `${appUrl}/verify/attendance_register/${item.id}?t=${token}`
+        };
+      });
+    } else if (collectionName === "cast_payment_lists") {
+      items = items.map(item => {
+        const token = generateVerificationToken("cast_payment_list", item.id);
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        return {
+          ...item,
+          verificationUrl: `${appUrl}/verify/cast_payment_list/${item.id}?t=${token}`
         };
       });
     }
@@ -3339,6 +3391,252 @@ app.post("/api/broadcasts/:id/reply", requireAuth, async (req: AuthenticatedRequ
 });
 
 
+// 22. ATTENDANCE REGISTERS (transcribed paper sign-in sheets, with approval chain)
+// Secretary transcribes a physical register (training, street/field performance,
+// office attendance) → Programs Director approves → Chairperson gives final approval.
+// Reuses the "attendance_sheets" collection that live rehearsal clock-in already
+// writes to (both are AttendanceSheet records) — a transcribed register is simply one
+// with approvalStatus set, so it's distinguishable without a second collection.
+app.get("/api/attendance_registers", requireAuth, requirePermission("attendance_registers", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("attendance_sheets").get();
+    const items = snap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as any))
+      .filter(item => item.approvalStatus !== undefined);
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const withQr = items.map(item => ({
+      ...item,
+      verificationUrl: `${appUrl}/verify/attendance_register/${item.id}?t=${generateVerificationToken("attendance_register", item.id)}`
+    }));
+    return res.json(withQr);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to fetch attendance registers", details: err.message });
+  }
+});
+
+app.post("/api/attendance_registers", requireAuth, requirePermission("attendance_registers", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    if (!req.body.title || !req.body.venue || !Array.isArray(req.body.records) || req.body.records.length === 0) {
+      return res.status(400).json({ error: "title, venue, and at least one attendee record are required" });
+    }
+    const id = req.body.id || `attreg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const record = {
+      id,
+      title: req.body.title,
+      date: req.body.date || new Date().toISOString().split("T")[0],
+      type: req.body.type || "training",
+      venue: req.body.venue,
+      records: req.body.records,
+      isTranscribed: true,
+      approvalStatus: "pending_programs_approval",
+      submittedBy: req.user!.name,
+      submittedDate: new Date().toISOString().split("T")[0]
+    };
+    logActivity(req, "attendance_registers", "create", id, record.title);
+    return saveDocument("attendance_sheets", id, record, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to submit attendance register", details: err.message });
+  }
+});
+
+app.post("/api/attendance_registers/:id/decision", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const { action, reason } = req.body; // action: "approve" | "reject"
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    const docRef = db.collection("attendance_sheets").doc(id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Attendance register not found" });
+    const data = snap.data()!;
+
+    if (data.approvalStatus === "pending_programs_approval") {
+      if (userRoleKey !== "programs_director" && userRoleKey !== "chairperson") {
+        return res.status(403).json({ error: "Only the Programs Director or Chairperson can act on this stage." });
+      }
+      if (action === "reject") {
+        await docRef.set({ approvalStatus: "rejected", rejectionReason: reason || "", updatedAt: new Date().toISOString() }, { merge: true });
+        logActivity(req, "attendance_registers", "reject", id, data.title);
+        return res.json({ success: true, status: "rejected" });
+      }
+      await docRef.set({
+        approvalStatus: "pending_chairperson_approval",
+        programsApprovedBy: req.user!.name,
+        programsApprovedDate: new Date().toISOString().split("T")[0],
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      logActivity(req, "attendance_registers", "programs_approve", id, data.title);
+      return res.json({ success: true, status: "pending_chairperson_approval" });
+    }
+
+    if (data.approvalStatus === "pending_chairperson_approval") {
+      if (userRoleKey !== "chairperson") {
+        return res.status(403).json({ error: "Only the Chairperson can give final approval on this stage." });
+      }
+      if (action === "reject") {
+        await docRef.set({ approvalStatus: "rejected", rejectionReason: reason || "", updatedAt: new Date().toISOString() }, { merge: true });
+        logActivity(req, "attendance_registers", "reject", id, data.title);
+        return res.json({ success: true, status: "rejected" });
+      }
+      await docRef.set({
+        approvalStatus: "approved",
+        chairpersonApprovedBy: req.user!.name,
+        chairpersonApprovedDate: new Date().toISOString().split("T")[0],
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      logActivity(req, "attendance_registers", "chairperson_approve", id, data.title);
+      return res.json({ success: true, status: "approved" });
+    }
+
+    return res.status(400).json({ error: `This register is already ${data.approvalStatus} and cannot be acted on further.` });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to process approval decision", details: err.message });
+  }
+});
+
+// 23. CAST/CREW PAYMENT LISTS (tied to an approved expenditure request, reviewed by
+// Chairperson or Vice Chairperson — never the Treasurer who submitted it, so payout
+// and approval are always two different people).
+app.get("/api/cast_payment_lists", requireAuth, requirePermission("finance", "view"), (req, res) => fetchCollection("cast_payment_lists", req, res));
+
+app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { title, eventName, date, expenditureRequestId, payments } = req.body;
+    if (!title || !eventName || !expenditureRequestId || !Array.isArray(payments) || payments.length === 0) {
+      return res.status(400).json({ error: "title, eventName, expenditureRequestId, and at least one payment row are required" });
+    }
+    const expSnap = await db.collection("expenditures").doc(expenditureRequestId).get();
+    if (!expSnap.exists) {
+      return res.status(400).json({ error: "expenditureRequestId does not match a real expenditure request" });
+    }
+    const expData = expSnap.data()!;
+    if (expData.status !== "approved") {
+      return res.status(400).json({ error: "The linked expenditure request must be approved before a payment list can be recorded against it." });
+    }
+    const totalPayments = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    // The whole point of this feature — the paid-out total is checked against what was
+    // actually authorized, so a payment list can never silently drift from the
+    // approved expenditure amount.
+    if (Math.abs(totalPayments - Number(expData.amount)) > 0.01) {
+      return res.status(400).json({
+        error: `Payment list total (Ksh ${totalPayments.toLocaleString()}) does not match the approved expenditure amount (Ksh ${Number(expData.amount).toLocaleString()}). Adjust the payment rows so they sum exactly to the approved amount.`
+      });
+    }
+    const id = `cpl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const record = {
+      id,
+      title,
+      eventName,
+      date: date || new Date().toISOString().split("T")[0],
+      expenditureRequestId,
+      payments: payments.map((p: any, idx: number) => ({
+        id: p.id || `pay-${idx}`,
+        name: p.name,
+        role: p.role || "",
+        phone: p.phone || "",
+        amount: Number(p.amount) || 0
+      })),
+      submittedBy: req.user!.name,
+      submittedDate: new Date().toISOString().split("T")[0],
+      status: "pending_review"
+    };
+    logActivity(req, "finance", "create", id, `Cast payment list: ${title}`);
+    return saveDocument("cast_payment_lists", id, record, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to save cast payment list", details: err.message });
+  }
+});
+
+app.post("/api/cast_payment_lists/:id/decision", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const { action, reason } = req.body;
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (userRoleKey !== "chairperson" && userRoleKey !== "vice_chairperson") {
+      return res.status(403).json({ error: "Only the Chairperson or Vice Chairperson can review a cast payment list." });
+    }
+    const docRef = db.collection("cast_payment_lists").doc(id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Payment list not found" });
+    const data = snap.data()!;
+    if (data.submittedBy === req.user!.name) {
+      return res.status(403).json({ error: "You cannot review a payment list you submitted yourself." });
+    }
+    if (data.status !== "pending_review") {
+      return res.status(400).json({ error: `This payment list is already ${data.status}.` });
+    }
+    const nextStatus = action === "reject" ? "rejected" : "approved";
+    await docRef.set({
+      status: nextStatus,
+      reviewedBy: req.user!.name,
+      reviewedDate: new Date().toISOString().split("T")[0],
+      rejectionReason: action === "reject" ? (reason || "") : undefined,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    logActivity(req, "finance", nextStatus === "approved" ? "approve" : "reject", id, data.title);
+    return res.json({ success: true, status: nextStatus });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to record review decision", details: err.message });
+  }
+});
+
+// 24. BANK RECONCILIATION
+// Compares the CBO's own recorded books (incomes minus approved expenditures, up to
+// the statement end date) against a real bank statement balance received by email —
+// the systemBalance is captured at the moment of reconciliation, not recalculated
+// later, so past reconciliation history stays accurate even as new records are added.
+app.get("/api/bank_reconciliations", requireAuth, requirePermission("finance", "view"), (req, res) => fetchCollection("bank_reconciliations", req, res));
+
+app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { statementPeriodStart, statementPeriodEnd, bankStatementBalance, notes, statementLines } = req.body;
+    if (!statementPeriodEnd || bankStatementBalance === undefined) {
+      return res.status(400).json({ error: "statementPeriodEnd and bankStatementBalance are required" });
+    }
+    // Compute the system's own net position from real records up to the statement end
+    // date — never trust a client-supplied system balance for this comparison.
+    const [incomesSnap, expSnap] = await Promise.all([
+      db.collection("incomes").get(),
+      db.collection("expenditures").get()
+    ]);
+    const totalIncome = incomesSnap.docs
+      .map(d => d.data() as any)
+      .filter(i => !i.date || i.date <= statementPeriodEnd)
+      .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+    const totalApprovedExpense = expSnap.docs
+      .map(d => d.data() as any)
+      .filter(e => e.status === "approved" && (!e.requestDate || e.requestDate <= statementPeriodEnd))
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const systemBalance = totalIncome - totalApprovedExpense;
+    const difference = Number(bankStatementBalance) - systemBalance;
+
+    const id = `recon-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const record = {
+      id,
+      statementPeriodStart: statementPeriodStart || "",
+      statementPeriodEnd,
+      bankStatementBalance: Number(bankStatementBalance),
+      systemBalance,
+      difference,
+      status: Math.abs(difference) < 0.01 ? "balanced" : "discrepancy",
+      notes: notes || "",
+      statementLines: Array.isArray(statementLines) ? statementLines.map((l: any, idx: number) => ({
+        id: l.id || `line-${idx}`,
+        date: l.date || "",
+        description: l.description || "",
+        amount: Number(l.amount) || 0,
+        matched: !!l.matched
+      })) : [],
+      reconciledBy: req.user!.name,
+      reconciledDate: new Date().toISOString().split("T")[0]
+    };
+    logActivity(req, "finance", "create", id, `Bank reconciliation: ${statementPeriodEnd}`);
+    return saveDocument("bank_reconciliations", id, record, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to save bank reconciliation", details: err.message });
+  }
+});
+
+
 // --- BACKEND BULK SYNC ENDPOINT WITH CONFLICT RESOLUTION ---
 app.post("/api/sync", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   const { queue } = req.body;
@@ -3429,7 +3727,7 @@ app.get("/api/admin/export", requireAuth, requireRole(["chairperson"]), async (r
       "assets", "attendance_sheets", "partners", "incomes", "grants", "classes",
       "broadcasts", "leave_requests", "invoices", "org_settings", "contract_renewals",
       "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
-      "volunteer_certificates"
+      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations"
     ];
 
     const backupData: any = {
@@ -3473,7 +3771,7 @@ app.post("/api/admin/purge-data", requireAuth, requireRole(["chairperson"]), asy
       "assets", "attendance_sheets", "partners", "incomes", "grants", "classes",
       "broadcasts", "leave_requests", "invoices", "contract_renewals",
       "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
-      "volunteer_certificates"
+      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations"
     ];
 
     console.log(`[Purge] Initiating database purge by ${req.user!.name}...`);

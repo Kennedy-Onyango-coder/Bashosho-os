@@ -33,6 +33,7 @@ import BeneficiaryRegistration from "./components/BeneficiaryRegistration";
 import SecuritySettingsPanel from "./components/SecuritySettingsPanel";
 import TasksBoard from "./components/TasksBoard";
 import ProgramOutcomesBoard from "./components/ProgramOutcomesBoard";
+import AttendanceRegisterBoard from "./components/AttendanceRegisterBoard";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -52,6 +53,7 @@ import {
   ShieldCheck,
   History,
   CheckSquare,
+  ClipboardList,
   X
 } from "lucide-react";
 
@@ -823,6 +825,20 @@ export default function App() {
                     </button>
                   )}
 
+                  {can("attendance_registers") && (
+                    <button
+                      onClick={() => { setActiveTab("attendance_registers"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-attendance-registers-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "attendance_registers"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <ClipboardList size={14} className="shrink-0" /> {lang === "en" ? "Attendance Registers" : "Rejista za Mahudhurio"}
+                    </button>
+                  )}
+
                   <button
                     onClick={() => { setActiveTab("my_records"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
                     id="nav-my-records-tab"
@@ -1186,6 +1202,17 @@ export default function App() {
               {activeTab === "program_sessions" && currentUser && (
                 <ErrorBoundary fallbackTitle="Program Outcomes Failure">
                   <ProgramOutcomesBoard lang={lang} currentUser={currentUser} canEditAll={can("program_sessions", "edit")} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "attendance_registers" && currentUser && (
+                <ErrorBoundary fallbackTitle="Attendance Register Failure">
+                  <AttendanceRegisterBoard
+                    lang={lang}
+                    currentUser={currentUser}
+                    canSubmit={can("attendance_registers", "create")}
+                    canDecide={can("attendance_registers", "edit")}
+                  />
                 </ErrorBoundary>
               )}
 

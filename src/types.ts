@@ -267,7 +267,7 @@ export interface AttendanceSheet {
   id: string;
   title: string;
   date: string;
-  type: "rehearsal" | "performance" | "meeting" | "class" | "external";
+  type: "rehearsal" | "performance" | "meeting" | "class" | "external" | "training" | "street_performance" | "field_performance" | "office_attendance";
   venue: string;
   records: {
     userId: string;
@@ -278,8 +278,85 @@ export interface AttendanceSheet {
     geoTagged?: boolean;
     volunteerHours?: number; // calculation base
     stipend?: number;
+    /** Optional — attendees on a transcribed paper register (e.g. street performance
+     *  audience or a community member) often aren't registered CBO members. */
+    phone?: string;
+    role?: string;
   }[];
   isTranscribed: boolean;
+  /** Approval chain for a paper attendance register transcribed into the system by the
+   *  Secretary: Secretary submits → Programs Director approves → Chairperson gives
+   *  final approval. Sheets created via live self-service clock-in (see Dashboard)
+   *  don't use this chain and are left undefined/"approved". */
+  approvalStatus?: "draft" | "pending_programs_approval" | "pending_chairperson_approval" | "approved" | "rejected";
+  submittedBy?: string;
+  submittedDate?: string;
+  programsApprovedBy?: string;
+  programsApprovedDate?: string;
+  chairpersonApprovedBy?: string;
+  chairpersonApprovedDate?: string;
+  rejectionReason?: string;
+  /** Server-computed, cryptographically signed verification link for the printable
+   *  attendance roster (see /api/verify/attendance_register/:id) */
+  verificationUrl?: string;
+}
+
+/** A cast/crew payment list the Treasurer enters after a physical payout, tied to the
+ *  matching approved expenditure request so the paid-out total is checked against what
+ *  was actually authorized — the paper trail behind cash disbursed to a group of people
+ *  at once (a play cast, a field crew, etc). */
+export interface CastPaymentList {
+  id: string;
+  title: string;
+  eventName: string;
+  date: string;
+  /** Links to the ExpenditureRequest this payout was authorized under — the sum of
+   *  `payments` must match that request's amount. */
+  expenditureRequestId: string;
+  payments: {
+    id: string;
+    name: string;
+    role?: string;
+    phone?: string;
+    amount: number;
+  }[];
+  submittedBy: string;
+  submittedDate: string;
+  /** Reviewed by Chairperson or Vice Chairperson only — never the Treasurer who
+   *  submitted it, so the same person can't both pay out and approve. */
+  status: "pending_review" | "approved" | "rejected";
+  reviewedBy?: string;
+  reviewedDate?: string;
+  rejectionReason?: string;
+  verificationUrl?: string;
+}
+
+/** One finance reconciliation event: comparing the CBO's own recorded books against a
+ *  real bank statement balance for a period, to catch discrepancies early. */
+export interface BankReconciliation {
+  id: string;
+  statementPeriodStart: string;
+  statementPeriodEnd: string;
+  bankStatementBalance: number;
+  /** The system's own recorded net position as of the statement end date, captured at
+   *  the moment of reconciliation (not recalculated later, so history stays accurate
+   *  even as new records are added). */
+  systemBalance: number;
+  difference: number;
+  status: "balanced" | "discrepancy";
+  notes?: string;
+  /** Individual statement lines the reconciler is manually checking off against the
+   *  system's own income/expenditure records — a lightweight matching aid, not a full
+   *  automated bank-feed import. */
+  statementLines?: {
+    id: string;
+    date: string;
+    description: string;
+    amount: number;
+    matched: boolean;
+  }[];
+  reconciledBy: string;
+  reconciledDate: string;
 }
 
 export interface Partner {
@@ -493,7 +570,8 @@ export type PermissionModuleKey =
   | "activity_log"
   | "tasks"
   | "program_sessions"
-  | "volunteer_recognition";
+  | "volunteer_recognition"
+  | "attendance_registers";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve";
 
@@ -513,7 +591,7 @@ export const PERMISSION_MODULE_KEYS: PermissionModuleKey[] = [
   "dashboard", "documents", "finance", "assets", "grants", "classes", "invoices",
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
-  "tasks", "program_sessions", "volunteer_recognition"
+  "tasks", "program_sessions", "volunteer_recognition", "attendance_registers"
 ];
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];

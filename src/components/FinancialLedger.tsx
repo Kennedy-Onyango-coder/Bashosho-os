@@ -2,7 +2,9 @@ import React from "react";
 import Modal from "./Modal";
 import { BudgetEngagement, ExpenditureRequest, UserRole, UserProfile, Income, Partner, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
-import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X } from "lucide-react";
+import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X, Users, Landmark } from "lucide-react";
+import CastPaymentListsBoard from "./CastPaymentListsBoard";
+import BankReconciliationBoard from "./BankReconciliationBoard";
 import {
   BarChart,
   Bar,
@@ -60,7 +62,7 @@ export default function FinancialLedger({
   const [rejectionInput, setRejectionInput] = React.useState("");
 
   // Tab State
-  const [activeTab, setActiveTab] = React.useState<"expenditures" | "incomes">("expenditures");
+  const [activeTab, setActiveTab] = React.useState<"expenditures" | "incomes" | "cast_payments" | "reconciliation">("expenditures");
 
   // Year State — records are categorized by the year embedded in their date field.
   // "all" shows the full lifetime ledger (default); picking a year scopes the whole
@@ -87,7 +89,10 @@ export default function FinancialLedger({
   incomes.forEach(inc => { if (inc?.date) yearsWithData.add(inc.date.substring(0, 4)); });
   expenditures.forEach(exp => { if (exp?.requestDate) yearsWithData.add(exp.requestDate.substring(0, 4)); });
   budgets.forEach(b => { if (b?.date) yearsWithData.add(b.date.substring(0, 4)); });
-  for (let y = 2022; y <= currentYearNum; y++) yearsWithData.add(String(y));
+  // Floor of 2019 — the CBO is now digitizing its old paper/manual books back to that
+  // year, so the year picker always offers a place to key in historic records even
+  // before any of that year's data exists in the system yet.
+  for (let y = 2019; y <= currentYearNum; y++) yearsWithData.add(String(y));
   const availableYears = Array.from(yearsWithData).sort((a, b) => Number(b) - Number(a));
 
   // Records scoped to the selected year (or the full lifetime ledger when "all")
@@ -815,9 +820,42 @@ export default function FinancialLedger({
           >
             <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-600" /> {lang === "en" ? "Recorded Revenues & Incomes" : "Mapato Yanayorekodiwa"}</span>
           </button>
+          <button
+            onClick={() => setActiveTab("cast_payments")}
+            className={`pb-2.5 px-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
+              activeTab === "cast_payments"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-blue-600" /> {lang === "en" ? "Cast & Crew Payment Lists" : "Orodha za Malipo"}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("reconciliation")}
+            className={`pb-2.5 px-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
+              activeTab === "reconciliation"
+                ? "border-purple-600 text-purple-600"
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <span className="flex items-center gap-1.5"><Landmark className="w-4 h-4 text-purple-600" /> {lang === "en" ? "Bank Reconciliation" : "Ulinganisho wa Benki"}</span>
+          </button>
         </div>
 
-        {activeTab === "expenditures" ? (
+        {activeTab === "cast_payments" && (
+          <CastPaymentListsBoard
+            lang={lang}
+            currentUser={currentUser}
+            canSubmit={["treasurer", "chairperson"].includes(currentUser.roleKey || getCanonicalRoleKey(currentUser.role))}
+            canReview={["chairperson", "vice_chairperson"].includes(currentUser.roleKey || getCanonicalRoleKey(currentUser.role))}
+          />
+        )}
+
+        {activeTab === "reconciliation" && (
+          <BankReconciliationBoard lang={lang} />
+        )}
+
+        {(activeTab === "expenditures" || activeTab === "incomes") && (activeTab === "expenditures" ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left border-collapse">
               <thead>
@@ -1060,7 +1098,7 @@ export default function FinancialLedger({
               </tbody>
             </table>
           </div>
-        )}
+        ))}
       </div>
 
       {/* Disbursement Request Modal */}

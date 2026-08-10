@@ -37,7 +37,8 @@ const MODULE_LABELS: Record<PermissionModuleKey, { en: string; sw: string }> = {
   activity_log: { en: "Activity Log", sw: "Kumbukumbu za Shughuli" },
   tasks: { en: "Tasks & Action Items", sw: "Majukumu na Vitendo" },
   program_sessions: { en: "Program Outcomes", sw: "Matokeo ya Mipango" },
-  volunteer_recognition: { en: "Volunteer Recognition", sw: "Utambuzi wa Wanaojitolea" }
+  volunteer_recognition: { en: "Volunteer Recognition", sw: "Utambuzi wa Wanaojitolea" },
+  attendance_registers: { en: "Attendance Registers", sw: "Rejista za Mahudhurio" }
 };
 
 const ACTION_LABELS: Record<PermissionAction, { en: string; sw: string }> = {
