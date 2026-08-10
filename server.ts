@@ -1699,7 +1699,7 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
       });
     }
     if (type === "cast_payment_list") {
-      const total = Array.isArray(data.payments) ? data.payments.reduce((s: number, p: any) => s + (p.amount || 0), 0) : 0;
+      const total = Array.isArray(data.payments) ? data.payments.reduce((s: number, p: any) => s + (p.grossAmount || 0), 0) : 0;
       return res.json({
         verified: true,
         type,
@@ -3500,7 +3500,7 @@ app.get("/api/cast_payment_lists", requireAuth, requirePermission("finance", "vi
 
 app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
-    const { title, eventName, date, expenditureRequestId, payments } = req.body;
+    const { title, eventName, date, expenditureRequestId, payments, deductionRate } = req.body;
     if (!title || !eventName || !expenditureRequestId || !Array.isArray(payments) || payments.length === 0) {
       return res.status(400).json({ error: "title, eventName, expenditureRequestId, and at least one payment row are required" });
     }
@@ -3512,15 +3512,45 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
     if (expData.status !== "approved") {
       return res.status(400).json({ error: "The linked expenditure request must be approved before a payment list can be recorded against it." });
     }
-    const totalPayments = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    const rate = Math.max(0, Math.min(100, Number(deductionRate) || 0));
+    const totalGross = payments.reduce((sum: number, p: any) => sum + (Number(p.grossAmount) || 0), 0);
     // The whole point of this feature — the paid-out total is checked against what was
     // actually authorized, so a payment list can never silently drift from the
-    // approved expenditure amount.
-    if (Math.abs(totalPayments - Number(expData.amount)) > 0.01) {
+    // approved expenditure amount. Validated against the gross (pre-deduction) amount,
+    // since that's what was actually budgeted and approved.
+    if (Math.abs(totalGross - Number(expData.amount)) > 0.01) {
       return res.status(400).json({
-        error: `Payment list total (Ksh ${totalPayments.toLocaleString()}) does not match the approved expenditure amount (Ksh ${Number(expData.amount).toLocaleString()}). Adjust the payment rows so they sum exactly to the approved amount.`
+        error: `Payment list gross total (Ksh ${totalGross.toLocaleString()}) does not match the approved expenditure amount (Ksh ${Number(expData.amount).toLocaleString()}). Adjust the payment rows so they sum exactly to the approved amount.`
       });
     }
+
+    // Resolve linked member names/roles server-side from their real profile where a
+    // userId is given, rather than trusting client-supplied display text for someone
+    // whose payment will appear on their own dashboard.
+    const resolvedPayments = [];
+    for (let idx = 0; idx < payments.length; idx++) {
+      const p = payments[idx];
+      let name = p.name;
+      if (p.userId) {
+        const profSnap = await db.collection("profiles").doc(p.userId).get();
+        if (profSnap.exists) name = profSnap.data()!.name;
+      }
+      const grossAmount = Number(p.grossAmount) || 0;
+      // Server computes the deduction from the list's rate — never trusted from the
+      // client — so a payee's net amount can't be tampered with in transit.
+      const deductionAmount = Math.round(grossAmount * (rate / 100) * 100) / 100;
+      resolvedPayments.push({
+        id: p.id || `pay-${idx}`,
+        name,
+        role: p.role || "",
+        phone: p.phone || "",
+        userId: p.userId || undefined,
+        grossAmount,
+        deductionAmount,
+        netAmount: Math.round((grossAmount - deductionAmount) * 100) / 100
+      });
+    }
+
     const id = `cpl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const record = {
       id,
@@ -3528,13 +3558,8 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
       eventName,
       date: date || new Date().toISOString().split("T")[0],
       expenditureRequestId,
-      payments: payments.map((p: any, idx: number) => ({
-        id: p.id || `pay-${idx}`,
-        name: p.name,
-        role: p.role || "",
-        phone: p.phone || "",
-        amount: Number(p.amount) || 0
-      })),
+      payments: resolvedPayments,
+      deductionRate: rate,
       submittedBy: req.user!.name,
       submittedDate: new Date().toISOString().split("T")[0],
       status: "pending_review"
@@ -3565,17 +3590,83 @@ app.post("/api/cast_payment_lists/:id/decision", requireAuth, async (req: Authen
       return res.status(400).json({ error: `This payment list is already ${data.status}.` });
     }
     const nextStatus = action === "reject" ? "rejected" : "approved";
-    await docRef.set({
+    const updatePayload: any = {
       status: nextStatus,
       reviewedBy: req.user!.name,
       reviewedDate: new Date().toISOString().split("T")[0],
       rejectionReason: action === "reject" ? (reason || "") : undefined,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    };
+
+    // On approval, the membership fund deductions become real: auto-create an Income
+    // record for the withheld total so it's actually tracked in the Financial Ledger,
+    // not just noted on this payment list.
+    if (nextStatus === "approved") {
+      const totalDeductions = Array.isArray(data.payments)
+        ? data.payments.reduce((sum: number, p: any) => sum + (Number(p.deductionAmount) || 0), 0)
+        : 0;
+      if (totalDeductions > 0.01) {
+        const incomeId = `income-mf-${Date.now()}`;
+        await db.collection("incomes").doc(incomeId).set({
+          id: incomeId,
+          source: "membership_contribution",
+          amount: Math.round(totalDeductions * 100) / 100,
+          date: new Date().toISOString().split("T")[0],
+          description: `Membership development fund — ${data.title} (${data.eventName})`,
+          recordedBy: req.user!.name
+        });
+        updatePayload.membershipFundIncomeId = incomeId;
+      }
+    }
+
+    await docRef.set(updatePayload, { merge: true });
     logActivity(req, "finance", nextStatus === "approved" ? "approve" : "reject", id, data.title);
     return res.json({ success: true, status: nextStatus });
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to record review decision", details: err.message });
+  }
+});
+
+// 23b. MY PAYMENTS — lets any member/volunteer/leader see their own payment history
+// (from approved cast payment lists only — matches the "official once approved"
+// principle used everywhere else) with gross/deduction/net broken out, so they can
+// track how they were paid and what's gone toward the membership development fund.
+app.get("/api/my_payments", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("cast_payment_lists").where("status", "==", "approved").get();
+    const myPayments: any[] = [];
+    let totalGross = 0, totalDeducted = 0, totalNet = 0;
+    snap.docs.forEach(doc => {
+      const data = doc.data() as any;
+      (data.payments || []).forEach((p: any) => {
+        if (p.userId === req.user!.id) {
+          totalGross += p.grossAmount || 0;
+          totalDeducted += p.deductionAmount || 0;
+          totalNet += p.netAmount || 0;
+          myPayments.push({
+            listId: doc.id,
+            listTitle: data.title,
+            eventName: data.eventName,
+            date: data.date,
+            role: p.role,
+            grossAmount: p.grossAmount,
+            deductionAmount: p.deductionAmount,
+            netAmount: p.netAmount,
+            deductionRate: data.deductionRate || 0
+          });
+        }
+      });
+    });
+    myPayments.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    return res.json({
+      payments: myPayments,
+      activitiesPaidFor: myPayments.length,
+      totalGross: Math.round(totalGross * 100) / 100,
+      totalDeducted: Math.round(totalDeducted * 100) / 100,
+      totalNet: Math.round(totalNet * 100) / 100
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to fetch payment history", details: err.message });
   }
 });
 

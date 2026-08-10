@@ -311,15 +311,28 @@ export interface CastPaymentList {
   eventName: string;
   date: string;
   /** Links to the ExpenditureRequest this payout was authorized under — the sum of
-   *  `payments` must match that request's amount. */
+   *  each payment's `grossAmount` must match that request's amount. */
   expenditureRequestId: string;
   payments: {
     id: string;
     name: string;
     role?: string;
     phone?: string;
-    amount: number;
+    /** Links to a real registered member/volunteer/leader profile, when the payee is
+     *  one — lets that person see this payment on their own dashboard. Left undefined
+     *  for external/non-member cast or crew. */
+    userId?: string;
+    /** The budgeted stipend amount before any membership-fund deduction. */
+    grossAmount: number;
+    /** Withheld toward the organization's membership development fund — server-
+     *  computed from the list's deduction rate, never trusted from the client. */
+    deductionAmount: number;
+    /** What the person actually received in hand. */
+    netAmount: number;
   }[];
+  /** Percentage of each payee's gross amount withheld toward the CBO's membership
+   *  development fund, e.g. 5 for 5%. 0 if no deduction applies to this list. */
+  deductionRate: number;
   submittedBy: string;
   submittedDate: string;
   /** Reviewed by Chairperson or Vice Chairperson only — never the Treasurer who
@@ -328,6 +341,10 @@ export interface CastPaymentList {
   reviewedBy?: string;
   reviewedDate?: string;
   rejectionReason?: string;
+  /** Set once approved, only if total deductions > 0 — links to the Income record
+   *  auto-created for the withheld membership fees, so that money is actually tracked
+   *  in the Financial Ledger rather than just noted here. */
+  membershipFundIncomeId?: string;
   verificationUrl?: string;
 }
 

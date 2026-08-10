@@ -14,6 +14,7 @@ import TreasurerOverview from "./dashboard/TreasurerOverview";
 import SecretaryOverview, { getMemberAttendanceStats } from "./dashboard/SecretaryOverview";
 import StatCard from "./dashboard/StatCard";
 import VolunteerRecognitionPanel from "./VolunteerRecognitionPanel";
+import MyPaymentsPanel from "./MyPaymentsPanel";
 import { User, ShieldAlert, LayoutDashboard, FileText, Crown, AlertTriangle, Lock, Sparkles, CheckCircle2, Calendar, MapPin, Megaphone, Landmark, Scale, BarChart3, Printer, Wrench, Palmtree, Star, Flame, Check, X, Plus, Info, ChevronRight, FileCheck, RefreshCw, IdCard, Clock, Eye, Package, CheckCircle, Wallet } from "lucide-react";
 
 interface DashboardProps {
@@ -809,6 +810,12 @@ export default function Dashboard({
         />
       ) : (
         <>
+          {/* Visible to every role — payments only appear here once a cast/crew
+              payment list has been approved, and the panel itself hides when a
+              person has no payment history yet, so it never clutters an empty
+              dashboard. */}
+          <MyPaymentsPanel lang={lang} />
+
           {/* DASHBOARD SWITCHING LOGIC BASED ON ROLE */}
 
           {/* 1. CHAIRPERSON & EXECUTIVE DIRECTOR (ADMIN) */}

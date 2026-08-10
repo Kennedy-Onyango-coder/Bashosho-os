@@ -32,16 +32,19 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
   const [eventName, setEventName] = React.useState("");
   const [date, setDate] = React.useState(new Date().toISOString().split("T")[0]);
   const [expenditureRequestId, setExpenditureRequestId] = React.useState("");
-  const [rows, setRows] = React.useState<{ name: string; role: string; phone: string; amount: string }[]>([
-    { name: "", role: "", phone: "", amount: "" }
+  const [deductionRate, setDeductionRate] = React.useState("0");
+  const [profiles, setProfiles] = React.useState<{ id: string; name: string }[]>([]);
+  const [rows, setRows] = React.useState<{ name: string; role: string; phone: string; amount: string; userId: string }[]>([
+    { name: "", role: "", phone: "", amount: "", userId: "" }
   ]);
 
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [lRes, eRes] = await Promise.all([fetch("/api/cast_payment_lists"), fetch("/api/expenditures")]);
+      const [lRes, eRes, pRes] = await Promise.all([fetch("/api/cast_payment_lists"), fetch("/api/expenditures"), fetch("/api/profiles")]);
       if (lRes.ok) setLists(await lRes.json());
       if (eRes.ok) setExpenditures(await eRes.json());
+      if (pRes.ok) setProfiles(await pRes.json());
     } catch (err) {
       console.error("Failed to load cast payment lists:", err);
     } finally {
@@ -55,11 +58,20 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
   const linkedExpenditure = expenditures.find(e => e.id === expenditureRequestId);
   const rowsTotal = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const amountMismatch = linkedExpenditure ? Math.abs(rowsTotal - linkedExpenditure.amount) > 0.01 : false;
+  const rateNum = Math.max(0, Math.min(100, Number(deductionRate) || 0));
+  const totalDeductionPreview = Math.round(rowsTotal * (rateNum / 100) * 100) / 100;
 
-  const addRow = () => setRows([...rows, { name: "", role: "", phone: "", amount: "" }]);
+  const addRow = () => setRows([...rows, { name: "", role: "", phone: "", amount: "", userId: "" }]);
   const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx));
   const updateRow = (idx: number, field: string, value: string) => {
-    setRows(rows.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+    setRows(rows.map((r, i) => {
+      if (i !== idx) return r;
+      if (field === "userId" && value) {
+        const matched = profiles.find(p => p.id === value);
+        return { ...r, userId: value, name: matched ? matched.name : r.name };
+      }
+      return { ...r, [field]: value };
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,14 +88,14 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title, eventName, date, expenditureRequestId,
-          payments: validRows.map(r => ({ name: r.name, role: r.role, phone: r.phone, amount: Number(r.amount) }))
+          title, eventName, date, expenditureRequestId, deductionRate: rateNum,
+          payments: validRows.map(r => ({ name: r.name, role: r.role, phone: r.phone, grossAmount: Number(r.amount), userId: r.userId || undefined }))
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save payment list");
-      setTitle(""); setEventName(""); setExpenditureRequestId(""); setDate(new Date().toISOString().split("T")[0]);
-      setRows([{ name: "", role: "", phone: "", amount: "" }]);
+      setTitle(""); setEventName(""); setExpenditureRequestId(""); setDate(new Date().toISOString().split("T")[0]); setDeductionRate("0");
+      setRows([{ name: "", role: "", phone: "", amount: "", userId: "" }]);
       setShowForm(false);
       fetchAll();
     } catch (err: any) {
@@ -187,6 +199,29 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
             </div>
           )}
 
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">
+                {lang === "en" ? "Membership Fund Deduction (%)" : "Makato ya Mfuko wa Uanachama (%)"}
+              </label>
+              <input
+                type="number" min="0" max="100" step="0.5"
+                value={deductionRate}
+                onChange={e => setDeductionRate(e.target.value)}
+                placeholder="0"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono"
+              />
+              <p className="text-[9px] text-neutral-400 mt-1">
+                {lang === "en" ? "Withheld from each payee's gross amount toward organizational development." : "Inatolewa kutoka kwa kila mlipwaji kuelekea maendeleo ya shirika."}
+              </p>
+            </div>
+            {rateNum > 0 && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 text-xs font-bold text-purple-700">
+                {lang === "en" ? "Total to Membership Fund" : "Jumla kwa Mfuko"}: Ksh {totalDeductionPreview.toLocaleString()}
+              </div>
+            )}
+          </div>
+
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Payees (from the paper list)" : "Waliolipwa"}</label>
@@ -194,18 +229,37 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                 <UserPlus size={12} /> {lang === "en" ? "Add Row" : "Ongeza"}
               </button>
             </div>
+            <p className="text-[9px] text-neutral-400 mb-2">
+              {lang === "en" ? "Link a row to a registered member/volunteer so this payment shows on their own dashboard — or just type a name for external cast." : "Unganisha safu na mwanachama aliyesajiliwa ili malipo yaonekane kwenye dashibodi yao — au andika jina tu kwa wasanii wa nje."}
+            </p>
             <div className="space-y-2">
-              {rows.map((row, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                  <input placeholder={lang === "en" ? "Full name" : "Jina kamili"} value={row.name} onChange={e => updateRow(idx, "name", e.target.value)} className="col-span-4 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
-                  <input placeholder={lang === "en" ? "Role" : "Wadhifa"} value={row.role} onChange={e => updateRow(idx, "role", e.target.value)} className="col-span-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
-                  <input placeholder={lang === "en" ? "Phone" : "Simu"} value={row.phone} onChange={e => updateRow(idx, "phone", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
-                  <input type="number" min="0" placeholder="Ksh" value={row.amount} onChange={e => updateRow(idx, "amount", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-mono" />
-                  <button type="button" onClick={() => removeRow(idx)} className="col-span-1 text-neutral-400 hover:text-red-600 cursor-pointer flex justify-center">
-                    <Trash2 size={14} />
-                  </button>
+              {rows.map((row, idx) => {
+                const gross = Number(row.amount) || 0;
+                const rowDeduction = Math.round(gross * (rateNum / 100) * 100) / 100;
+                const rowNet = gross - rowDeduction;
+                return (
+                <div key={idx} className="space-y-1">
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <select value={row.userId} onChange={e => updateRow(idx, "userId", e.target.value)} className="col-span-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1.5 text-[10px]">
+                      <option value="">{lang === "en" ? "— External —" : "— Nje —"}</option>
+                      {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <input placeholder={lang === "en" ? "Full name" : "Jina kamili"} value={row.name} onChange={e => updateRow(idx, "name", e.target.value)} disabled={!!row.userId} className="col-span-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs disabled:bg-neutral-100 disabled:text-neutral-400" />
+                    <input placeholder={lang === "en" ? "Role" : "Wadhifa"} value={row.role} onChange={e => updateRow(idx, "role", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
+                    <input placeholder={lang === "en" ? "Phone" : "Simu"} value={row.phone} onChange={e => updateRow(idx, "phone", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
+                    <input type="number" min="0" placeholder="Ksh" value={row.amount} onChange={e => updateRow(idx, "amount", e.target.value)} className="col-span-1 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-mono" />
+                    <button type="button" onClick={() => removeRow(idx)} className="col-span-1 text-neutral-400 hover:text-red-600 cursor-pointer flex justify-center">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {gross > 0 && rateNum > 0 && (
+                    <p className="text-[9px] text-neutral-400 pl-1">
+                      {lang === "en" ? "Gross" : "Jumla"} Ksh {gross.toLocaleString()} − {lang === "en" ? "deduction" : "makato"} Ksh {rowDeduction.toLocaleString()} = <strong className="text-neutral-600">{lang === "en" ? "net" : "halisi"} Ksh {rowNet.toLocaleString()}</strong>
+                    </p>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -224,7 +278,7 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
       ) : (
         <div className="space-y-3">
           {sortedLists.map(list => {
-            const total = list.payments.reduce((s, p) => s + p.amount, 0);
+            const total = list.payments.reduce((s, p) => s + p.netAmount, 0);
             return (
               <div key={list.id} className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
                 <div className="flex justify-between items-start gap-3 flex-wrap">
@@ -293,7 +347,7 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                 <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Event" : "Tukio"}</span><span className="font-bold text-neutral-900">{printingList.eventName}</span></div>
                 <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Submitted By" : "Iliwasilishwa Na"}</span><span className="font-bold text-neutral-900">{printingList.submittedBy}</span></div>
                 <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Reviewed By" : "Ilikaguliwa Na"}</span><span className="font-bold text-neutral-900">{printingList.reviewedBy} ({printingList.reviewedDate})</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Total Paid" : "Jumla"}</span><span className="font-bold text-neutral-900">Ksh {printingList.payments.reduce((s, p) => s + p.amount, 0).toLocaleString()}</span></div>
+                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Total Net Paid" : "Jumla Halisi"}</span><span className="font-bold text-neutral-900">Ksh {printingList.payments.reduce((s, p) => s + p.netAmount, 0).toLocaleString()}</span></div>
               </div>
               <table className="w-full text-xs font-sans text-left border-collapse">
                 <thead>
@@ -302,7 +356,9 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                     <th>{lang === "en" ? "Name" : "Jina"}</th>
                     <th>{lang === "en" ? "Role" : "Wadhifa"}</th>
                     <th>{lang === "en" ? "Phone" : "Simu"}</th>
-                    <th className="text-right">{lang === "en" ? "Amount (Ksh)" : "Kiasi"}</th>
+                    <th className="text-right">{lang === "en" ? "Gross (Ksh)" : "Jumla (Ksh)"}</th>
+                    <th className="text-right">{lang === "en" ? "Deduction (Ksh)" : "Makato (Ksh)"}</th>
+                    <th className="text-right">{lang === "en" ? "Net Paid (Ksh)" : "Halisi (Ksh)"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -312,7 +368,9 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                       <td className="font-bold">{p.name}</td>
                       <td>{p.role || "—"}</td>
                       <td>{p.phone || "—"}</td>
-                      <td className="text-right font-mono font-bold">{p.amount.toLocaleString()}</td>
+                      <td className="text-right font-mono">{p.grossAmount.toLocaleString()}</td>
+                      <td className="text-right font-mono text-purple-700">{p.deductionAmount ? p.deductionAmount.toLocaleString() : "—"}</td>
+                      <td className="text-right font-mono font-bold">{p.netAmount.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
