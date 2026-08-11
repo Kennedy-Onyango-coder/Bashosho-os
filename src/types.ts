@@ -634,6 +634,24 @@ export interface ActivityLogEntry {
   after?: any;
 }
 
+export interface LoginHistoryEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  timestamp: string;
+  method: "password" | "2fa";
+  ipAddress: string;
+  userAgent: string;
+  /** Lightweight best-effort parse of the User-Agent string — e.g. "Chrome on Windows",
+   *  "Safari on iPhone" — not a precise device fingerprint. */
+  device: string;
+  /** Best-effort city/country from a free IP-geolocation lookup, filled in shortly
+   *  after the login event (fire-and-forget, never blocks login). Approximate —
+   *  accuracy depends on the ISP/network and can be off, especially on mobile data. */
+  location?: string;
+}
+
 export interface ContractRenewal {
   id: string;
   userId: string;

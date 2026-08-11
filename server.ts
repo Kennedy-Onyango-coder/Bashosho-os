@@ -606,6 +606,74 @@ async function logActivity(
   }
 }
 
+/** Lightweight, dependency-free User-Agent summary — good enough for "which browser/
+ *  device did this person log in from", not a precise fingerprint. */
+function summarizeUserAgent(ua: string): string {
+  if (!ua) return "Unknown device";
+  const os = /iPhone/i.test(ua) ? "iPhone"
+    : /iPad/i.test(ua) ? "iPad"
+    : /Android/i.test(ua) ? "Android"
+    : /Windows/i.test(ua) ? "Windows"
+    : /Mac OS X/i.test(ua) ? "Mac"
+    : /Linux/i.test(ua) ? "Linux"
+    : "Unknown OS";
+  const browser = /Edg\//i.test(ua) ? "Edge"
+    : /Chrome\//i.test(ua) && !/Chromium/i.test(ua) ? "Chrome"
+    : /CriOS/i.test(ua) ? "Chrome"
+    : /Firefox\//i.test(ua) ? "Firefox"
+    : /Safari\//i.test(ua) && !/Chrome/i.test(ua) ? "Safari"
+    : "Unknown browser";
+  return `${browser} on ${os}`;
+}
+
+/** Records a login event (who, when, from what IP/device) and never throws — a
+ *  failure here must never block someone from actually logging in. Runs a best-effort
+ *  free IP-geolocation lookup afterward and patches the `location` field in when it
+ *  resolves, rather than delaying the login response for it. */
+async function recordLoginEvent(req: express.Request, user: { id: string; name: string; role: string }, method: "password" | "2fa") {
+  try {
+    const forwardedFor = (req.headers["x-forwarded-for"] as string) || "";
+    const ipAddress = forwardedFor.split(",")[0].trim() || req.socket.remoteAddress || "unknown";
+    const userAgent = (req.headers["user-agent"] as string) || "";
+    const id = `login-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    await db.collection("login_history").doc(id).set({
+      id,
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      timestamp: new Date().toISOString(),
+      method,
+      ipAddress,
+      userAgent,
+      device: summarizeUserAgent(userAgent)
+    });
+
+    // Best-effort location lookup — public, keyless, rate-limited API. Never awaited
+    // by the caller; failures (offline, rate limit, private/local IP) are swallowed.
+    if (ipAddress && ipAddress !== "unknown" && !/^(127\.|10\.|192\.168\.|::1)/.test(ipAddress)) {
+      (async () => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3000);
+          const geoRes = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,city,regionName,country`, { signal: controller.signal });
+          clearTimeout(timeout);
+          if (geoRes.ok) {
+            const geo: any = await geoRes.json();
+            if (geo.status === "success") {
+              const location = [geo.city, geo.regionName, geo.country].filter(Boolean).join(", ");
+              if (location) await db.collection("login_history").doc(id).update({ location });
+            }
+          }
+        } catch {
+          // Geolocation is a nice-to-have — silently skip on any failure.
+        }
+      })();
+    }
+  } catch (err) {
+    console.error("Error writing login_history entry:", err);
+  }
+}
+
 // --- SAFARICOM DARAJA (M-PESA STK PUSH) INTEGRATION ---
 // Ground rule: never fake a successful payment. If Daraja isn't configured, every
 // endpoint in this section returns a clear, honest error rather than pretending to
@@ -1096,6 +1164,9 @@ app.post("/api/auth/login", async (req: express.Request, res: express.Response):
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "7d" });
 
+    // Fire-and-forget: never delay or block the login response for audit logging.
+    recordLoginEvent(req, { id: userId, name: userDoc.name, role: userDoc.role }, "password");
+
     // Set secure httpOnly cookie
     res.cookie("session_token", token, getCookieOptions(req));
 
@@ -1178,6 +1249,9 @@ app.post("/api/auth/2fa/login-verify", async (req: express.Request, res: express
     };
     const sessionToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "7d" });
     res.cookie("session_token", sessionToken, getCookieOptions(req));
+
+    // Fire-and-forget: never delay or block the login response for audit logging.
+    recordLoginEvent(req, { id: decoded.id, name: userDoc.name, role: userDoc.role }, "2fa");
 
     const clientProfile = { ...userDoc };
     delete clientProfile.passwordHash;
@@ -2557,6 +2631,44 @@ app.get("/api/activity_log", requireAuth, requirePermission("activity_log", "vie
   }
 });
 
+// 4b. LOGIN HISTORY — who logged in, when, from what IP/device, and (best-effort)
+// roughly where. Shares the "activity_log" permission gate since it's the same class
+// of leadership-only audit feature.
+app.get("/api/login_history", requireAuth, requirePermission("activity_log", "view"), async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const { userId, search, cursor } = req.query as Record<string, string | undefined>;
+    const pageSize = Math.min(Number(req.query.pageSize) || 50, 200);
+
+    let query: FirebaseFirestore.Query = db.collection("login_history").orderBy("timestamp", "desc");
+    if (userId) query = query.where("userId", "==", userId);
+
+    if (cursor) {
+      const cursorDoc = await db.collection("login_history").doc(cursor).get();
+      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    }
+
+    const snap = await query.limit(pageSize * 3).get(); // overfetch a bit to allow client-side text filtering below
+    let items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+
+    if (search) {
+      const s = search.toLowerCase();
+      items = items.filter(i =>
+        (i.userName || "").toLowerCase().includes(s) ||
+        (i.ipAddress || "").toLowerCase().includes(s) ||
+        (i.location || "").toLowerCase().includes(s) ||
+        (i.device || "").toLowerCase().includes(s)
+      );
+    }
+
+    items = items.slice(0, pageSize);
+    const nextCursor = items.length === pageSize ? items[items.length - 1].id : null;
+
+    return res.json({ items, nextCursor });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to fetch login history", details: err.message });
+  }
+});
+
 // 5. SAFEGUARDING REPORTS (Restricted, Column-level Encrypted, Immutable Access Logged)
 app.get("/api/safeguarding", requireAuth, requirePermission("safeguarding", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
@@ -2651,7 +2763,8 @@ const IMMUTABLE_COLLECTIONS = new Set([
   "activity_log",
   "financial_audit_trails",
   "safeguarding_access_logs",
-  "safeguarding_reports"
+  "safeguarding_reports",
+  "login_history"
 ]);
 
 app.delete("/api/:collection/:id", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
@@ -3925,7 +4038,7 @@ app.get("/api/admin/export", requireAuth, requireRole(["chairperson"]), async (r
       "assets", "attendance_sheets", "partners", "incomes", "grants", "classes",
       "broadcasts", "leave_requests", "invoices", "org_settings", "contract_renewals",
       "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
-      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations"
+      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations", "login_history"
     ];
 
     const backupData: any = {
