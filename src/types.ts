@@ -109,6 +109,10 @@ export interface UserProfile {
   totpBackupCodeHashes?: string[];
   handbookAcknowledgedAt?: string;
   signatureUrl?: string;
+  /** Chairperson-granted temporary extension past a lapsed contract deadline — e.g.
+   *  "give them 2 more weeks". Locking logic treats this date as the effective
+   *  deadline instead of the contract's real expiry when it's later than that expiry. */
+  contractGraceUntil?: string;
 }
 
 export type DocumentType = "minutes" | "budget" | "activity" | "statement";
@@ -538,6 +542,11 @@ export interface OrgSettings {
   emailAndPhone: string; // e.g. Email: ... | Cell: ...
   missionText: string; // slogan e.g. Connecting Youths Through Talents
   renewalFee?: number;
+  /** Self-healing, set once on first use — the date this contract-renewal system went
+   *  live. Existing members' reminder/lock logic is gated to 3 months after this date
+   *  (not just 3 months after their original join date), so nobody already registered
+   *  before this feature existed gets locked out on day one of rollout. */
+  contractSystemLaunchDate?: string;
   codeOfConduct?: string;
   objectives?: string;
   rules?: string;
@@ -662,12 +671,33 @@ export interface ContractRenewal {
   signedConduct: boolean;
   agreedObjectives: boolean;
   signatureUrl?: string;
-  paymentStatus: "pending" | "paid" | "exempt";
+  paymentStatus: "pending" | "partially_paid" | "paid" | "exempt";
+  /** The fee owed for this specific cycle, captured at submission time so a later
+   *  change to the org-wide renewal fee never retroactively changes what someone
+   *  already partway through paying owes. */
+  feeRequired: number;
+  /** Every confirmed payment toward this cycle's fee — supports "Lipa Pole Pole"
+   *  (pay any amount, any number of times, before the deadline). M-Pesa payments are
+   *  appended automatically on a confirmed Daraja callback; manual ones are appended
+   *  by a Treasurer/Chairperson/Vice Chairperson after they verify a receipt. */
+  payments: {
+    id: string;
+    amount: number;
+    date: string;
+    method: "mpesa" | "manual";
+    transactionCode?: string;
+    recordedBy?: string;
+  }[];
   status: "pending_review" | "approved" | "rejected";
-  expiryDate?: string; // 6 months from approval
+  expiryDate?: string; // 12 months from approval
   reviewedBy?: string;
   reviewedDate?: string;
   rejectionReason?: string;
+  /** Set only when a Chairperson explicitly waives the fee for this cycle. */
+  exemptionReason?: string;
+  /** Server-computed, cryptographically signed verification link for the printable
+   *  signed contract (see /api/verify/contract_renewal/:id) */
+  verificationUrl?: string;
 }
 
 export interface SignupApplication {

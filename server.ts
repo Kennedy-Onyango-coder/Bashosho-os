@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { getStorage } from "firebase-admin/storage";
-import { DocumentData } from "firebase-admin/firestore";
+import { DocumentData, FieldValue } from "firebase-admin/firestore";
 import crypto from "crypto";
 import { generateTotpSecret, generateTotpUri, verifyTotpToken, generateBackupCodes } from "./totp";
 
@@ -407,7 +407,7 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       view("roles");
       view("safeguarding");
       view("leadership_appointments");
-      view("contract_renewals");
+      view("contract_renewals"); p.contract_renewals.edit = true; // can approve/reject alongside Chairperson
       view("activity_log");
       full("classes"); p.classes.delete = false; // class delete was chairperson+programs_director only
       p.tasks.create = true; p.tasks.edit = true;
@@ -674,6 +674,64 @@ async function recordLoginEvent(req: express.Request, user: { id: string; name: 
   }
 }
 
+// --- CONTRACT RENEWAL: DUE-DATE / LOCK COMPUTATION ---
+// Self-healing: the first time this is ever called, it stamps today's date as the
+// system's launch date and persists it — every call after that reads the same
+// persisted value. This is what lets existing members (who joined long before this
+// feature existed) get a 3-month grace period measured from when the feature went
+// live, rather than from their original (possibly years-old) join date.
+let cachedLaunchDate: string | null = null;
+async function getContractSystemLaunchDate(): Promise<string> {
+  if (cachedLaunchDate) return cachedLaunchDate;
+  const ref = db.collection("org_settings").doc("global");
+  const snap = await ref.get();
+  const existing = snap.exists ? (snap.data() as any).contractSystemLaunchDate : undefined;
+  if (existing) {
+    cachedLaunchDate = existing;
+    return existing;
+  }
+  const today = new Date().toISOString().split("T")[0];
+  await ref.set({ contractSystemLaunchDate: today }, { merge: true });
+  cachedLaunchDate = today;
+  return today;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+interface ContractCycleStatus {
+  dueDate: string;
+  reminderGateDate: string;
+  paymentWindowOpen: boolean;
+  reminderActive: boolean;
+  effectiveDeadline: string;
+  locked: boolean;
+  daysUntilDue: number;
+}
+
+/** The single source of truth for "when is this person's contract due, and are they
+ *  locked" — used both by the API surface members/leaders see and internally to gate
+ *  approval. `latestApprovedExpiry` is that user's most recent approved
+ *  ContractRenewal.expiryDate, if any. */
+async function computeContractCycleStatus(profile: { joinDate: string; contractGraceUntil?: string }, latestApprovedExpiry: string | null): Promise<ContractCycleStatus> {
+  const launchDate = await getContractSystemLaunchDate();
+  const dueDate = latestApprovedExpiry || addDays(profile.joinDate, 365);
+  // Reminders/locking never activate for a member until 3 months after they joined OR
+  // 3 months after this feature went live — whichever is later. This is what keeps
+  // long-standing members from being locked out the instant this feature ships.
+  const reminderGateDate = [addDays(profile.joinDate, 90), addDays(launchDate, 90)].sort().pop()!;
+  const today = new Date().toISOString().split("T")[0];
+  const paymentWindowOpen = today >= addDays(dueDate, -90) && today >= reminderGateDate;
+  const reminderActive = today >= reminderGateDate;
+  const effectiveDeadline = profile.contractGraceUntil && profile.contractGraceUntil > dueDate ? profile.contractGraceUntil : dueDate;
+  const locked = reminderActive && today > effectiveDeadline;
+  const daysUntilDue = Math.round((new Date(dueDate).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+  return { dueDate, reminderGateDate, paymentWindowOpen, reminderActive, effectiveDeadline, locked, daysUntilDue };
+}
+
 // --- SAFARICOM DARAJA (M-PESA STK PUSH) INTEGRATION ---
 // Ground rule: never fake a successful payment. If Daraja isn't configured, every
 // endpoint in this section returns a clear, honest error rather than pretending to
@@ -799,7 +857,26 @@ async function initiateDarajaStkPush(config: DarajaConfig, params: {
 const PAYMENT_LINK_HANDLERS: Record<string, { collection: string; applyPayment: (doc: any, transaction: any) => any }> = {
   contract_renewal: {
     collection: "contract_renewals",
-    applyPayment: (doc) => ({ ...doc, paymentStatus: "paid" })
+    applyPayment: (doc, transaction) => {
+      // Accumulates toward "Lipa Pole Pole" — any confirmed M-Pesa payment adds to the
+      // running total rather than immediately marking the whole cycle as paid, so a
+      // partial payment stays partial until the full fee is actually reached.
+      const payments = Array.isArray(doc.payments) ? [...doc.payments] : [];
+      payments.push({
+        id: transaction.id,
+        amount: transaction.amount,
+        date: new Date().toISOString().split("T")[0],
+        method: "mpesa",
+        transactionCode: transaction.mpesaReceiptNumber || undefined
+      });
+      const amountPaid = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      const feeRequired = Number(doc.feeRequired) || 500;
+      return {
+        ...doc,
+        payments,
+        paymentStatus: amountPaid >= feeRequired ? "paid" : "partially_paid"
+      };
+    }
   }
 };
 
@@ -1668,7 +1745,8 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
     volunteer_certificate: "volunteer_certificates",
     asset: "assets",
     attendance_register: "attendance_sheets",
-    cast_payment_list: "cast_payment_lists"
+    cast_payment_list: "cast_payment_lists",
+    contract_renewal: "contract_renewals"
   };
   const collection = collectionMap[type];
   if (!collection) return res.status(400).json({ verified: false, error: "Unknown document type" });
@@ -1782,6 +1860,19 @@ app.get("/api/verify/:type/:id", verificationRateLimiter, async (req: express.Re
         payeeCount: Array.isArray(data.payments) ? data.payments.length : 0,
         totalAmount: total,
         approvalStatus: data.status,
+        orgName: "Bashosho Talents CBO",
+      });
+    }
+    if (type === "contract_renewal") {
+      return res.json({
+        verified: true,
+        type,
+        memberName: data.userName,
+        memberRole: data.userRole,
+        approvalStatus: data.status,
+        paymentStatus: data.paymentStatus,
+        expiryDate: data.expiryDate,
+        reviewedBy: data.reviewedBy,
         orgName: "Bashosho Talents CBO",
       });
     }
@@ -1964,6 +2055,101 @@ async function readFileBuffer(filePath: string): Promise<Buffer> {
 
 // 1. PROFILES (Only Chairperson / Admin can create/update profiles and assign roles)
 app.get("/api/profiles", requireAuth, (req, res) => fetchCollection("profiles", req, res));
+
+// Admin Members Directory — full detail on every member/volunteer/leader (join date,
+// photo, contact, contract cycle status) in one place, plus the ability to request
+// updated info or delete a genuinely erroneous/duplicate profile. Chairperson-only:
+// this surfaces sensitive personal data (phone numbers, emergency contacts) for every
+// person in the org at once, which is a materially bigger exposure than any single
+// profile view.
+app.get("/api/admin/members_directory", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (userRoleKey !== "chairperson") {
+      return res.status(403).json({ error: "Access denied: the Members Directory is Chairperson-only." });
+    }
+    const [profilesSnap, renewalsSnap] = await Promise.all([
+      db.collection("profiles").get(),
+      db.collection("contract_renewals").get()
+    ]);
+    const renewalsByUser = new Map<string, any[]>();
+    renewalsSnap.docs.forEach(doc => {
+      const r = { id: doc.id, ...doc.data() } as any;
+      if (!renewalsByUser.has(r.userId)) renewalsByUser.set(r.userId, []);
+      renewalsByUser.get(r.userId)!.push(r);
+    });
+
+    const members = await Promise.all(profilesSnap.docs.map(async doc => {
+      const profile = { id: doc.id, ...doc.data() } as any;
+      const myRenewals = renewalsByUser.get(profile.id) || [];
+      const approved = myRenewals.filter(r => r.status === "approved").sort((a, b) => (b.expiryDate || "").localeCompare(a.expiryDate || ""));
+      const cycle = await computeContractCycleStatus(profile, approved[0]?.expiryDate || null);
+      return {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        role: profile.role,
+        roleKey: profile.roleKey,
+        status: profile.status,
+        joinDate: profile.joinDate,
+        avatar: profile.avatar,
+        memberNumber: profile.memberNumber,
+        emergencyContact: profile.emergencyContact,
+        contractStatus: {
+          dueDate: cycle.dueDate,
+          locked: cycle.locked,
+          daysUntilDue: cycle.daysUntilDue,
+          paymentStatus: myRenewals.find(r => r.status === "pending_review")?.paymentStatus || (approved[0] ? "paid" : "pending")
+        }
+      };
+    }));
+
+    return res.json(members);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to load members directory", details: err.message });
+  }
+});
+
+// Requests updated information from a member — implemented as a Task assigned to them
+// (reuses the existing Tasks system rather than inventing a parallel notification
+// mechanism), so it shows up wherever they already look for things to action.
+app.post("/api/admin/request_info", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (userRoleKey !== "chairperson") {
+      return res.status(403).json({ error: "Access denied: only the Chairperson can request member information from here." });
+    }
+    const { userId, message } = req.body;
+    if (!userId || !message?.trim()) {
+      return res.status(400).json({ error: "userId and message are required." });
+    }
+    const targetSnap = await db.collection("profiles").doc(userId).get();
+    if (!targetSnap.exists) return res.status(404).json({ error: "Member not found" });
+    const target = targetSnap.data()!;
+
+    const id = `task-infosreq-${Date.now()}`;
+    const task = {
+      id,
+      title: `Update your profile information`,
+      description: message.trim(),
+      assignedToId: userId,
+      assignedToName: target.name,
+      assignedById: req.user!.id,
+      assignedByName: req.user!.name,
+      programArea: "general",
+      priority: "medium",
+      dueDate: addDays(new Date().toISOString().split("T")[0], 14),
+      status: "pending",
+      createdDate: new Date().toISOString().split("T")[0]
+    };
+    await db.collection("tasks").doc(id).set(task);
+    logActivity(req, "roles", "request_info", userId, target.name);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to request information", details: err.message });
+  }
+});
 
 // Self-service: any authenticated user may update ONLY their own avatar photo, without
 // needing roles:edit permission (which is reserved for staff editing OTHER people's role/
@@ -3139,37 +3325,241 @@ app.get("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest,
     const snap = await db.collection("contract_renewals").get();
     const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
     const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
-    if (userRoleKey === "chairperson") {
-      return res.json(items);
-    }
-    return res.json(items.filter(item => item.userId === req.user!.id));
+    const visible = (userRoleKey === "chairperson" || userRoleKey === "vice_chairperson")
+      ? items
+      : items.filter(item => item.userId === req.user!.id);
+    // Every visible contract gets a real, scannable QR — members printing their own
+    // approved contract need this just as much as Chairperson/VC reviewing others.
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    return res.json(visible.map(item => ({
+      ...item,
+      verificationUrl: `${appUrl}/verify/contract_renewal/${item.id}?t=${generateVerificationToken("contract_renewal", item.id)}`
+    })));
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to fetch contract renewals", details: err.message });
   }
 });
+
+// Any member/volunteer/leader's own contract cycle status — due date, lock state,
+// payment window, and amount still owed on any in-progress renewal.
+app.get("/api/my_contract_status", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const profileSnap = await db.collection("profiles").doc(req.user!.id).get();
+    if (!profileSnap.exists) return res.status(404).json({ error: "Profile not found" });
+    const profile = profileSnap.data() as any;
+
+    const renewalsSnap = await db.collection("contract_renewals").where("userId", "==", req.user!.id).get();
+    const myRenewals = renewalsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+    const approved = myRenewals.filter(r => r.status === "approved").sort((a, b) => (b.expiryDate || "").localeCompare(a.expiryDate || ""));
+    const latestApprovedExpiry = approved[0]?.expiryDate || null;
+    const activeCycle = myRenewals.find(r => r.status === "pending_review") || null;
+
+    const cycle = await computeContractCycleStatus(profile, latestApprovedExpiry);
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const withQr = (r: any) => r ? { ...r, verificationUrl: `${appUrl}/verify/contract_renewal/${r.id}?t=${generateVerificationToken("contract_renewal", r.id)}` } : null;
+    return res.json({
+      ...cycle,
+      renewalFee: (await db.collection("org_settings").doc("global").get()).data()?.renewalFee ?? 500,
+      activeCycleRenewal: withQr(activeCycle),
+      lastApprovedRenewal: withQr(approved[0] || null)
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to compute contract status", details: err.message });
+  }
+});
+
 app.post("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest, res): Promise<any> => {
   const { id, status, userId } = req.body;
   const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
-  
-  if (status === "approved" || status === "rejected") {
-    // 1. Check permissions: only Chairperson can approve/reject renewals
-    if (userRoleKey !== "chairperson") {
-      return res.status(403).json({ error: "Access denied: only the Chairperson can review contract renewals" });
+  const APPROVER_ROLES = new Set(["chairperson", "vice_chairperson"]);
+
+  try {
+    if (status === "approved" || status === "rejected") {
+      if (!APPROVER_ROLES.has(userRoleKey)) {
+        return res.status(403).json({ error: "Access denied: only the Chairperson or Vice Chairperson can review contract renewals" });
+      }
+      if (userId === req.user!.id) {
+        return res.status(403).json({ error: "Access denied: you cannot approve your own contract renewal" });
+      }
+      if (!id) return res.status(400).json({ error: "id is required" });
+      const existingSnap = await db.collection("contract_renewals").doc(id).get();
+      if (!existingSnap.exists) return res.status(404).json({ error: "Contract renewal not found" });
+      const existing = existingSnap.data() as any;
+
+      if (status === "rejected") {
+        const updated = {
+          ...existing,
+          status: "rejected",
+          rejectionReason: req.body.rejectionReason || "",
+          reviewedBy: req.user!.name,
+          reviewedDate: new Date().toISOString().split("T")[0]
+        };
+        logActivity(req, "contract_renewals", "reject", id, existing.userName);
+        return saveDocument("contract_renewals", id, updated, req, res);
+      }
+
+      // Approval: payment must actually be complete (computed from the real payments[]
+      // array, never trusted from the client) UNLESS the reviewer explicitly grants an
+      // exemption with a reason — a deliberate, logged override, not a silent default.
+      const amountPaid = (existing.payments || []).reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+      const isExemption = !!req.body.grantExemption;
+      if (!isExemption && amountPaid < (existing.feeRequired || 500)) {
+        return res.status(400).json({
+          error: `This renewal isn't fully paid yet (Ksh ${amountPaid.toLocaleString()} of Ksh ${(existing.feeRequired || 500).toLocaleString()}). Either wait for full payment or explicitly grant an exemption with a reason.`
+        });
+      }
+      if (isExemption && !req.body.exemptionReason?.trim()) {
+        return res.status(400).json({ error: "An exemption reason is required." });
+      }
+
+      const approvalDate = new Date().toISOString().split("T")[0];
+      const expiryDate = addDays(approvalDate, 365);
+      const updated = {
+        ...existing,
+        status: "approved",
+        paymentStatus: isExemption ? "exempt" : "paid",
+        exemptionReason: isExemption ? req.body.exemptionReason.trim() : undefined,
+        expiryDate,
+        reviewedBy: req.user!.name,
+        reviewedDate: approvalDate
+      };
+      await db.collection("contract_renewals").doc(id).set(updated, { merge: true });
+
+      // Sync the member's own profile: their new passport photo becomes their active
+      // avatar, they're marked Active, contract validity dates mirror this cycle, and
+      // any standing grace override is cleared now that they're genuinely current.
+      await db.collection("profiles").doc(existing.userId).set({
+        status: "Active",
+        avatar: existing.photoUrl,
+        validFrom: approvalDate,
+        validUntil: expiryDate,
+        contractGraceUntil: FieldValue.delete()
+      }, { merge: true });
+
+      logActivity(req, "contract_renewals", "approve", id, existing.userName);
+      return res.json({ success: true, renewal: updated });
     }
-    // 2. Self-approval block: Chairperson cannot approve their own contract renewal
-    if (userId === req.user!.id) {
-      return res.status(403).json({ error: "Access denied: you cannot approve your own contract renewal" });
-    }
-    // Overwrite reviewedBy and reviewedDate server-side to prevent client spoofing
-    req.body.reviewedBy = req.user!.name;
-    req.body.reviewedDate = new Date().toISOString().split("T")[0];
-  } else {
-    // Creation or self-edits: can only submit or edit your own contract renewal request
+
+    // Creation or self-edits before approval: only your own, and only the fields a
+    // member is actually allowed to set — everything else (status, payments,
+    // expiryDate, review fields) is server-controlled.
     if (userId !== req.user!.id) {
       return res.status(403).json({ error: "Access denied: you can only submit or edit your own contract renewal request" });
     }
+    const settingsSnap = await db.collection("org_settings").doc("global").get();
+    const renewalFee = settingsSnap.data()?.renewalFee ?? 500;
+
+    if (id) {
+      const existingSnap = await db.collection("contract_renewals").doc(id).get();
+      if (existingSnap.exists) {
+        const existing = existingSnap.data() as any;
+        if (existing.status !== "pending_review") {
+          return res.status(400).json({ error: "This renewal has already been reviewed and can no longer be edited." });
+        }
+        const updated = {
+          ...existing,
+          photoUrl: req.body.photoUrl ?? existing.photoUrl,
+          signedConduct: !!req.body.signedConduct,
+          agreedObjectives: !!req.body.agreedObjectives,
+          signatureUrl: req.body.signatureUrl ?? existing.signatureUrl
+        };
+        return saveDocument("contract_renewals", id, updated, req, res);
+      }
+    }
+
+    const newId = id || `ren-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const record = {
+      id: newId,
+      userId: req.user!.id,
+      userName: req.user!.name,
+      userRole: req.user!.role,
+      submissionDate: new Date().toISOString().split("T")[0],
+      photoUrl: req.body.photoUrl || "",
+      signedConduct: !!req.body.signedConduct,
+      agreedObjectives: !!req.body.agreedObjectives,
+      signatureUrl: req.body.signatureUrl || "",
+      paymentStatus: "pending",
+      feeRequired: renewalFee,
+      payments: [],
+      status: "pending_review"
+    };
+    logActivity(req, "contract_renewals", "create", newId, record.userName);
+    return saveDocument("contract_renewals", newId, record, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to process contract renewal", details: err.message });
   }
-  return saveDocument("contract_renewals", id, req.body, req, res);
+});
+
+// Manual payment confirmation — for a cash payment or an M-Pesa transaction paid
+// directly to the till and reported by phone/in person, rather than through the
+// in-app STK push. Only a Treasurer, Chairperson, or Vice Chairperson can record one,
+// and it's tagged "manual" (vs "mpesa") in the payment history so the distinction is
+// never lost. Also posts a matching Income record, since STK payments already do that
+// automatically on the Daraja callback but this path bypasses that callback entirely.
+app.post("/api/contract_renewals/:id/manual_payment", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (!["treasurer", "chairperson", "vice_chairperson"].includes(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only Treasurer, Chairperson, or Vice Chairperson can confirm a manual payment." });
+    }
+    const { amount, transactionCode } = req.body;
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: "A positive amount is required." });
+    }
+    const docRef = db.collection("contract_renewals").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Contract renewal not found" });
+    const existing = snap.data() as any;
+
+    const paymentId = `pay-manual-${Date.now()}`;
+    const payments = [...(existing.payments || []), {
+      id: paymentId,
+      amount: Number(amount),
+      date: new Date().toISOString().split("T")[0],
+      method: "manual",
+      transactionCode: transactionCode || undefined,
+      recordedBy: req.user!.name
+    }];
+    const amountPaid = payments.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+    const feeRequired = Number(existing.feeRequired) || 500;
+    await docRef.set({ payments, paymentStatus: amountPaid >= feeRequired ? "paid" : "partially_paid" }, { merge: true });
+
+    const incomeId = `income-cr-${paymentId}`;
+    await db.collection("incomes").doc(incomeId).set({
+      id: incomeId,
+      source: "membership_contribution",
+      amount: Number(amount),
+      date: new Date().toISOString().split("T")[0],
+      description: `Contract renewal fee (manual) — ${existing.userName}${transactionCode ? ` — ${transactionCode}` : ""}`,
+      recordedBy: req.user!.name
+    });
+
+    logActivity(req, "contract_renewals", "manual_payment", req.params.id, `Ksh ${amount} for ${existing.userName}`);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to record manual payment", details: err.message });
+  }
+});
+
+// Chairperson-only grace extension — "give them a few more days/weeks" for a lapsed
+// contract, without changing the underlying due date or payment record.
+app.post("/api/contract_renewals/grace_extension", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (userRoleKey !== "chairperson") {
+      return res.status(403).json({ error: "Access denied: only the Chairperson can grant a grace extension." });
+    }
+    const { userId, days } = req.body;
+    if (!userId || !days || Number(days) <= 0) {
+      return res.status(400).json({ error: "userId and a positive number of days are required." });
+    }
+    const graceUntil = addDays(new Date().toISOString().split("T")[0], Number(days));
+    await db.collection("profiles").doc(userId).set({ contractGraceUntil: graceUntil }, { merge: true });
+    logActivity(req, "contract_renewals", "grace_extension", userId, `+${days} days`);
+    return res.json({ success: true, contractGraceUntil: graceUntil });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to grant grace extension", details: err.message });
+  }
 });
 
 // 17. LEADERSHIP APPOINTMENTS

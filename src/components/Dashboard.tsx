@@ -15,6 +15,7 @@ import SecretaryOverview, { getMemberAttendanceStats } from "./dashboard/Secreta
 import StatCard from "./dashboard/StatCard";
 import VolunteerRecognitionPanel from "./VolunteerRecognitionPanel";
 import MyPaymentsPanel from "./MyPaymentsPanel";
+import ContractStatusBanner from "./ContractStatusBanner";
 import { User, ShieldAlert, LayoutDashboard, FileText, Crown, AlertTriangle, Lock, Sparkles, CheckCircle2, Calendar, MapPin, Megaphone, Landmark, Scale, BarChart3, Printer, Wrench, Palmtree, Star, Flame, Check, X, Plus, Info, ChevronRight, FileCheck, RefreshCw, IdCard, Clock, Eye, Package, CheckCircle, Wallet } from "lucide-react";
 
 interface DashboardProps {
@@ -807,15 +808,32 @@ export default function Dashboard({
           profiles={profiles}
           appointments={leadershipAppointments}
           onGenerateLetter={(appt) => handleGenerateAppointmentLetter(appt)}
+          onDeleteAppointment={async (appt) => {
+            try {
+              const res = await fetch(`/api/leadership_appointments/${appt.id}`, { method: "DELETE" });
+              if (res.ok) {
+                setLeadershipAppointments(prev => prev.filter(a => a.id !== appt.id));
+              } else {
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || "Failed to delete appointment record.");
+              }
+            } catch (err) {
+              console.error("Failed to delete appointment:", err);
+              alert("Failed to delete appointment record.");
+            }
+          }}
         />
       ) : (
         <>
+          {/* Contract renewal reminder/lock banner — visible to every role, hides
+              itself when there's genuinely nothing to show. */}
+          <ContractStatusBanner lang={lang} onGoToRenewals={() => setDashboardSubTab("renewals")} />
+
           {/* Visible to every role — payments only appear here once a cast/crew
               payment list has been approved, and the panel itself hides when a
               person has no payment history yet, so it never clutters an empty
               dashboard. */}
           <MyPaymentsPanel lang={lang} />
-
           {/* DASHBOARD SWITCHING LOGIC BASED ON ROLE */}
 
           {/* 1. CHAIRPERSON & EXECUTIVE DIRECTOR (ADMIN) */}

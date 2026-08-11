@@ -4,7 +4,7 @@
  */
 
 import React from "react";
-import { UserProfile, Document, UserRole, getUserRoleKey, RolePermissions, PermissionModuleKey, PermissionAction, emptyModulePermissionSet } from "./types";
+import { UserProfile, Document, UserRole, getUserRoleKey, getCanonicalRoleKey, RolePermissions, PermissionModuleKey, PermissionAction, emptyModulePermissionSet } from "./types";
 import { StorageService } from "./lib/storage";
 import { Modal } from "./components/Modal";
 import DemoRoleSelector from "./components/DemoRoleSelector";
@@ -34,6 +34,7 @@ import SecuritySettingsPanel from "./components/SecuritySettingsPanel";
 import TasksBoard from "./components/TasksBoard";
 import ProgramOutcomesBoard from "./components/ProgramOutcomesBoard";
 import AttendanceRegisterBoard from "./components/AttendanceRegisterBoard";
+import AdminMembersDirectory from "./components/AdminMembersDirectory";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -54,6 +55,7 @@ import {
   History,
   CheckSquare,
   ClipboardList,
+  UsersRound,
   X
 } from "lucide-react";
 
@@ -839,6 +841,20 @@ export default function App() {
                     </button>
                   )}
 
+                  {(currentUser?.roleKey || getCanonicalRoleKey(currentUser?.role)) === "chairperson" && (
+                    <button
+                      onClick={() => { setActiveTab("members_directory"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-members-directory-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "members_directory"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <UsersRound size={14} className="shrink-0" /> {lang === "en" ? "Members Directory" : "Orodha ya Wanachama"}
+                    </button>
+                  )}
+
                   <button
                     onClick={() => { setActiveTab("my_records"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
                     id="nav-my-records-tab"
@@ -1213,6 +1229,12 @@ export default function App() {
                     canSubmit={can("attendance_registers", "create")}
                     canDecide={can("attendance_registers", "edit")}
                   />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "members_directory" && (currentUser?.roleKey || getCanonicalRoleKey(currentUser?.role)) === "chairperson" && (
+                <ErrorBoundary fallbackTitle="Members Directory Failure">
+                  <AdminMembersDirectory lang={lang} />
                 </ErrorBoundary>
               )}
 

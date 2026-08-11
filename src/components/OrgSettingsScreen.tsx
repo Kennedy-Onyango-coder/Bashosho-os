@@ -530,7 +530,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
               type="number"
               required
               min={0}
-              value={settings.renewalFee ?? 200}
+              value={settings.renewalFee ?? 500}
               onChange={(e) => handleChange("renewalFee", parseInt(e.target.value) || 0)}
               className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold max-w-xs"
             />

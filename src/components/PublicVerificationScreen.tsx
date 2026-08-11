@@ -39,6 +39,11 @@ interface VerificationResult {
   paymentDate?: string;
   payeeCount?: number;
   totalAmount?: number;
+  memberName?: string;
+  memberRole?: string;
+  paymentStatus?: string;
+  expiryDate?: string;
+  reviewedBy?: string;
 }
 
 export default function PublicVerificationScreen({ path }: { path: string }) {
@@ -330,6 +335,35 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                     <div className="flex justify-between items-baseline">
                       <span className="text-neutral-400 font-medium">Approval Status</span>
                       <span className="font-mono text-neutral-100 uppercase">{result.approvalStatus}</span>
+                    </div>
+                  </>
+                )}
+
+                {result.type === "contract_renewal" && (
+                  <>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Member</span>
+                      <span className="font-bold text-neutral-100">{result.memberName}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Role</span>
+                      <span className="font-semibold text-red-400 uppercase">{result.memberRole}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Status</span>
+                      <span className="font-mono text-neutral-100 uppercase">{result.approvalStatus}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Payment</span>
+                      <span className="font-mono text-neutral-100 uppercase">{result.paymentStatus}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
+                      <span className="text-neutral-400 font-medium">Valid Until</span>
+                      <span className="font-mono text-neutral-100">{result.expiryDate}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-neutral-400 font-medium">Reviewed By</span>
+                      <span className="font-mono text-neutral-100">{result.reviewedBy}</span>
                     </div>
                   </>
                 )}

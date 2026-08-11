@@ -1,7 +1,7 @@
 import React from "react";
 import Modal from "./Modal";
-import { UserProfile, LeadershipAppointment, UserRole } from "../types";
-import { Award, FileText, Check, Shield } from "lucide-react";
+import { UserProfile, LeadershipAppointment, UserRole, getCanonicalRoleKey } from "../types";
+import { Award, FileText, Check, Shield, Trash2, AlertTriangle } from "lucide-react";
 
 interface LeadershipAppointmentsPanelProps {
   currentUser: UserProfile;
@@ -9,6 +9,7 @@ interface LeadershipAppointmentsPanelProps {
   profiles: UserProfile[];
   appointments: LeadershipAppointment[];
   onGenerateLetter: (appt: LeadershipAppointment) => void;
+  onDeleteAppointment?: (appt: LeadershipAppointment) => void;
 }
 
 export default function LeadershipAppointmentsPanel({
@@ -16,8 +17,10 @@ export default function LeadershipAppointmentsPanel({
   lang,
   profiles,
   appointments,
-  onGenerateLetter
+  onGenerateLetter,
+  onDeleteAppointment
 }: LeadershipAppointmentsPanelProps) {
+  const canDelete = (currentUser.roleKey || getCanonicalRoleKey(currentUser.role)) === "chairperson";
   // AI Appointment Draft state
   const [selectedAiAppt, setSelectedAiAppt] = React.useState<LeadershipAppointment | null>(null);
   const [draftContent, setDraftContent] = React.useState<string | null>(null);
@@ -103,9 +106,16 @@ Draft formal appointment letter and mandate duties according to Bashosho Talents
             <tbody className="divide-y divide-neutral-100">
               {appointments.map((appt) => {
                 const appointeeName = getAppointeeName(appt.profileId);
+                const isBroken = appointeeName === "Unknown Member";
                 return (
-                  <tr key={appt.id} className="hover:bg-neutral-50/60 transition-colors">
-                    <td className="py-3 px-4 font-bold text-neutral-900">{appointeeName}</td>
+                  <tr key={appt.id} className={`hover:bg-neutral-50/60 transition-colors ${isBroken ? "bg-red-50/40" : ""}`}>
+                    <td className="py-3 px-4 font-bold text-neutral-900">
+                      {isBroken ? (
+                        <span className="flex items-center gap-1.5 text-red-600">
+                          <AlertTriangle size={13} /> {appointeeName}
+                        </span>
+                      ) : appointeeName}
+                    </td>
                     <td className="py-3 px-4">
                       <span className="bg-red-50 text-[#E31E24] text-[10px] font-bold px-2 py-0.5 rounded font-mono uppercase">
                         {appt.role}
@@ -140,6 +150,19 @@ Draft formal appointment letter and mandate duties according to Bashosho Talents
                       >
                         <FileText className="w-3 h-3" /> {lang === "en" ? "Generate & Print Letter" : "Andaa na Print Barua"}
                       </button>
+                      {canDelete && onDeleteAppointment && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(lang === "en" ? `Delete this appointment record${isBroken ? " (broken/orphaned)" : ""}? This cannot be undone.` : "Futa rekodi hii? Hatua hii haiwezi kutenduliwa.")) {
+                              onDeleteAppointment(appt);
+                            }
+                          }}
+                          title={lang === "en" ? "Delete this appointment record" : "Futa rekodi hii"}
+                          className="bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-[11px] px-2.5 py-1.5 rounded-lg border border-red-200 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

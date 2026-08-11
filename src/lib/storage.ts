@@ -269,7 +269,7 @@ export class StorageService {
           physicalAddress: "Community Center Hall, Kiambiu, Nairobi",
           emailAndPhone: "Email: barshoshotalents@gmail.com | Cell: +254 798 132 410",
           missionText: "Connecting Youths Through Talents",
-          renewalFee: 200,
+          renewalFee: 500,
           invoiceMpesaTill: "8671238",
           codeOfConduct: "1. Respect and Integrity: Treat all members, trainers, and stakeholders with respect.\n2. Professional Dedication: Be committed to community advocacy.",
           objectives: "1. To nurture, develop and showcase artistic talents of youths in Kiambiu.\n2. To advocate for social justice, human rights, and Sexual and Gender-Based Violence (SGBV) prevention.",
@@ -808,7 +808,7 @@ export class StorageService {
         sw: "Kenya ambapo kila kijana ana nafasi salama ya kusikilizwa, kuponywa, na kuonekana — kupitia sanaa ya tamthilia na filamu."
       },
       facebookUrl: "https://web.facebook.com/bashoshotalentscbo",
-      renewalFee: 200,
+      renewalFee: 500,
       safeguardingContact: "Safeguarding Officer: +254 798 132 410 (barshoshotalents@gmail.com)",
       codeOfConduct: "1. Respect and Integrity: Treat all members, trainers, and community stakeholders with respect and dignity.\n2. Non-Discrimination: Absolutely no discrimination or harassment based on gender, tribe, religion, or background.\n3. Safeguarding & Protection: Strictly adhere to our SGBV safeguarding guidelines and child protection policies.\n4. Transparency & Accountability: Ensure honesty and transparency when utilizing CBO equipment or representing the group at external engagements.\n5. Professional Dedication: Be punctual for rehearsals, community forum theaters, and mentorship workshops.",
       objectives: "1. To harness theatre and short film to raise awareness on Mental Health, GBV, and SRHR.\n2. To build vocational, digital, entrepreneurial, and leadership capacity through Bashosho Film Academy.\n3. To connect GBV survivors and youth to safe spaces, counseling, and partner organizations.\n4. To partner with organizations across Nairobi for community awareness.\n5. To generate sustainable revenue through Theatre as a Service (TaaS).",
