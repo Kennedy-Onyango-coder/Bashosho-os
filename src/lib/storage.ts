@@ -71,8 +71,8 @@ export const SEED_HANDBOOK_SECTIONS: HandbookSection[] = [
     id: "membership-rules",
     title: { en: "3. Membership, Attendance & Renewal Rules", sw: "3. Kanuni za Uanachama na Kuhudhuria" },
     body: {
-      en: "1. All active members and volunteers must renew their contract every 6 months through the dashboard Contract Renewal panel.\n2. A renewal fee of Ksh 200 is payable to the treasury to support upkeep of the community space.\n3. Members must maintain at least 70% attendance of rehearsals, forum theatre sessions, filming, and workshops to keep active standing.\n4. A current digital passport-size photo must be submitted at each renewal for ID card records.\n5. Resigning members must complete an equipment and asset handover checklist before membership is closed.",
-      sw: "1. Wanachama wote na wanajitolea lazima wahuishe mikataba yao kila baada ya miezi 6.\n2. Ada ya kuhuisha ni Ksh 200 inalipwa kwa hazina kusaidia matengenezo ya nafasi ya jamii.\n3. Wanachama lazima wadumishe angalau 70% ya mahudhurio ya mazoezi na maonyesho.\n4. Picha ya kidijitali ya pasipoti lazima iwasilishwe wakati wa kuhuisha mkataba.\n5. Wanachama wanaojiuzulu lazima wakamilishe orodha ya kukabidhi vifaa kabla ya kufunga uanachama."
+      en: "1. All active members and volunteers must renew their contract every 12 months (annually) through the dashboard Contract Renewal panel.\n2. A renewal fee of Ksh 500 is payable to the treasury to support upkeep of the community space, payable in full or in installments (Lipa Pole Pole) any time within 3 months of the renewal date.\n3. Members must maintain at least 70% attendance of rehearsals, forum theatre sessions, filming, and workshops to keep active standing.\n4. A current digital passport-size photo must be submitted at each renewal for ID card records.\n5. Resigning members must complete an equipment and asset handover checklist before membership is closed.",
+      sw: "1. Wanachama wote na wanajitolea lazima wahuishe mikataba yao kila mwaka (miezi 12).\n2. Ada ya kuhuisha ni Ksh 500 inalipwa kwa hazina kusaidia matengenezo ya nafasi ya jamii, ikiwa kwa mkupuo au kidogo kidogo (Lipa Pole Pole) ndani ya miezi 3 kabla ya tarehe ya kuhuisha.\n3. Wanachama lazima wadumishe angalau 70% ya mahudhurio ya mazoezi na maonyesho.\n4. Picha ya kidijitali ya pasipoti lazima iwasilishwe wakati wa kuhuisha mkataba.\n5. Wanachama wanaojiuzulu lazima wakamilishe orodha ya kukabidhi vifaa kabla ya kufunga uanachama."
     },
     order: 3
   },
@@ -152,7 +152,7 @@ export const SEED_HANDBOOK_SECTIONS: HandbookSection[] = [
     id: "amendment-acknowledgement",
     title: { en: "12. Amendment & Acknowledgement", sw: "12. Mabadiliko na Kukubali" },
     body: {
-      en: "1. Handbook amended by Chairperson in consultation with committee.\n2. Members must acknowledge reading the current version at each 6-month renewal or version revision.\n3. Digital acknowledgement is logged with timestamp against member profile.",
+      en: "1. Handbook amended by Chairperson in consultation with committee.\n2. Members must acknowledge reading the current version at each annual renewal or version revision.\n3. Digital acknowledgement is logged with timestamp against member profile.",
       sw: "1. Mabadiliko ya mwongozo yanatangazwa kwa wanachama.\n2. Kukubali kwa kidijitali kunarekodiwa kwenye mfumo."
     },
     order: 12
@@ -812,7 +812,7 @@ export class StorageService {
       safeguardingContact: "Safeguarding Officer: +254 798 132 410 (barshoshotalents@gmail.com)",
       codeOfConduct: "1. Respect and Integrity: Treat all members, trainers, and community stakeholders with respect and dignity.\n2. Non-Discrimination: Absolutely no discrimination or harassment based on gender, tribe, religion, or background.\n3. Safeguarding & Protection: Strictly adhere to our SGBV safeguarding guidelines and child protection policies.\n4. Transparency & Accountability: Ensure honesty and transparency when utilizing CBO equipment or representing the group at external engagements.\n5. Professional Dedication: Be punctual for rehearsals, community forum theaters, and mentorship workshops.",
       objectives: "1. To harness theatre and short film to raise awareness on Mental Health, GBV, and SRHR.\n2. To build vocational, digital, entrepreneurial, and leadership capacity through Bashosho Film Academy.\n3. To connect GBV survivors and youth to safe spaces, counseling, and partner organizations.\n4. To partner with organizations across Nairobi for community awareness.\n5. To generate sustainable revenue through Theatre as a Service (TaaS).",
-      rules: "1. All active members and volunteers must renew their contracts every 6 months.\n2. A renewal fee of Kshs 200 is payable to the treasury.\n3. Attendance of at least 70% of rehearsals and CBO workshops is mandatory.",
+      rules: "1. All active members and volunteers must renew their contracts every 12 months (annually).\n2. A renewal fee of Kshs 500 is payable to the treasury, in full or in installments (Lipa Pole Pole) within 3 months of the renewal date.\n3. Attendance of at least 70% of rehearsals and CBO workshops is mandatory.",
       handbookVersion: "1.2",
       handbookUpdatedAt: "2026-07-23",
       handbookSections: SEED_HANDBOOK_SECTIONS,

@@ -270,9 +270,14 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
 
   const userRoleKey = currentUser.roleKey || getCanonicalRoleKey(currentUser.role);
   const isAdmin = ["chairperson", "vice_chairperson"].includes(userRoleKey);
-  const isMember = !isAdmin || ["program_member", "volunteer"].includes(userRoleKey);
+  // Every authenticated person — including the Chairperson and Vice Chairperson
+  // themselves — has their own contract to sign and renew. Admin status only adds
+  // the review queue below; it never replaces someone's own personal section.
 
-  const pendingItems = renewals.filter(r => r.status === "pending_review");
+  // Excludes the current admin's own submission — they see and pay for that in their
+  // own personal section above; approving it themselves is blocked server-side anyway,
+  // so it shouldn't even be offered here.
+  const pendingItems = renewals.filter(r => r.status === "pending_review" && r.userId !== currentUser.id);
   const approvedItems = renewals.filter(r => r.status === "approved");
   const lockedProfiles = profiles.filter(p => {
     const graceStillValid = p.contractGraceUntil && p.contractGraceUntil >= new Date().toISOString().split("T")[0];
@@ -358,8 +363,8 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
         {/* RIGHT COLUMN */}
         <div className="lg:col-span-8 space-y-6">
 
-          {/* SECTION A: MEMBER SIGNING & PAYMENT */}
-          {isMember && (
+          {/* SECTION A: EVERYONE'S OWN CONTRACT — sign, view status, pay */}
+          {(
             <div className="space-y-6">
               {myStatus?.locked && (
                 <div className="bg-red-600 text-white rounded-2xl p-6 shadow-md space-y-2">

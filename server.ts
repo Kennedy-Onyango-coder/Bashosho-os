@@ -746,6 +746,10 @@ interface DarajaConfig {
   passkey: string;
   env: "sandbox" | "production";
   callbackUrl: string;
+  /** "till" (Buy Goods / Lipa Na M-Pesa) vs "paybill" — these use different Daraja
+   *  transaction types. A Till number sent as "paybill" is a common cause of STK
+   *  pushes that silently fail or charge to the wrong account. */
+  shortcodeType: "till" | "paybill";
 }
 
 function getDarajaConfig(): DarajaConfig | null {
@@ -763,7 +767,10 @@ function getDarajaConfig(): DarajaConfig | null {
     shortcode,
     passkey,
     env: process.env.DARAJA_ENV === "production" ? "production" : "sandbox",
-    callbackUrl
+    callbackUrl,
+    // Defaults to "till" — Bashosho's real shortcode (8671238) is a Buy Goods till,
+    // not a paybill. Set DARAJA_SHORTCODE_TYPE=paybill explicitly if that ever changes.
+    shortcodeType: process.env.DARAJA_SHORTCODE_TYPE === "paybill" ? "paybill" : "till"
   };
 }
 
@@ -834,7 +841,7 @@ async function initiateDarajaStkPush(config: DarajaConfig, params: {
       BusinessShortCode: config.shortcode,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: "CustomerPayBillOnline",
+      TransactionType: config.shortcodeType === "till" ? "CustomerBuyGoodsOnline" : "CustomerPayBillOnline",
       Amount: Math.round(params.amount),
       PartyA: msisdn,
       PartyB: config.shortcode,
@@ -3301,8 +3308,41 @@ app.post("/api/invoices", requireAuth, requirePermission("invoices", "create"), 
 // 15. ORG SETTINGS
 app.get("/api/org_settings", requireAuth, async (req, res: express.Response) => {
   try {
-    const doc = await db.collection("org_settings").doc("global").get();
-    return res.json(doc.data() || {});
+    const ref = db.collection("org_settings").doc("global");
+    const doc = await ref.get();
+    let data: any = doc.data() || {};
+
+    // One-time, narrowly-targeted migration: this deployment's org_settings was
+    // seeded before the annual/Ksh 500 renewal cycle existed, so both the numeric
+    // fee and the written policy text (rules/handbook) still say the old 6-month/
+    // Ksh 200 terms verbatim. Only ever replaces those exact old strings/value —
+    // never touches anything an admin has since customized to something else.
+    let migrated = false;
+    if (data.renewalFee === 200) {
+      data.renewalFee = 500;
+      migrated = true;
+    }
+    const textMigrations: [string, string][] = [
+      ["every 6 months", "every 12 months (annually)"],
+      ["kila baada ya miezi 6", "kila mwaka (miezi 12)"],
+      ["Ksh 200", "Ksh 500"],
+      ["Kshs 200", "Kshs 500"],
+      ["6-month renewal", "annual renewal"]
+    ];
+    for (const field of ["rules", "codeOfConduct", "objectives"]) {
+      if (typeof data[field] === "string") {
+        let updated = data[field];
+        for (const [oldStr, newStr] of textMigrations) {
+          if (updated.includes(oldStr)) { updated = updated.split(oldStr).join(newStr); migrated = true; }
+        }
+        data[field] = updated;
+      }
+    }
+    if (migrated) {
+      await ref.set(data, { merge: true });
+    }
+
+    return res.json(data);
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to fetch settings", details: err.message });
   }
@@ -5216,35 +5256,12 @@ app.post("/api/signup_applications/:id/approve", requireAuth, requirePermission(
 
     batch.set(db.collection("profiles").doc(id), newProfile);
 
-    // Create pending Contract Renewal for members
-    if (isMember) {
-      const renewalId = crypto.randomBytes(16).toString("hex");
-      const defaultConduct = orgSettings.codeOfConduct || "Default CBO Code of Conduct";
-      const defaultObjectives = orgSettings.objectives || "Default CBO Objectives";
-
-      const newRenewal = {
-        id: renewalId,
-        userId: id,
-        userName: application.fullName,
-        userRole: userRole,
-        submissionDate: new Date().toISOString().split("T")[0],
-        // Previously pointed at /api/signup_applications/:id/document/passport — a private,
-        // reviewer-only endpoint gated by signup_reviews:view. A regular member's own
-        // browser would get a 403 trying to load that as an <img src>, so it always
-        // rendered blank. Now uses the same public photo migrated on approval above.
-        photoUrl: profilePhotoUrl || "",
-        signedConduct: true,
-        agreedObjectives: true,
-        paymentStatus: "pending",
-        status: "approved",
-        expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 6 months
-        reviewedBy: reviewerName,
-        reviewedDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      batch.set(db.collection("contract_renewals").doc(renewalId), newRenewal);
-    }
+    // Deliberately NOT auto-creating an "approved" contract_renewals record here
+    // anymore. A new member's very first contract must be actually signed (photo,
+    // Code of Conduct/Objectives agreement, signature) and actually paid for through
+    // the real renewal flow — see ContractRenewalPanel and /api/contract_renewals.
+    // Auto-approving one on signup, as this used to do, silently skipped both of those
+    // and left the member with a contract that was never really signed or paid.
 
     await batch.commit();
     logActivity(req, "signup_reviews", "approve", id, application.fullName, { status: "pending" }, { status: "approved" });

@@ -13,7 +13,7 @@ interface DirectoryMember {
   joinDate?: string;
   avatar?: string;
   memberNumber?: string;
-  emergencyContact?: string;
+  emergencyContact?: { name: string; phone: string; relationship: string };
   contractStatus: {
     dueDate: string;
     locked: boolean;
@@ -24,6 +24,18 @@ interface DirectoryMember {
 
 interface AdminMembersDirectoryProps {
   lang: "en" | "sw";
+}
+
+/** Some older profile records stored the raw roleKey (e.g. "vice_chairperson") in the
+ *  display `role` field instead of a human-readable label. This is a defensive
+ *  fallback so the directory never shows raw snake_case to the Chairperson — it
+ *  doesn't fix the underlying data, just how it's displayed here. */
+function displayRole(role: string): string {
+  if (!role) return "—";
+  if (/^[a-z_]+$/.test(role)) {
+    return role.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  }
+  return role;
 }
 
 export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryProps) {
@@ -140,7 +152,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-neutral-800 truncate">{m.name}</p>
-                  <p className="text-[10px] text-neutral-400 font-mono">{m.role} · {lang === "en" ? "joined" : "alijiunga"} {m.joinDate || "—"}</p>
+                  <p className="text-[10px] text-neutral-400 font-mono">{displayRole(m.role)} · {lang === "en" ? "joined" : "alijiunga"} {m.joinDate || "—"}</p>
                 </div>
               </button>
               <div className="shrink-0">
@@ -206,7 +218,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
               </div>
               <div>
                 <h3 className="text-base font-black text-neutral-900">{detailMember.name}</h3>
-                <p className="text-xs font-mono text-neutral-500">{detailMember.role}</p>
+                <p className="text-xs font-mono text-neutral-500">{displayRole(detailMember.role)}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
@@ -214,7 +226,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
               <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Member No." : "Namba"}</span><span className="font-bold text-neutral-900">{detailMember.memberNumber || "—"}</span></div>
               <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">Email</span><span className="font-bold text-neutral-900 break-all">{detailMember.email || "—"}</span></div>
               <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Phone" : "Simu"}</span><span className="font-bold text-neutral-900">{detailMember.phone || "—"}</span></div>
-              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Emergency Contact" : "Dharura"}</span><span className="font-bold text-neutral-900">{detailMember.emergencyContact || "—"}</span></div>
+              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Emergency Contact" : "Dharura"}</span><span className="font-bold text-neutral-900">{detailMember.emergencyContact?.name ? `${detailMember.emergencyContact.name} (${detailMember.emergencyContact.phone || "—"})` : "—"}</span></div>
               <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Contract Due" : "Mwisho wa Mkataba"}</span><span className="font-bold text-neutral-900">{detailMember.contractStatus.dueDate}</span></div>
             </div>
             <div className="flex gap-2 pt-2 border-t border-neutral-100">
