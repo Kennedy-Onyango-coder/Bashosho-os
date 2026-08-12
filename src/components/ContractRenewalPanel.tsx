@@ -45,6 +45,11 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
   const [rejectionReason, setRejectionReason] = React.useState("");
   const [activeRejectionId, setActiveRejectionId] = React.useState<string | null>(null);
   const [partialAmount, setPartialAmount] = React.useState<string>("");
+  const [mpesaUnavailable, setMpesaUnavailable] = React.useState(false);
+  const [claimAmount, setClaimAmount] = React.useState("");
+  const [claimCode, setClaimCode] = React.useState("");
+  const [claimPhone, setClaimPhone] = React.useState("");
+  const [submittingClaim, setSubmittingClaim] = React.useState(false);
   const [manualPaymentTarget, setManualPaymentTarget] = React.useState<ContractRenewal | null>(null);
   const [manualAmount, setManualAmount] = React.useState("");
   const [manualCode, setManualCode] = React.useState("");
@@ -249,6 +254,46 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
     }
   };
 
+  const handleSubmitClaim = async (renewalId: string) => {
+    if (!claimAmount || Number(claimAmount) <= 0 || !claimCode.trim()) {
+      setErrorMsg(lang === "en" ? "Amount and M-Pesa transaction code are required." : "Kiasi na nambari ya muamala vinahitajika.");
+      return;
+    }
+    setSubmittingClaim(true);
+    try {
+      const res = await fetch(`/api/contract_renewals/${renewalId}/claim_manual_payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Number(claimAmount), transactionCode: claimCode.trim(), phone: claimPhone || undefined })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit payment claim");
+      setClaimAmount(""); setClaimCode(""); setClaimPhone("");
+      setSuccessMsg(lang === "en" ? "Payment reported. The Treasurer or Chairperson will verify it against the till statement shortly." : "Malipo yameripotiwa. Yatathibitishwa hivi karibuni.");
+      setTimeout(() => setSuccessMsg(null), 6000);
+      refreshData();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setSubmittingClaim(false);
+    }
+  };
+
+  const handleClaimDecision = async (renewalId: string, claimId: string, action: "confirm" | "reject") => {
+    try {
+      const res = await fetch(`/api/contract_renewals/${renewalId}/manual_claims/${claimId}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to process claim");
+      refreshData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const handleGraceExtension = async () => {
     if (!graceTargetId || !graceDays || Number(graceDays) <= 0) return;
     try {
@@ -447,6 +492,11 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                           <span className="text-neutral-700">{lang === "en" ? "Lipa Pole Pole Progress" : "Maendeleo ya Malipo"}</span>
                           <span className="font-mono text-emerald-700">Ksh {paid.toLocaleString()} / {fee.toLocaleString()}</span>
                         </div>
+                        {settings.invoiceMpesaTill && (
+                          <p className="text-[10px] font-mono text-neutral-400">
+                            {lang === "en" ? "Till No." : "Namba ya Till"} <strong className="text-neutral-700">{settings.invoiceMpesaTill}</strong> — {settings.name}
+                          </p>
+                        )}
                         <div className="w-full h-2 bg-neutral-100 rounded-full overflow-hidden">
                           <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
                         </div>
@@ -470,8 +520,49 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                                 amount={Number(partialAmount) > 0 ? Math.min(Number(partialAmount), remaining) : remaining}
                                 defaultPhone={currentUser.phone}
                                 onConfirmed={refreshData}
+                                onNotConfigured={() => setMpesaUnavailable(true)}
+                                tillNumber={settings.invoiceMpesaTill}
+                                businessName={settings.name}
                               />
                             </div>
+
+                            {mpesaUnavailable && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-2.5">
+                                <p className="text-[11px] font-bold text-blue-900">
+                                  {lang === "en" ? "Already paid to the till manually? Report it here:" : "Tayari umelipa kwa Till? Ripoti hapa:"}
+                                </p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <input
+                                    type="number" min="1"
+                                    value={claimAmount}
+                                    onChange={e => setClaimAmount(e.target.value)}
+                                    placeholder={lang === "en" ? "Amount paid" : "Kiasi"}
+                                    className="col-span-1 bg-white border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs font-mono"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={claimCode}
+                                    onChange={e => setClaimCode(e.target.value)}
+                                    placeholder={lang === "en" ? "M-Pesa code" : "Nambari ya muamala"}
+                                    className="col-span-2 bg-white border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs font-mono uppercase"
+                                  />
+                                </div>
+                                <input
+                                  type="text"
+                                  value={claimPhone}
+                                  onChange={e => setClaimPhone(e.target.value)}
+                                  placeholder={lang === "en" ? "Phone used to pay (optional)" : "Simu uliyotumia (si lazima)"}
+                                  className="w-full bg-white border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs"
+                                />
+                                <button
+                                  onClick={() => handleSubmitClaim(myPendingRenewal.id)}
+                                  disabled={submittingClaim}
+                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold px-3 py-2 rounded-lg cursor-pointer disabled:opacity-50"
+                                >
+                                  {submittingClaim ? (lang === "en" ? "Submitting..." : "Inatuma...") : (lang === "en" ? "Report This Payment" : "Ripoti Malipo Haya")}
+                                </button>
+                              </div>
+                            )}
                           </>
                         ) : (
                           <p className="text-[10px] text-emerald-700 font-bold">
@@ -485,6 +576,20 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                                 <span>{p.date} · {p.method}{p.transactionCode ? ` · ${p.transactionCode}` : ""}</span>
                                 <span className="font-bold text-neutral-600">Ksh {p.amount.toLocaleString()}</span>
                               </p>
+                            ))}
+                          </div>
+                        )}
+                        {(myPendingRenewal.pendingManualClaims || []).filter(c => c.status !== "confirmed").length > 0 && (
+                          <div className="pt-2 border-t border-neutral-100 space-y-1.5">
+                            <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Reported Payments Awaiting Verification" : "Malipo Yaliyoripotiwa"}</p>
+                            {myPendingRenewal.pendingManualClaims.filter(c => c.status !== "confirmed").map(c => (
+                              <div key={c.id} className={`text-[10px] rounded-lg px-2.5 py-1.5 flex justify-between items-center ${c.status === "rejected" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"}`}>
+                                <span>{c.claimedDate} · {c.transactionCode} {c.status === "rejected" && c.rejectionReason ? `— ${c.rejectionReason}` : ""}</span>
+                                <span className="font-bold flex items-center gap-1">
+                                  Ksh {c.amount.toLocaleString()}
+                                  <span className="uppercase font-black">{c.status === "rejected" ? (lang === "en" ? "Rejected" : "Imekataliwa") : (lang === "en" ? "Pending" : "Inasubiri")}</span>
+                                </span>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -654,6 +759,25 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                           </div>
                         )}
 
+                        {(item.pendingManualClaims || []).filter(c => c.status === "pending").length > 0 && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                            <p className="text-[9px] font-bold text-blue-800 uppercase tracking-wider">{lang === "en" ? "Member-Reported Payments — Verify Against Till Statement" : "Malipo Yaliyoripotiwa — Kagua na Taarifa ya Till"}</p>
+                            {item.pendingManualClaims.filter(c => c.status === "pending").map(c => (
+                              <div key={c.id} className="flex items-center justify-between bg-white border border-blue-100 rounded-lg px-2.5 py-1.5">
+                                <span className="text-[10px] font-mono text-neutral-600">{c.claimedDate} · <strong>{c.transactionCode}</strong>{c.phone ? ` · ${c.phone}` : ""} · <span className="font-bold text-neutral-800">Ksh {c.amount.toLocaleString()}</span></span>
+                                <div className="flex gap-1.5 shrink-0">
+                                  <button onClick={() => handleClaimDecision(item.id, c.id, "confirm")} className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded cursor-pointer">
+                                    {lang === "en" ? "Confirm" : "Thibitisha"}
+                                  </button>
+                                  <button onClick={() => handleClaimDecision(item.id, c.id, "reject")} className="text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-1 rounded cursor-pointer">
+                                    {lang === "en" ? "Reject" : "Kataa"}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         {!fullyPaid && (
                           <div className="flex items-center gap-2 border-t pt-3">
                             <button
@@ -762,6 +886,9 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-neutral-900">{lang === "en" ? "Record Manual Payment" : "Rekodi Malipo ya Mkono"}</h3>
           <p className="text-xs text-neutral-500">{manualPaymentTarget?.userName}</p>
+          <p className="text-[10px] text-neutral-400">
+            {lang === "en" ? "Use this after confirming the payment against the" : "Tumia hii baada ya kuthibitisha malipo na"} {settings.name} Till {settings.invoiceMpesaTill} {lang === "en" ? "statement." : "taarifa."}
+          </p>
           <input type="number" min="1" value={manualAmount} onChange={e => setManualAmount(e.target.value)} placeholder={lang === "en" ? "Amount (Ksh)" : "Kiasi (Ksh)"} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono" />
           <input type="text" value={manualCode} onChange={e => setManualCode(e.target.value)} placeholder={lang === "en" ? "Transaction code (optional)" : "Nambari ya muamala"} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono" />
           <button onClick={handleManualPayment} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer">

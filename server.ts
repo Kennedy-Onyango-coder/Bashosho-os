@@ -3536,6 +3536,36 @@ app.post("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest
 // and it's tagged "manual" (vs "mpesa") in the payment history so the distinction is
 // never lost. Also posts a matching Income record, since STK payments already do that
 // automatically on the Daraja callback but this path bypasses that callback entirely.
+// Shared: appends a confirmed manual payment to a renewal's real payments[] and posts
+// the matching Income record. Used both when an admin records one directly and when
+// an admin confirms a member-submitted claim.
+async function applyConfirmedManualPayment(renewalId: string, existing: any, amount: number, transactionCode: string | undefined, recordedBy: string) {
+  const paymentId = `pay-manual-${Date.now()}`;
+  const payments = [...(existing.payments || []), {
+    id: paymentId,
+    amount: Number(amount),
+    date: new Date().toISOString().split("T")[0],
+    method: "manual",
+    transactionCode: transactionCode || undefined,
+    recordedBy
+  }];
+  const amountPaid = payments.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+  const feeRequired = Number(existing.feeRequired) || 500;
+  await db.collection("contract_renewals").doc(renewalId).set(
+    { payments, paymentStatus: amountPaid >= feeRequired ? "paid" : "partially_paid" },
+    { merge: true }
+  );
+  const incomeId = `income-cr-${paymentId}`;
+  await db.collection("incomes").doc(incomeId).set({
+    id: incomeId,
+    source: "membership_contribution",
+    amount: Number(amount),
+    date: new Date().toISOString().split("T")[0],
+    description: `Contract renewal fee (manual) — ${existing.userName}${transactionCode ? ` — ${transactionCode}` : ""}`,
+    recordedBy
+  });
+}
+
 app.post("/api/contract_renewals/:id/manual_payment", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
     const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
@@ -3551,33 +3581,91 @@ app.post("/api/contract_renewals/:id/manual_payment", requireAuth, async (req: A
     if (!snap.exists) return res.status(404).json({ error: "Contract renewal not found" });
     const existing = snap.data() as any;
 
-    const paymentId = `pay-manual-${Date.now()}`;
-    const payments = [...(existing.payments || []), {
-      id: paymentId,
-      amount: Number(amount),
-      date: new Date().toISOString().split("T")[0],
-      method: "manual",
-      transactionCode: transactionCode || undefined,
-      recordedBy: req.user!.name
-    }];
-    const amountPaid = payments.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
-    const feeRequired = Number(existing.feeRequired) || 500;
-    await docRef.set({ payments, paymentStatus: amountPaid >= feeRequired ? "paid" : "partially_paid" }, { merge: true });
-
-    const incomeId = `income-cr-${paymentId}`;
-    await db.collection("incomes").doc(incomeId).set({
-      id: incomeId,
-      source: "membership_contribution",
-      amount: Number(amount),
-      date: new Date().toISOString().split("T")[0],
-      description: `Contract renewal fee (manual) — ${existing.userName}${transactionCode ? ` — ${transactionCode}` : ""}`,
-      recordedBy: req.user!.name
-    });
-
+    await applyConfirmedManualPayment(req.params.id, existing, Number(amount), transactionCode, req.user!.name);
     logActivity(req, "contract_renewals", "manual_payment", req.params.id, `Ksh ${amount} for ${existing.userName}`);
     return res.json({ success: true });
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to record manual payment", details: err.message });
+  }
+});
+
+// Member self-reports a payment made directly to the till (used when M-Pesa STK isn't
+// configured for this org, or as a fallback if the automatic prompt fails). This is
+// only a CLAIM — nothing counts toward their fee until a Treasurer/Chairperson/Vice
+// Chairperson checks it against the real till statement and confirms it below. That
+// verification step is what keeps this honest: a claim alone can never unlock
+// approval.
+app.post("/api/contract_renewals/:id/claim_manual_payment", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { amount, transactionCode, phone } = req.body;
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: "A positive amount is required." });
+    }
+    if (!transactionCode || !transactionCode.trim()) {
+      return res.status(400).json({ error: "The M-Pesa transaction code (from your confirmation SMS) is required." });
+    }
+    const docRef = db.collection("contract_renewals").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Contract renewal not found" });
+    const existing = snap.data() as any;
+    if (existing.userId !== req.user!.id) {
+      return res.status(403).json({ error: "Access denied: you can only report a payment on your own contract renewal." });
+    }
+
+    const claim = {
+      id: `claim-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      amount: Number(amount),
+      transactionCode: transactionCode.trim(),
+      phone: phone || undefined,
+      claimedDate: new Date().toISOString().split("T")[0],
+      status: "pending"
+    };
+    const pendingManualClaims = [...(existing.pendingManualClaims || []), claim];
+    await docRef.set({ pendingManualClaims }, { merge: true });
+    logActivity(req, "contract_renewals", "claim_manual_payment", req.params.id, `Ksh ${amount} claimed by ${existing.userName}`);
+    return res.json({ success: true, claim });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to submit payment claim", details: err.message });
+  }
+});
+
+// Treasurer/Chairperson/Vice Chairperson verifies a member's self-reported till
+// payment against the real statement, then confirms or rejects it.
+app.post("/api/contract_renewals/:id/manual_claims/:claimId/decision", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (!["treasurer", "chairperson", "vice_chairperson"].includes(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only Treasurer, Chairperson, or Vice Chairperson can verify a payment claim." });
+    }
+    const { action, reason } = req.body; // "confirm" | "reject"
+    const docRef = db.collection("contract_renewals").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Contract renewal not found" });
+    const existing = snap.data() as any;
+    const claim = (existing.pendingManualClaims || []).find((c: any) => c.id === req.params.claimId);
+    if (!claim) return res.status(404).json({ error: "Payment claim not found" });
+    if (claim.status !== "pending") return res.status(400).json({ error: `This claim was already ${claim.status}.` });
+
+    const updatedClaims = existing.pendingManualClaims.map((c: any) => c.id === claim.id ? {
+      ...c,
+      status: action === "reject" ? "rejected" : "confirmed",
+      decisionBy: req.user!.name,
+      decisionDate: new Date().toISOString().split("T")[0],
+      rejectionReason: action === "reject" ? (reason || "") : undefined
+    } : c);
+    await docRef.set({ pendingManualClaims: updatedClaims }, { merge: true });
+
+    if (action !== "reject") {
+      // Re-read so we apply against the just-written claims array (avoids a stale
+      // duplicate if applyConfirmedManualPayment also touches this doc).
+      const fresh = (await docRef.get()).data() as any;
+      await applyConfirmedManualPayment(req.params.id, fresh, claim.amount, claim.transactionCode, req.user!.name);
+    }
+
+    logActivity(req, "contract_renewals", action === "reject" ? "reject_claim" : "confirm_claim", req.params.id, `Ksh ${claim.amount} — ${existing.userName}`);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to process payment claim", details: err.message });
   }
 });
 

@@ -688,6 +688,22 @@ export interface ContractRenewal {
     transactionCode?: string;
     recordedBy?: string;
   }[];
+  /** Self-reported manual payments awaiting Treasurer/Chairperson/Vice Chairperson
+   *  verification against the real till statement — submitted by the member
+   *  themselves when M-Pesa STK isn't available, so a payment they've genuinely made
+   *  doesn't just disappear into a "pay again" dead end. Confirming one appends it to
+   *  `payments` above with method "manual"; nothing counts toward the fee until then. */
+  pendingManualClaims?: {
+    id: string;
+    amount: number;
+    transactionCode: string;
+    phone?: string;
+    claimedDate: string;
+    status: "pending" | "confirmed" | "rejected";
+    decisionBy?: string;
+    decisionDate?: string;
+    rejectionReason?: string;
+  }[];
   status: "pending_review" | "approved" | "rejected";
   expiryDate?: string; // 12 months from approval
   reviewedBy?: string;

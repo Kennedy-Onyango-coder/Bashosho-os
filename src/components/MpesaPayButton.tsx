@@ -8,6 +8,13 @@ interface MpesaPayButtonProps {
   amount: number;
   defaultPhone?: string;
   onConfirmed?: () => void;
+  /** Fired once when the flow discovers M-Pesa isn't configured for this org — lets
+   *  the parent show a manual-payment fallback alongside this component's own notice. */
+  onNotConfigured?: () => void;
+  /** Shown in the "not configured" fallback message so members know exactly where to
+   *  send money manually instead. */
+  tillNumber?: string;
+  businessName?: string;
 }
 
 type FlowState = "idle" | "entering_phone" | "initiating" | "waiting" | "success" | "failed" | "not_configured" | "error";
@@ -47,7 +54,7 @@ const t = {
   }
 };
 
-export default function MpesaPayButton({ lang, linkType, linkId, amount, defaultPhone, onConfirmed }: MpesaPayButtonProps) {
+export default function MpesaPayButton({ lang, linkType, linkId, amount, defaultPhone, onConfirmed, onNotConfigured, tillNumber, businessName }: MpesaPayButtonProps) {
   const tt = t[lang];
   const [state, setState] = React.useState<FlowState>("idle");
   const [phone, setPhone] = React.useState(defaultPhone || "");
@@ -58,6 +65,11 @@ export default function MpesaPayButton({ lang, linkType, linkId, amount, default
   React.useEffect(() => {
     return () => { if (pollRef.current) window.clearInterval(pollRef.current); };
   }, []);
+
+  React.useEffect(() => {
+    if (state === "not_configured" && onNotConfigured) onNotConfigured();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   const startPolling = (txId: string) => {
     let attempts = 0;
@@ -187,7 +199,14 @@ export default function MpesaPayButton({ lang, linkType, linkId, amount, default
     return (
       <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 flex items-start gap-2">
         <AlertCircle size={14} className="text-neutral-400 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-neutral-500">{tt.notConfigured}</p>
+        <div className="space-y-1">
+          <p className="text-[11px] text-neutral-500">{tt.notConfigured}</p>
+          {tillNumber && (
+            <p className="text-xs font-bold text-neutral-700 font-mono bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 inline-block">
+              {lang === "en" ? "Pay to Till No." : "Lipa kwa Till Na."} {tillNumber} — {businessName || "Bashosho Talents CBO"}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
