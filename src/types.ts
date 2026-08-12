@@ -113,6 +113,12 @@ export interface UserProfile {
    *  "give them 2 more weeks". Locking logic treats this date as the effective
    *  deadline instead of the contract's real expiry when it's later than that expiry. */
   contractGraceUntil?: string;
+  /** Server-computed on every profile fetch (see fetchCollection) — whether this
+   *  person's contract has actually lapsed past its due date/grace, independent of
+   *  the static `status` field above. This is the field the ID card and other
+   *  screens should check for real-time lock state. */
+  contractLocked?: boolean;
+  contractDueDate?: string;
 }
 
 export type DocumentType = "minutes" | "budget" | "activity" | "statement";

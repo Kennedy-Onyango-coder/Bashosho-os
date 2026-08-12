@@ -1910,14 +1910,32 @@ async function fetchCollection(collectionName: string, req: AuthenticatedRequest
 
     // Enhance profiles, classes, invoices with computed verificationUrl
     if (collectionName === "profiles") {
-      items = items.map(item => {
+      // Compute each profile's real contract-lock status here, once, server-side —
+      // the same logic /api/my_contract_status uses — so every screen that lists
+      // profiles (ID card, dashboards, directory) shows a status that's actually
+      // in sync with contract expiry, instead of the static profile.status field
+      // which is never automatically flipped when a contract simply lapses with
+      // no one taking action.
+      const renewalsSnap = await db.collection("contract_renewals").get();
+      const approvedByUser = new Map<string, string>(); // userId -> latest expiryDate
+      renewalsSnap.docs.forEach(doc => {
+        const r = doc.data() as any;
+        if (r.status === "approved" && r.expiryDate) {
+          const current = approvedByUser.get(r.userId);
+          if (!current || r.expiryDate > current) approvedByUser.set(r.userId, r.expiryDate);
+        }
+      });
+      items = await Promise.all(items.map(async (item: any) => {
         const token = generateVerificationToken("membership", item.id);
         const appUrl = process.env.APP_URL || "http://localhost:3000";
+        const cycle = await computeContractCycleStatus({ joinDate: item.joinDate || item.createdAt || new Date().toISOString().split("T")[0], contractGraceUntil: item.contractGraceUntil }, approvedByUser.get(item.id) || null);
         return redactSensitiveProfileFields({
           ...item,
-          verificationUrl: `${appUrl}/verify/membership/${item.id}?t=${token}`
+          verificationUrl: `${appUrl}/verify/membership/${item.id}?t=${token}`,
+          contractLocked: cycle.locked,
+          contractDueDate: cycle.dueDate
         });
-      });
+      }));
     } else if (collectionName === "classes") {
       items = items.map(item => {
         const token = generateVerificationToken("class_certificate", item.id);

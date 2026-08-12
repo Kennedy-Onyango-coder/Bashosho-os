@@ -749,6 +749,18 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                           <p>✓ {lang === "en" ? "Agreed to CBO Objectives" : "Kukubali Malengo"}</p>
                         </div>
 
+                        {(item.payments || []).length > 0 && (
+                          <div className="bg-white border border-neutral-200 rounded-lg p-2.5 space-y-1">
+                            <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Payment Log" : "Kumbukumbu za Malipo"}</p>
+                            {[...item.payments].sort((a, b) => b.date.localeCompare(a.date)).map(p => (
+                              <div key={p.id} className="flex justify-between items-center text-[10px] font-mono">
+                                <span className="text-neutral-500">{p.date} · <span className={p.method === "mpesa" ? "text-emerald-600 font-bold" : "text-blue-600 font-bold"}>{p.method === "mpesa" ? "M-PESA" : "MANUAL"}</span>{p.transactionCode ? ` · ${p.transactionCode}` : ""}{p.recordedBy ? ` · ${lang === "en" ? "by" : "na"} ${p.recordedBy}` : ""}</span>
+                                <span className="font-bold text-neutral-800">Ksh {p.amount.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         {activeDraftItemId === item.id && evaluationDraft !== null && (
                           <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-3 space-y-2 text-left">
                             <div className="flex justify-between items-center text-[10px] font-bold text-purple-900 uppercase tracking-wider">
@@ -835,6 +847,51 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                   </div>
                 )}
               </div>
+
+              {/* Consolidated payment log — every payment across every renewal (pending
+                  or approved), newest first, so the Chairperson/VC can always see
+                  exactly who paid what and when without opening each item. */}
+              {(() => {
+                const allPayments = renewals.flatMap(r =>
+                  (r.payments || []).map(p => ({ ...p, userName: r.userName, renewalId: r.id, renewalStatus: r.status }))
+                ).sort((a, b) => b.date.localeCompare(a.date));
+                if (allPayments.length === 0) return null;
+                return (
+                  <div className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-2xs space-y-4">
+                    <h3 className="text-xs font-black text-neutral-900 border-b pb-2 uppercase tracking-wide">
+                      {lang === "en" ? "Contract Renewal Payment Log" : "Kumbukumbu za Malipo ya Mkataba"} ({allPayments.length})
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-neutral-600">
+                        <thead>
+                          <tr className="border-b border-neutral-200 text-[10px] text-neutral-400 font-mono tracking-wider uppercase">
+                            <th className="py-2">{lang === "en" ? "Date" : "Tarehe"}</th>
+                            <th className="py-2">{lang === "en" ? "Member" : "Mwanachama"}</th>
+                            <th className="py-2">{lang === "en" ? "Method" : "Njia"}</th>
+                            <th className="py-2">{lang === "en" ? "Code / Recorded By" : "Nambari"}</th>
+                            <th className="py-2 text-right">{lang === "en" ? "Amount" : "Kiasi"}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allPayments.map((p, idx) => (
+                            <tr key={`${p.renewalId}-${p.id}-${idx}`} className="border-b border-neutral-100 hover:bg-neutral-50">
+                              <td className="py-2 font-mono text-neutral-500">{p.date}</td>
+                              <td className="py-2 font-bold text-neutral-900">{p.userName}</td>
+                              <td className="py-2">
+                                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${p.method === "mpesa" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>
+                                  {p.method === "mpesa" ? "M-Pesa" : "Manual"}
+                                </span>
+                              </td>
+                              <td className="py-2 font-mono text-neutral-400">{p.transactionCode || p.recordedBy || "—"}</td>
+                              <td className="py-2 text-right font-mono font-bold text-neutral-900">Ksh {p.amount.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-2xs space-y-4">
                 <h3 className="text-xs font-black text-neutral-900 border-b pb-2 uppercase tracking-wide">

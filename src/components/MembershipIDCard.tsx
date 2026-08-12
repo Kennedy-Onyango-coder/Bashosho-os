@@ -55,15 +55,18 @@ export default function MembershipIDCard({ member, onVerify }: IDCardProps) {
   let validUntil = member.validUntil || myRenewal?.expiryDate;
   if (!validUntil && validFrom) {
     const d = new Date(validFrom);
-    d.setMonth(d.getMonth() + 6);
+    d.setMonth(d.getMonth() + 12);
     validUntil = d.toISOString().split("T")[0];
   } else if (!validUntil) {
     const d = new Date();
-    d.setMonth(d.getMonth() + 6);
+    d.setMonth(d.getMonth() + 12);
     validUntil = d.toISOString().split("T")[0];
   }
 
-  const isExpired = new Date(validUntil).getTime() < new Date().getTime();
+  // Prefer the server-computed real-time lock state (accounts for any Chairperson
+  // grace extension too) — only fall back to a plain date comparison if that field
+  // hasn't loaded onto this profile yet.
+  const isExpired = member.contractLocked ?? (new Date(validUntil).getTime() < new Date().getTime());
 
   // Avatar URL - deterministic monogram fallback
   const photoUrl = member.avatar || getMonogramAvatar(member.name, member.id || member.memberNumber);
@@ -337,7 +340,7 @@ Generate formal CBO membership citation and endorsement bio for official profile
                     <span class="meta-label">VALID UNTIL:</span>
                     <span class="meta-value" style="color: ${isExpired ? "#d97706" : "#00A651"};">${validUntil}</span>
                     <span class="meta-label">STATUS:</span>
-                    <span class="meta-value" style="color: #00A651;">${member.status.toUpperCase()}</span>
+                    <span class="meta-value" style="color: ${isExpired ? "#dc2626" : "#00A651"};">${isExpired ? "EXPIRED" : member.status.toUpperCase()}</span>
                   </div>
                   <div class="auth-line">
                     Auth: ${chairpersonName}
@@ -474,7 +477,7 @@ Generate formal CBO membership citation and endorsement bio for official profile
                 </div>
                 <div>
                   <span className="block text-neutral-400 font-medium text-[7.5px]">STATUS</span>
-                  <span className="font-bold text-[#00A651] uppercase font-mono text-[8.5px]">{member.status}</span>
+                  <span className={`font-bold uppercase font-mono text-[8.5px] ${isExpired ? "text-red-600" : "text-[#00A651]"}`}>{isExpired ? "Expired" : member.status}</span>
                 </div>
                 <div>
                   <span className="block text-neutral-400 font-medium text-[7.5px]">EMERGENCY</span>
