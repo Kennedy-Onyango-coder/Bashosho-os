@@ -35,6 +35,10 @@ import TasksBoard from "./components/TasksBoard";
 import ProgramOutcomesBoard from "./components/ProgramOutcomesBoard";
 import AttendanceRegisterBoard from "./components/AttendanceRegisterBoard";
 import AdminMembersDirectory from "./components/AdminMembersDirectory";
+import EventsCalendar from "./components/EventsCalendar";
+import BoardMeetingsPanel from "./components/BoardMeetingsPanel";
+import OnboardingChecklistBoard from "./components/OnboardingChecklistBoard";
+import PeerDirectory from "./components/PeerDirectory";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -56,6 +60,9 @@ import {
   CheckSquare,
   ClipboardList,
   UsersRound,
+  CalendarDays,
+  Gavel,
+  ListChecks,
   X
 } from "lucide-react";
 
@@ -855,6 +862,60 @@ export default function App() {
                     </button>
                   )}
 
+                  {can("events") && (
+                    <button
+                      onClick={() => { setActiveTab("events"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-events-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "events"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <CalendarDays size={14} className="shrink-0" /> {lang === "en" ? "Events & Calendar" : "Matukio na Kalenda"}
+                    </button>
+                  )}
+
+                  {can("board_meetings") && (
+                    <button
+                      onClick={() => { setActiveTab("board_meetings"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-board-meetings-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "board_meetings"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <Gavel size={14} className="shrink-0" /> {lang === "en" ? "Board Meetings" : "Mikutano ya Bodi"}
+                    </button>
+                  )}
+
+                  {can("onboarding_checklists") && (
+                    <button
+                      onClick={() => { setActiveTab("onboarding_checklists"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-onboarding-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "onboarding_checklists"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <ListChecks size={14} className="shrink-0" /> {lang === "en" ? "New Member Onboarding" : "Kuanzisha Wanachama Wapya"}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => { setActiveTab("peer_directory"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                    id="nav-peer-directory-tab"
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === "peer_directory"
+                        ? "bg-[#E31E24] text-white shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    <UsersRound size={14} className="shrink-0" /> {lang === "en" ? "Peer Directory" : "Orodha ya Wenzako"}
+                  </button>
+
                   <button
                     onClick={() => { setActiveTab("my_records"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
                     id="nav-my-records-tab"
@@ -1235,6 +1296,35 @@ export default function App() {
               {activeTab === "members_directory" && (currentUser?.roleKey || getCanonicalRoleKey(currentUser?.role)) === "chairperson" && (
                 <ErrorBoundary fallbackTitle="Members Directory Failure">
                   <AdminMembersDirectory lang={lang} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "events" && currentUser && (
+                <ErrorBoundary fallbackTitle="Events Calendar Failure">
+                  <EventsCalendar lang={lang} currentUser={currentUser} canCreate={can("events", "create")} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "board_meetings" && currentUser && (
+                <ErrorBoundary fallbackTitle="Board Meetings Failure">
+                  <BoardMeetingsPanel
+                    lang={lang}
+                    currentUser={currentUser}
+                    documents={documents}
+                    onCreateMinutesDoc={() => { setActiveTab("documents"); setIsCreatingDoc(true); }}
+                  />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "onboarding_checklists" && currentUser && (
+                <ErrorBoundary fallbackTitle="Onboarding Checklist Failure">
+                  <OnboardingChecklistBoard lang={lang} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "peer_directory" && currentUser && (
+                <ErrorBoundary fallbackTitle="Peer Directory Failure">
+                  <PeerDirectory lang={lang} />
                 </ErrorBoundary>
               )}
 

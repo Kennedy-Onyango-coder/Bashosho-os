@@ -12,7 +12,7 @@ interface ProgramsDirectorOverviewProps {
 
 // Matches the fixed system reference date used elsewhere in this app (see
 // ChairpersonOverview / getDaysPending in Dashboard.tsx) so figures stay stable.
-const SYSTEM_DATE = new Date("2026-07-12");
+const SYSTEM_DATE = new Date();
 
 export default function ProgramsDirectorOverview({ lang, onNavigateToTab }: ProgramsDirectorOverviewProps) {
   const classes = StorageService.getClasses();

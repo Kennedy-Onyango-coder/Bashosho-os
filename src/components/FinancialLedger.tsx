@@ -254,7 +254,7 @@ export default function FinancialLedger({
   const getDaysPending = (requestDateStr: string) => {
     if (!requestDateStr) return 0;
     const reqDate = new Date(requestDateStr);
-    const currentDate = new Date("2026-07-12"); // aligned with system current time
+    const currentDate = new Date(); // aligned with system current time
     reqDate.setHours(0, 0, 0, 0);
     currentDate.setHours(0, 0, 0, 0);
     const diffTime = currentDate.getTime() - reqDate.getTime();

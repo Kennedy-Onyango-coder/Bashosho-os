@@ -395,6 +395,72 @@ export interface Partner {
   category: "civil_society" | "corporate" | "government" | "other";
   notes: string;
   pipelineStage?: "contacted" | "negotiating" | "confirmed" | "delivered" | "reported";
+  /** Real contact history — replaces what used to be hardcoded placeholder "last
+   *  contact" / "next follow-up" dates on the Vice Chairperson's dashboard. */
+  contactLog?: {
+    id: string;
+    date: string;
+    notes: string;
+    method: "call" | "email" | "meeting" | "whatsapp" | "other";
+    loggedBy: string;
+  }[];
+  /** The next time someone should reach back out — set explicitly when logging a
+   *  contact, not derived. */
+  nextFollowUpDate?: string;
+}
+
+/** A scheduled event members/volunteers can see ahead of time and RSVP to — distinct
+ *  from AttendanceSheet, which records who actually showed up after the fact. */
+export interface CBOEvent {
+  id: string;
+  title: string;
+  type: "rehearsal" | "performance" | "training" | "meeting" | "street_performance" | "field_performance" | "other";
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  location: string;
+  description?: string;
+  createdBy: string;
+  createdDate: string;
+  rsvps: {
+    userId: string;
+    userName: string;
+    response: "yes" | "no" | "maybe";
+    respondedDate: string;
+  }[];
+}
+
+/** A Board meeting with its agenda tracked ahead of time, and its minutes (a real
+ *  Document of type "minutes") linked once the meeting happens. */
+export interface BoardMeeting {
+  id: string;
+  title: string;
+  date: string;
+  time?: string;
+  location: string;
+  agenda: string[];
+  attendeeIds: string[];
+  status: "scheduled" | "completed" | "cancelled";
+  minutesDocId?: string;
+  createdBy: string;
+  createdDate: string;
+}
+
+/** Per-new-member onboarding checklist the Secretary tracks — distinct from a Task,
+ *  since these are a fixed, predictable set of steps every new member goes through,
+ *  not an ad-hoc assignment. */
+export interface OnboardingChecklist {
+  id: string;
+  userId: string;
+  userName: string;
+  steps: {
+    id: string;
+    label: string;
+    completed: boolean;
+    completedDate?: string;
+    completedBy?: string;
+  }[];
+  createdDate: string;
 }
 
 export interface Class {
@@ -603,7 +669,10 @@ export type PermissionModuleKey =
   | "tasks"
   | "program_sessions"
   | "volunteer_recognition"
-  | "attendance_registers";
+  | "attendance_registers"
+  | "events"
+  | "board_meetings"
+  | "onboarding_checklists";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve";
 
@@ -623,7 +692,8 @@ export const PERMISSION_MODULE_KEYS: PermissionModuleKey[] = [
   "dashboard", "documents", "finance", "assets", "grants", "classes", "invoices",
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
-  "tasks", "program_sessions", "volunteer_recognition", "attendance_registers"
+  "tasks", "program_sessions", "volunteer_recognition", "attendance_registers",
+  "events", "board_meetings", "onboarding_checklists"
 ];
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];

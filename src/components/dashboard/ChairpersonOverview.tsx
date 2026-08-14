@@ -17,7 +17,7 @@ interface ChairpersonOverviewProps {
 // Fixed system reference date, matching the convention used elsewhere in this app
 // (getDaysPending in Dashboard.tsx) so relative-time figures stay stable rather than
 // drifting with the real clock during a demo/review.
-const SYSTEM_DATE = new Date("2026-07-12");
+const SYSTEM_DATE = new Date();
 
 export default function ChairpersonOverview({ lang, onNavigateToTab, currentUserNameAndRole }: ChairpersonOverviewProps) {
   const [showBroadcastModal, setShowBroadcastModal] = React.useState(false);
@@ -86,6 +86,18 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
 
   const fmt = (n: number) => `KSh ${n.toLocaleString()}`;
 
+  // "This Week" digest — computed straight from data already loaded above, no extra
+  // fetches. A plain aggregation of real events, not an AI-generated summary, so it's
+  // never wrong about what actually happened.
+  const sevenDaysAgo = new Date(SYSTEM_DATE);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+  const newMembersThisWeek = profiles.filter(p => p.joinDate && p.joinDate >= sevenDaysAgoStr).length;
+  const incomeThisWeek = incomes.filter(i => i.date && i.date >= sevenDaysAgoStr).reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  const expenditureCountThisWeek = expenditures.filter(e => e.status === "approved" && e.requestDate && e.requestDate >= sevenDaysAgoStr).length;
+  const renewalsApprovedThisWeek = contractRenewals.filter(c => c.status === "approved" && c.reviewedDate && c.reviewedDate >= sevenDaysAgoStr).length;
+  const totalDecisionsPending = pendingExpenditures + pendingLeave + pendingRenewals + urgentGrants + openSafeguarding;
+
   const notifications: NotificationItem[] = [
     {
       id: "expenditures",
@@ -142,6 +154,37 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
         onOpenGrants={() => onNavigateToTab("grants")}
         lang={lang}
       />
+
+      {/* Weekly digest — real events from the last 7 days, plus a single count of
+          everything currently waiting on a decision from the Chairperson. */}
+      <div className="bg-gradient-to-br from-neutral-900 to-neutral-800 border border-neutral-700 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-bold text-white">{lang === "en" ? "This Week" : "Wiki Hii"}</p>
+          {totalDecisionsPending > 0 && (
+            <span className="text-[10px] font-bold uppercase bg-red-600 text-white px-2 py-0.5 rounded-full">
+              {totalDecisionsPending} {lang === "en" ? "need your decision" : "zinahitaji uamuzi wako"}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div>
+            <p className="text-lg font-black font-mono text-white">{newMembersThisWeek}</p>
+            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "New Members" : "Wanachama Wapya"}</p>
+          </div>
+          <div>
+            <p className="text-lg font-black font-mono text-emerald-400">{fmt(incomeThisWeek)}</p>
+            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "Income Received" : "Mapato"}</p>
+          </div>
+          <div>
+            <p className="text-lg font-black font-mono text-white">{expenditureCountThisWeek}</p>
+            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "Expenses Approved" : "Matumizi Yaliyoidhinishwa"}</p>
+          </div>
+          <div>
+            <p className="text-lg font-black font-mono text-white">{renewalsApprovedThisWeek}</p>
+            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "Contracts Renewed" : "Mikataba Iliyorejeshwa"}</p>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <StatCard label={lang === "en" ? "Active members" : "Wanachama hai"} value={String(activeMembers)} icon={<Users size={17} />} accent="community" />

@@ -38,7 +38,10 @@ const MODULE_LABELS: Record<PermissionModuleKey, { en: string; sw: string }> = {
   tasks: { en: "Tasks & Action Items", sw: "Majukumu na Vitendo" },
   program_sessions: { en: "Program Outcomes", sw: "Matokeo ya Mipango" },
   volunteer_recognition: { en: "Volunteer Recognition", sw: "Utambuzi wa Wanaojitolea" },
-  attendance_registers: { en: "Attendance Registers", sw: "Rejista za Mahudhurio" }
+  attendance_registers: { en: "Attendance Registers", sw: "Rejista za Mahudhurio" },
+  events: { en: "Events & Calendar", sw: "Matukio na Kalenda" },
+  board_meetings: { en: "Board Meetings", sw: "Mikutano ya Bodi" },
+  onboarding_checklists: { en: "Onboarding Checklists", sw: "Orodha za Kuanzisha" }
 };
 
 const ACTION_LABELS: Record<PermissionAction, { en: string; sw: string }> = {

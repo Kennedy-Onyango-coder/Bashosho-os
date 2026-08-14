@@ -144,7 +144,7 @@ Notes context: ${notes || "None provided"}`,
     if (grant.status === "submitted" || grant.status === "awarded" || grant.status === "declined") return false;
     const deadlineDate = new Date(grant.deadline);
     if (isNaN(deadlineDate.getTime())) return false;
-    const systemDate = new Date("2026-07-12"); // system default date
+    const systemDate = new Date(); // system default date
     const diffTime = deadlineDate.getTime() - systemDate.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 14;
@@ -218,7 +218,7 @@ Notes context: ${notes || "None provided"}`,
               <div className="space-y-3 flex-grow overflow-y-auto">
                 {colGrants.map(grant => {
                   const urgent = isUrgent(grant);
-                  const daysRemaining = Math.ceil((new Date(grant.deadline).getTime() - new Date("2026-07-12").getTime()) / (1000 * 60 * 60 * 24));
+                  const daysRemaining = Math.ceil((new Date(grant.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 
                   return (
                     <div

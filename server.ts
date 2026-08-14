@@ -331,7 +331,8 @@ const PERMISSION_MODULE_KEYS = [
   "dashboard", "documents", "finance", "assets", "grants", "classes", "invoices",
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
-  "tasks", "program_sessions", "volunteer_recognition", "attendance_registers"
+  "tasks", "program_sessions", "volunteer_recognition", "attendance_registers",
+  "events", "board_meetings", "onboarding_checklists"
 ];
 const PERMISSION_ACTIONS = ["view", "create", "edit", "delete", "approve"];
 
@@ -381,6 +382,9 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
   // approved roster archive; only Secretary/Programs Director/Chairperson can submit
   // or move one through the approval chain (granted per-role below).
   view("attendance_registers");
+  // Events: everyone can see what's scheduled and RSVP; only certain roles can create
+  // one (granted per-role below).
+  view("events");
 
   switch (roleKey) {
     case "chairperson":
@@ -413,6 +417,8 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       p.tasks.create = true; p.tasks.edit = true;
       p.program_sessions.edit = true;
       p.volunteer_recognition.edit = true;
+      p.events.create = true; p.events.edit = true;
+      full("board_meetings");
       break;
 
     case "programs_director":
@@ -428,6 +434,7 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       p.program_sessions.edit = true; p.program_sessions.delete = true;
       p.volunteer_recognition.edit = true;
       p.attendance_registers.edit = true; // approves the Programs stage
+      p.events.create = true; p.events.edit = true; p.events.delete = true;
       break;
 
     case "secretary":
@@ -437,6 +444,9 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       view("safeguarding");
       p.tasks.create = true; p.tasks.edit = true;
       p.attendance_registers.create = true; p.attendance_registers.edit = true;
+      p.events.create = true; p.events.edit = true;
+      view("board_meetings"); p.board_meetings.create = true; p.board_meetings.edit = true;
+      full("onboarding_checklists");
       break;
 
     case "treasurer":
@@ -2962,7 +2972,10 @@ const DELETE_COLLECTION_MODULE_MAP: Record<string, string> = {
   partners: "invoices",
   tasks: "tasks",
   program_sessions: "program_sessions",
-  volunteer_certificates: "volunteer_recognition"
+  volunteer_certificates: "volunteer_recognition",
+  events: "events",
+  board_meetings: "board_meetings",
+  onboarding_checklists: "onboarding_checklists"
 };
 
 // These collections must never be deletable through the generic endpoint below, by ANY
@@ -4142,6 +4155,171 @@ app.post("/api/attendance_registers/:id/decision", requireAuth, async (req: Auth
   }
 });
 
+// 22b. EVENTS & CALENDAR (scheduled ahead of time, RSVP-able) — distinct from
+// AttendanceSheet, which records who actually showed up after the fact. Powers both
+// the Programs Director's visual calendar and every member's RSVP prompts.
+app.get("/api/events", requireAuth, requirePermission("events", "view"), (req, res) => fetchCollection("events", req, res));
+
+app.post("/api/events", requireAuth, requirePermission("events", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { title, type, date, startTime, endTime, location, description } = req.body;
+    if (!title || !date || !location) {
+      return res.status(400).json({ error: "title, date, and location are required" });
+    }
+    const id = req.body.id || `event-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const existing = req.body.id ? (await db.collection("events").doc(req.body.id).get()).data() : null;
+    const record = {
+      id,
+      title, type: type || "other", date, startTime: startTime || "", endTime: endTime || "",
+      location, description: description || "",
+      createdBy: existing?.createdBy || req.user!.name,
+      createdDate: existing?.createdDate || new Date().toISOString().split("T")[0],
+      rsvps: existing?.rsvps || []
+    };
+    logActivity(req, "events", req.body.id ? "edit" : "create", id, title);
+    return saveDocument("events", id, record, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to save event", details: err.message });
+  }
+});
+
+app.post("/api/events/:id/rsvp", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { response } = req.body; // "yes" | "no" | "maybe"
+    if (!["yes", "no", "maybe"].includes(response)) {
+      return res.status(400).json({ error: "response must be yes, no, or maybe" });
+    }
+    const docRef = db.collection("events").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Event not found" });
+    const data = snap.data()!;
+    const rsvps = (data.rsvps || []).filter((r: any) => r.userId !== req.user!.id);
+    rsvps.push({ userId: req.user!.id, userName: req.user!.name, response, respondedDate: new Date().toISOString().split("T")[0] });
+    await docRef.set({ rsvps }, { merge: true });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to record RSVP", details: err.message });
+  }
+});
+
+// 22c. BOARD MEETINGS — scheduled with an agenda, later linked to real minutes
+// (a Document of type "minutes") once the meeting happens.
+app.get("/api/board_meetings", requireAuth, requirePermission("board_meetings", "view"), (req, res) => fetchCollection("board_meetings", req, res));
+
+app.post("/api/board_meetings", requireAuth, requirePermission("board_meetings", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { title, date, time, location, agenda, attendeeIds } = req.body;
+    const id = req.body.id || `meeting-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const existing = req.body.id ? (await db.collection("board_meetings").doc(req.body.id).get()).data() : null;
+    if (!existing && (!title || !date)) {
+      return res.status(400).json({ error: "title and date are required" });
+    }
+    const record = {
+      id,
+      title: title ?? existing?.title,
+      date: date ?? existing?.date,
+      time: time ?? existing?.time ?? "",
+      location: location ?? existing?.location ?? "",
+      agenda: agenda ?? existing?.agenda ?? [],
+      attendeeIds: attendeeIds ?? existing?.attendeeIds ?? [],
+      status: req.body.status ?? existing?.status ?? "scheduled",
+      minutesDocId: req.body.minutesDocId ?? existing?.minutesDocId,
+      createdBy: existing?.createdBy || req.user!.name,
+      createdDate: existing?.createdDate || new Date().toISOString().split("T")[0]
+    };
+    logActivity(req, "board_meetings", req.body.id ? "edit" : "create", id, record.title);
+    return saveDocument("board_meetings", id, record, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to save board meeting", details: err.message });
+  }
+});
+
+// 22d. NEW-MEMBER ONBOARDING CHECKLISTS — a fixed, predictable set of steps every new
+// member goes through, tracked by the Secretary. Auto-created when a signup
+// application is approved (see the signup-approval endpoint).
+const DEFAULT_ONBOARDING_STEPS = [
+  "Welcome call or message sent",
+  "CBO Handbook shared and acknowledged",
+  "Membership ID card issued",
+  "Orientation session attended",
+  "Assigned to a program area",
+  "First contract signed and paid"
+];
+
+app.get("/api/onboarding_checklists", requireAuth, requirePermission("onboarding_checklists", "view"), (req, res) => fetchCollection("onboarding_checklists", req, res));
+
+app.post("/api/onboarding_checklists/:id/toggle_step", requireAuth, requirePermission("onboarding_checklists", "edit"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { stepId } = req.body;
+    const docRef = db.collection("onboarding_checklists").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Checklist not found" });
+    const data = snap.data()!;
+    const steps = (data.steps || []).map((s: any) => s.id === stepId ? {
+      ...s,
+      completed: !s.completed,
+      completedDate: !s.completed ? new Date().toISOString().split("T")[0] : undefined,
+      completedBy: !s.completed ? req.user!.name : undefined
+    } : s);
+    await docRef.set({ steps }, { merge: true });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to update checklist", details: err.message });
+  }
+});
+
+// 22e. PARTNER CONTACT LOG — real follow-up tracking for the Vice Chairperson,
+// replacing what used to be hardcoded placeholder dates.
+app.post("/api/partners/:id/log_contact", requireAuth, requirePermission("grants", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { notes, method, nextFollowUpDate } = req.body;
+    if (!notes?.trim()) return res.status(400).json({ error: "notes is required" });
+    const docRef = db.collection("partners").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Partner not found" });
+    const data = snap.data()!;
+    const entry = {
+      id: `contact-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      notes: notes.trim(),
+      method: method || "other",
+      loggedBy: req.user!.name
+    };
+    const contactLog = [...(data.contactLog || []), entry];
+    await docRef.set({ contactLog, nextFollowUpDate: nextFollowUpDate || undefined }, { merge: true });
+    logActivity(req, "grants", "log_contact", req.params.id, data.name);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to log contact", details: err.message });
+  }
+});
+
+// 22f. PEER DIRECTORY — a safe, name/role/photo-only view every member can see of
+// their fellow members and volunteers. Deliberately a separate endpoint from
+// /api/profiles, which (for legitimate internal reasons like task-assignment
+// dropdowns) still returns phone/email/emergency-contact to any authenticated user —
+// this one never does, regardless of who's asking.
+app.get("/api/peer_directory", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("profiles").get();
+    const peers = snap.docs.map(doc => {
+      const p = doc.data() as any;
+      return {
+        id: doc.id,
+        name: p.name,
+        role: p.role,
+        roleKey: p.roleKey,
+        avatar: p.avatar,
+        skills: p.skills || [],
+        status: p.status
+      };
+    });
+    return res.json(peers);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to load peer directory", details: err.message });
+  }
+});
+
 // 23. CAST/CREW PAYMENT LISTS (tied to an approved expenditure request, reviewed by
 // Chairperson or Vice Chairperson — never the Treasurer who submitted it, so payout
 // and approval are always two different people).
@@ -4574,7 +4752,8 @@ app.get("/api/admin/export", requireAuth, requireRole(["chairperson"]), async (r
       "assets", "attendance_sheets", "partners", "incomes", "grants", "classes",
       "broadcasts", "leave_requests", "invoices", "org_settings", "contract_renewals",
       "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
-      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations", "login_history"
+      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations", "login_history",
+      "events", "board_meetings", "onboarding_checklists"
     ];
 
     const backupData: any = {
@@ -4618,7 +4797,8 @@ app.post("/api/admin/purge-data", requireAuth, requireRole(["chairperson"]), asy
       "assets", "attendance_sheets", "partners", "incomes", "grants", "classes",
       "broadcasts", "leave_requests", "invoices", "contract_renewals",
       "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
-      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations"
+      "volunteer_certificates", "cast_payment_lists", "bank_reconciliations",
+      "events", "board_meetings", "onboarding_checklists"
     ];
 
     console.log(`[Purge] Initiating database purge by ${req.user!.name}...`);
@@ -5368,6 +5548,16 @@ app.post("/api/signup_applications/:id/approve", requireAuth, requirePermission(
     // the real renewal flow — see ContractRenewalPanel and /api/contract_renewals.
     // Auto-approving one on signup, as this used to do, silently skipped both of those
     // and left the member with a contract that was never really signed or paid.
+
+    // Give the Secretary a real onboarding checklist to work through for this member.
+    const checklistId = `onboard-${id}`;
+    batch.set(db.collection("onboarding_checklists").doc(checklistId), {
+      id: checklistId,
+      userId: id,
+      userName: application.fullName,
+      steps: DEFAULT_ONBOARDING_STEPS.map((label, idx) => ({ id: `step-${idx}`, label, completed: false })),
+      createdDate: new Date().toISOString().split("T")[0]
+    });
 
     await batch.commit();
     logActivity(req, "signup_reviews", "approve", id, application.fullName, { status: "pending" }, { status: "approved" });

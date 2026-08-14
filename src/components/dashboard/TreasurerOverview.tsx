@@ -14,7 +14,7 @@ interface TreasurerOverviewProps {
   onNavigateToTab: (tab: string) => void;
 }
 
-const SYSTEM_DATE = new Date("2026-07-12");
+const SYSTEM_DATE = new Date();
 
 export default function TreasurerOverview({
   lang,

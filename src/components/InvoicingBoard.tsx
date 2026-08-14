@@ -27,7 +27,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
   const [partnerId, setPartnerId] = React.useState("");
   const [engagementDescription, setEngagementDescription] = React.useState("");
   const [amount, setAmount] = React.useState("");
-  const [issueDate, setIssueDate] = React.useState("2026-07-12");
+  const [issueDate, setIssueDate] = React.useState(new Date().toISOString().split("T")[0]);
   const [dueDate, setDueDate] = React.useState("2026-07-26");
   const [status, setStatus] = React.useState<Invoice["status"]>("draft");
   const [isAiDrafting, setIsAiDrafting] = React.useState(false);
@@ -139,7 +139,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
     setPartnerId("");
     setEngagementDescription("");
     setAmount("");
-    setIssueDate("2026-07-12");
+    setIssueDate(new Date().toISOString().split("T")[0]);
     setDueDate("2026-07-26");
     setStatus("draft");
   };
@@ -169,7 +169,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
 
   const isOverdue = (invoice: Invoice) => {
     if (invoice.status === "paid" || invoice.status === "draft") return false;
-    return new Date(invoice.dueDate) < new Date("2026-07-12");
+    return new Date(invoice.dueDate) < new Date();
   };
 
   const handlePrintInvoice = (invoice: Invoice) => {

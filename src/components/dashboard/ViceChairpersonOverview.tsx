@@ -10,12 +10,10 @@ interface ViceChairpersonOverviewProps {
 }
 
 export default function ViceChairpersonOverview({ lang, partners, budgets }: ViceChairpersonOverviewProps) {
-  // "Pending follow-up" previously showed a hardcoded 2 with no underlying data. This is a
-  // real (if approximate) proxy: partners still earlier in the pipeline than "confirmed"
-  // genuinely do need a follow-up. The per-partner "last contact / next follow-up" dates
-  // shown further down this page are still hardcoded placeholders, not wired to real data
-  // yet \u2014 that's a separate, larger CRM feature, flagged but out of scope for this pass.
-  const pendingFollowUps = partners.filter(p => p.pipelineStage === "contacted" || p.pipelineStage === "negotiating").length;
+  // Real, not a proxy: counts partners whose next follow-up date has actually arrived
+  // or passed, using the real contact-log data now wired up in the Partner CRM below.
+  const today = new Date().toISOString().split("T")[0];
+  const pendingFollowUps = partners.filter(p => p.nextFollowUpDate && p.nextFollowUpDate <= today).length;
   const upcomingEngagements = budgets.filter(b => b.status === "approved").length;
 
   return (

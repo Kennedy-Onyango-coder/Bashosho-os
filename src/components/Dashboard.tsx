@@ -1,6 +1,6 @@
 import React from "react";
 import Modal from "./Modal";
-import { UserRole, UserProfile, Document, BudgetEngagement, ExpenditureRequest, SafeguardingReport, Asset, AttendanceSheet, Partner, Broadcast, LeaveRequest, SiteContent, LeadershipAppointment, getCanonicalRoleKey, getUserRoleKey } from "../types";
+import { UserRole, UserProfile, Document, BudgetEngagement, ExpenditureRequest, SafeguardingReport, Asset, AttendanceSheet, Partner, Broadcast, LeaveRequest, SiteContent, LeadershipAppointment, Class, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService, generateMemberNumber } from "../lib/storage";
 import MembershipIDCard from "./MembershipIDCard";
 import DocumentEditor from "./DocumentEditor";
@@ -12,8 +12,10 @@ import ProgramsDirectorOverview from "./dashboard/ProgramsDirectorOverview";
 import ViceChairpersonOverview from "./dashboard/ViceChairpersonOverview";
 import TreasurerOverview from "./dashboard/TreasurerOverview";
 import SecretaryOverview, { getMemberAttendanceStats } from "./dashboard/SecretaryOverview";
+import SafeguardingOfficerOverview from "./dashboard/SafeguardingOfficerOverview";
 import StatCard from "./dashboard/StatCard";
 import VolunteerRecognitionPanel from "./VolunteerRecognitionPanel";
+import GrowthTrackerPanel from "./GrowthTrackerPanel";
 import MyPaymentsPanel from "./MyPaymentsPanel";
 import ContractStatusBanner from "./ContractStatusBanner";
 import { User, ShieldAlert, LayoutDashboard, FileText, Crown, AlertTriangle, Lock, Sparkles, CheckCircle2, Calendar, MapPin, Megaphone, Landmark, Scale, BarChart3, Printer, Wrench, Palmtree, Star, Flame, Check, X, Plus, Info, ChevronRight, FileCheck, RefreshCw, IdCard, Clock, Eye, Package, CheckCircle, Wallet } from "lucide-react";
@@ -29,7 +31,7 @@ function getDaysPending(dateStr: string): number {
   const reqDate = new Date(dateStr);
   if (isNaN(reqDate.getTime())) return 0;
   // Use a fixed reference date matching the system year (e.g. July 2026) to make aging static and realistic
-  const systemDate = new Date("2026-07-12");
+  const systemDate = new Date();
   const diffTime = systemDate.getTime() - reqDate.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays > 0 ? diffDays : 1;
@@ -196,6 +198,11 @@ export default function Dashboard({
 
   // Vice Chairperson Broadcast form state
   const [broadcastMessage, setBroadcastMessage] = React.useState("");
+  const [loggingContactPartner, setLoggingContactPartner] = React.useState<Partner | null>(null);
+  const [contactLogNotes, setContactLogNotes] = React.useState("");
+  const [contactLogMethod, setContactLogMethod] = React.useState<"call" | "email" | "meeting" | "whatsapp" | "other">("call");
+  const [contactLogNextFollowUp, setContactLogNextFollowUp] = React.useState("");
+  const [savingContactLog, setSavingContactLog] = React.useState(false);
   const [broadcastChannel, setBroadcastChannel] = React.useState<"SMS" | "WhatsApp" | "Email">("SMS");
   const [broadcastSuccess, setBroadcastSuccess] = React.useState(false);
 
@@ -203,6 +210,7 @@ export default function Dashboard({
   const [broadcasts, setBroadcasts] = React.useState<Broadcast[]>([]);
   const [leaveRequests, setLeaveRequests] = React.useState<LeaveRequest[]>([]);
   const [assets, setAssets] = React.useState<Asset[]>([]);
+  const [classes, setClasses] = React.useState<Class[]>([]);
   const [showLeaveModal, setShowLeaveModal] = React.useState(false);
   const [leaveStartDate, setLeaveStartDate] = React.useState("");
   const [leaveEndDate, setLeaveEndDate] = React.useState("");
@@ -236,7 +244,7 @@ export default function Dashboard({
 
       setAttendance(StorageService.getAttendance());
       setPartners(StorageService.getPartners());
-      setBroadcasts(StorageService.getBroadcasts());
+      setClasses(StorageService.getClasses());      setBroadcasts(StorageService.getBroadcasts());
       setLeaveRequests(StorageService.getLeaveRequests());
       setAssets(StorageService.getAssets());
 
@@ -289,7 +297,7 @@ export default function Dashboard({
 
   // CBO Member Expansion Calculations & Helpers
   const upcomingEvents = attendance.filter(sheet => {
-    const isFuture = new Date(sheet.date) > new Date("2026-07-12");
+    const isFuture = new Date(sheet.date) > new Date();
     const isListed = sheet.records.some(rec => rec.userId === currentUser.id);
     return isFuture && isListed;
   });
@@ -299,7 +307,7 @@ export default function Dashboard({
   });
 
   const myAttendanceHistory = attendance.filter(sheet => {
-    const isPast = new Date(sheet.date) <= new Date("2026-07-12");
+    const isPast = new Date(sheet.date) <= new Date();
     const isListed = sheet.records.some(rec => rec.userId === currentUser.id);
     return isPast && isListed;
   });
@@ -601,6 +609,32 @@ export default function Dashboard({
     setShowLeaveModal(false);
   };
 
+  const handleSaveContactLog = async () => {
+    if (!loggingContactPartner || !contactLogNotes.trim()) return;
+    setSavingContactLog(true);
+    try {
+      const res = await fetch(`/api/partners/${loggingContactPartner.id}/log_contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: contactLogNotes.trim(), method: contactLogMethod, nextFollowUpDate: contactLogNextFollowUp || undefined })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to log contact");
+      }
+      // Fetch fresh rather than trusting the local offline cache, which only syncs
+      // periodically and would likely still show the pre-update partner record.
+      const freshRes = await fetch("/api/partners");
+      if (freshRes.ok) setPartners(await freshRes.json());
+      setLoggingContactPartner(null);
+      setContactLogNotes(""); setContactLogMethod("call"); setContactLogNextFollowUp("");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingContactLog(false);
+    }
+  };
+
   const handleApproveLeave = (leaveId: string) => {
     let updatedReq: LeaveRequest | null = null;
     const updated = leaveRequests.map(req => {
@@ -631,7 +665,7 @@ export default function Dashboard({
     }
   };
 
-  const isUserOnLeave = (userId: string, dateStr: string = "2026-07-12") => {
+  const isUserOnLeave = (userId: string, dateStr: string = new Date().toISOString().split("T")[0]) => {
     const date = new Date(dateStr);
     return leaveRequests.some(req => 
       req.userId === userId && 
@@ -654,7 +688,7 @@ export default function Dashboard({
       id: `ch-${Date.now()}`,
       userName: currentUser.name,
       eventName: targetEvent.title,
-      checkoutDate: "2026-07-12",
+      checkoutDate: new Date().toISOString().split("T")[0],
       expectedReturnDate: targetEvent.date
     };
 
@@ -689,7 +723,7 @@ export default function Dashboard({
           ...asset,
           checkoutHistory: asset.checkoutHistory.map(ch => {
             if (!ch.actualReturnDate && ch.userName === currentUser.name) {
-              return { ...ch, actualReturnDate: "2026-07-12" };
+              return { ...ch, actualReturnDate: new Date().toISOString().split("T")[0] };
             }
             return ch;
           })
@@ -850,7 +884,7 @@ export default function Dashboard({
               if (g.status === "submitted" || g.status === "awarded" || g.status === "declined") return false;
               const deadlineDate = new Date(g.deadline);
               if (isNaN(deadlineDate.getTime())) return false;
-              const systemDate = new Date("2026-07-12");
+              const systemDate = new Date();
               const diffTime = deadlineDate.getTime() - systemDate.getTime();
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
               return diffDays >= 0 && diffDays <= 14;
@@ -866,7 +900,7 @@ export default function Dashboard({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {urgentGrants.map(grant => {
-                    const daysLeft = Math.ceil((new Date(grant.deadline).getTime() - new Date("2026-07-12").getTime()) / (1000 * 60 * 60 * 24));
+                    const daysLeft = Math.ceil((new Date(grant.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                     return (
                       <div key={grant.id} className="text-xs text-neutral-800 flex justify-between items-center bg-white p-3 rounded-xl border border-red-100 shadow-2xs">
                         <div>
@@ -1221,14 +1255,12 @@ export default function Dashboard({
                 {lang === "en" ? "Partner CRM Summary" : "Orodha ya Wadau na Ufuatiliaji"}
               </h3>
               <div className="space-y-4">
-                {partners.map((partner, index) => {
-                  const dates = [
-                    { last: "2026-07-02", next: "2026-07-16", status: "Due soon" },
-                    { last: "2026-07-01", next: "2026-07-15", status: "Due tomorrow" },
-                    { last: "2026-06-25", next: "2026-07-20", status: "Scheduled" },
-                    { last: "2026-07-05", next: "2026-07-19", status: "Scheduled" },
-                  ];
-                  const dateInfo = dates[index % dates.length];
+                {[...partners].sort((a, b) => (a.nextFollowUpDate || "9999").localeCompare(b.nextFollowUpDate || "9999")).map((partner) => {
+                  const log = [...(partner.contactLog || [])].sort((a, b) => b.date.localeCompare(a.date));
+                  const lastContact = log[0];
+                  const today = new Date().toISOString().split("T")[0];
+                  const overdue = partner.nextFollowUpDate && partner.nextFollowUpDate < today;
+                  const dueSoon = partner.nextFollowUpDate && !overdue && partner.nextFollowUpDate <= new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0];
                   return (
                     <div key={partner.id} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors flex justify-between items-start flex-wrap gap-4">
                       <div className="space-y-1">
@@ -1237,26 +1269,38 @@ export default function Dashboard({
                         </span>
                         <h4 className="text-xs font-extrabold text-[#1B1B1B] mt-1">{partner.name}</h4>
                         <p className="text-[10px] text-gray-500 font-medium">Contact: {partner.contactPerson} ({partner.email})</p>
-                        <p className="text-[11px] text-gray-600 font-serif italic mt-1">"{partner.notes}"</p>
+                        {partner.notes && <p className="text-[11px] text-gray-600 font-serif italic mt-1">"{partner.notes}"</p>}
+                        {lastContact && <p className="text-[10px] text-neutral-500 mt-1">{lang === "en" ? "Latest note" : "Kumbukumbu ya mwisho"}: {lastContact.notes}</p>}
                       </div>
-                      <div className="text-right space-y-1 font-mono text-[10px]">
+                      <div className="text-right space-y-1 font-mono text-[10px] shrink-0">
                         <div>
                           <span className="text-gray-400 font-medium">LAST CONTACT:</span>{" "}
-                          <strong className="text-neutral-700">{dateInfo.last}</strong>
+                          <strong className="text-neutral-700">{lastContact ? lastContact.date : (lang === "en" ? "Never logged" : "Bado")}</strong>
                         </div>
                         <div>
                           <span className="text-gray-400 font-medium">NEXT FOLLOW-UP:</span>{" "}
-                          <strong className="text-neutral-700">{dateInfo.next}</strong>
+                          <strong className="text-neutral-700">{partner.nextFollowUpDate || (lang === "en" ? "Not set" : "Haijawekwa")}</strong>
                         </div>
-                        <span className={`inline-block mt-1 px-2 py-0.5 rounded-full font-bold text-[8px] uppercase ${
-                          dateInfo.status.includes("Due") ? "bg-amber-100 text-amber-700 border border-amber-200" : "bg-blue-50 text-blue-700 border border-blue-100"
-                        }`}>
-                          {dateInfo.status}
-                        </span>
+                        {partner.nextFollowUpDate && (
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full font-bold text-[8px] uppercase ${
+                            overdue ? "bg-red-100 text-red-700 border border-red-200" : dueSoon ? "bg-amber-100 text-amber-700 border border-amber-200" : "bg-blue-50 text-blue-700 border border-blue-100"
+                          }`}>
+                            {overdue ? (lang === "en" ? "Overdue" : "Imechelewa") : dueSoon ? (lang === "en" ? "Due Soon" : "Karibuni") : (lang === "en" ? "Scheduled" : "Imepangwa")}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setLoggingContactPartner(partner)}
+                          className="block mt-1.5 text-[10px] font-bold text-blue-600 hover:underline cursor-pointer ml-auto"
+                        >
+                          {lang === "en" ? "Log Contact" : "Rekodi Mawasiliano"}
+                        </button>
                       </div>
                     </div>
                   );
                 })}
+                {partners.length === 0 && (
+                  <p className="text-xs text-neutral-400 italic text-center py-6">{lang === "en" ? "No partners recorded yet." : "Hakuna wadau bado."}</p>
+                )}
               </div>
             </div>
 
@@ -1429,6 +1473,39 @@ export default function Dashboard({
           </div>
         </div>
       )}
+
+      {/* Log Contact modal — Vice Chairperson's real partner follow-up tracker */}
+      <Modal isOpen={!!loggingContactPartner} onClose={() => setLoggingContactPartner(null)} maxWidth="max-w-sm">
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-neutral-900">{lang === "en" ? "Log Contact" : "Rekodi Mawasiliano"}</h3>
+          <p className="text-xs text-neutral-500">{loggingContactPartner?.name}</p>
+          <div>
+            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "How did you reach them?" : "Njia ya Mawasiliano"}</label>
+            <select value={contactLogMethod} onChange={e => setContactLogMethod(e.target.value as any)} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs">
+              <option value="call">{lang === "en" ? "Phone Call" : "Simu"}</option>
+              <option value="email">Email</option>
+              <option value="meeting">{lang === "en" ? "In-Person Meeting" : "Mkutano"}</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="other">{lang === "en" ? "Other" : "Nyingine"}</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Notes" : "Maelezo"} *</label>
+            <textarea value={contactLogNotes} onChange={e => setContactLogNotes(e.target.value)} rows={3} placeholder={lang === "en" ? "What was discussed?" : "Mlijadili nini?"} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Next Follow-Up Date (optional)" : "Tarehe ya Ufuatiliaji (si lazima)"}</label>
+            <input type="date" value={contactLogNextFollowUp} onChange={e => setContactLogNextFollowUp(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />
+          </div>
+          <button
+            onClick={handleSaveContactLog}
+            disabled={savingContactLog || !contactLogNotes.trim()}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer"
+          >
+            {savingContactLog ? (lang === "en" ? "Saving..." : "Inahifadhi...") : (lang === "en" ? "Save Contact Log" : "Hifadhi")}
+          </button>
+        </div>
+      </Modal>
 
       {/* 2c. TREASURER ( cash position, claims review, recent invoices, ledger link ) */}
       {(getUserRoleKey(currentUser) === UserRole.TREASURER) && (
@@ -1640,6 +1717,9 @@ export default function Dashboard({
       {/* 4. SAFEGUARDING & MEL OFFICER / CHAIRPERSON ( highly restricted safeguarding reports panel ) */}
       {(getUserRoleKey(currentUser) === UserRole.SAFEGUARDING_OFFICER || getUserRoleKey(currentUser) === UserRole.CHAIRPERSON) && (
         <div className="space-y-6 text-left" id="safeguarding-restricted-officer-panel">
+          {getUserRoleKey(currentUser) === UserRole.SAFEGUARDING_OFFICER && (
+            <SafeguardingOfficerOverview lang={lang} reports={safeguarding} />
+          )}
           <div className="bg-[#E31E24]/5 border border-[#E31E24]/20 rounded-xl p-5 flex gap-3 items-start">
             <span className="text-xl"></span>
             <div>
@@ -1765,8 +1845,9 @@ export default function Dashboard({
                 </div>
               </div>
 
-              <div className="w-full max-w-sm mt-4">
+              <div className="w-full max-w-sm mt-4 space-y-4">
                 <VolunteerRecognitionPanel lang={lang} currentUser={currentUser} volunteerHours={volunteerHours} />
+                <GrowthTrackerPanel lang={lang} currentUser={currentUser} classes={classes} />
               </div>
             </div>
 
@@ -2483,7 +2564,7 @@ export default function Dashboard({
                 </div>
                 <div className="flex justify-between">
                   <span>{lang === "en" ? "Last Reconciled" : "Tarehe ya Mwisho"}</span>
-                  <strong className="text-neutral-900">2026-07-12</strong>
+                  <strong className="text-neutral-900">{new Date().toISOString().split("T")[0]}</strong>
                 </div>
               </div>
 
@@ -2533,7 +2614,7 @@ export default function Dashboard({
                     setTimeout(() => {
                       setIsReconciling(false);
                       setReconcileSuccess(true);
-                      setReconcileDate("2026-07-12");
+                      setReconcileDate(new Date().toISOString().split("T")[0]);
                       setUnreconciledCount(0);
                     }, 1200);
                   }}

@@ -234,7 +234,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
   const getCourseProgress = (startDateStr: string, endDateStr: string) => {
     const start = new Date(startDateStr).getTime();
     const end = new Date(endDateStr).getTime();
-    const now = new Date("2026-07-12").getTime(); // System lock date
+    const now = new Date().getTime(); // System lock date
 
     if (now > end) return 100;
     if (now < start) return 0;
@@ -245,7 +245,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
   };
 
   const isCompleted = (endDateStr: string) => {
-    return new Date(endDateStr) < new Date("2026-07-12");
+    return new Date(endDateStr) < new Date();
   };
 
   const userRoleKey = currentUser.roleKey || getCanonicalRoleKey(currentUser.role);
