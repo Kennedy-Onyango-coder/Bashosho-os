@@ -1,6 +1,6 @@
 import React from "react";
 import Modal from "./Modal";
-import { UserRole, UserProfile, Document, BudgetEngagement, ExpenditureRequest, SafeguardingReport, Asset, AttendanceSheet, Partner, Broadcast, LeaveRequest, SiteContent, LeadershipAppointment, Class, getCanonicalRoleKey, getUserRoleKey } from "../types";
+import { UserRole, UserProfile, Document, BudgetEngagement, ExpenditureRequest, SafeguardingReport, Asset, AttendanceSheet, Partner, Broadcast, LeaveRequest, SiteContent, LeadershipAppointment, Class, Income, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService, generateMemberNumber } from "../lib/storage";
 import MembershipIDCard from "./MembershipIDCard";
 import DocumentEditor from "./DocumentEditor";
@@ -211,6 +211,7 @@ export default function Dashboard({
   const [leaveRequests, setLeaveRequests] = React.useState<LeaveRequest[]>([]);
   const [assets, setAssets] = React.useState<Asset[]>([]);
   const [classes, setClasses] = React.useState<Class[]>([]);
+  const [incomes, setIncomes] = React.useState<Income[]>([]);
   const [showLeaveModal, setShowLeaveModal] = React.useState(false);
   const [leaveStartDate, setLeaveStartDate] = React.useState("");
   const [leaveEndDate, setLeaveEndDate] = React.useState("");
@@ -244,7 +245,8 @@ export default function Dashboard({
 
       setAttendance(StorageService.getAttendance());
       setPartners(StorageService.getPartners());
-      setClasses(StorageService.getClasses());      setBroadcasts(StorageService.getBroadcasts());
+      setClasses(StorageService.getClasses());
+      setIncomes(StorageService.getIncomes());      setBroadcasts(StorageService.getBroadcasts());
       setLeaveRequests(StorageService.getLeaveRequests());
       setAssets(StorageService.getAssets());
 
@@ -363,12 +365,16 @@ export default function Dashboard({
     }
   };
 
-  // Treasurer / Comms Calculations
-  const totalRevenue = budgets.reduce((acc, b) => acc + (b.status === "approved" ? b.revenue : 0), 0);
+  // Treasurer / Comms Calculations — must match the Financial Ledger's own numbers
+  // exactly, since they're describing the same real cash position. Previously this
+  // used approved BUDGET revenue projections (money not yet actually received) plus a
+  // hardcoded, unexplained "+74500 base reserves" — neither of which ever appeared in
+  // the Financial Ledger, so the two screens permanently disagreed with each other.
+  const totalRevenue = incomes.reduce((acc, inc) => acc + (Number(inc?.amount) || 0), 0);
   const totalApprovedExpense = expenditures
     .filter(e => e?.status === "approved")
     .reduce((acc, e) => acc + (e?.amount || 0), 0);
-  const cashReserves = totalRevenue - totalApprovedExpense + 74500; // Base starting reserves
+  const cashReserves = totalRevenue - totalApprovedExpense;
   const pendingTreasurerCount = expenditures.filter(e => e.status === "pending_treasurer").length;
 
   // Invitation Handler
