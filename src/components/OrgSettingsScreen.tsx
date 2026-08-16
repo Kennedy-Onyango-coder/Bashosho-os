@@ -524,7 +524,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
 
           <div className="space-y-1">
             <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
-              {lang === "en" ? "6-Month Renewal Fee (Kshs)" : "Ada ya Urejeshaji ya Miezi 6 (Kshs)"} *
+              {lang === "en" ? "Annual Renewal Fee (Kshs)" : "Ada ya Urejeshaji wa Mwaka (Kshs)"} *
             </label>
             <input
               type="number"
@@ -534,6 +534,50 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
               onChange={(e) => handleChange("renewalFee", parseInt(e.target.value) || 0)}
               className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold max-w-xs"
             />
+          </div>
+
+          <div className="border-t border-neutral-200 pt-4 space-y-4">
+            <h3 className="text-xs font-black text-neutral-900 uppercase tracking-wide">
+              {lang === "en" ? "Performance Revenue Policy" : "Sera ya Mapato ya Maonyesho"}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
+                  {lang === "en" ? "Org Cut on Performance Fees (%)" : "Sehemu ya Shirika (%)"}
+                </label>
+                <input
+                  type="number" min={0} max={100}
+                  value={settings.performanceOrgCutPercent ?? 30}
+                  onChange={(e) => handleChange("performanceOrgCutPercent", parseInt(e.target.value) || 0)}
+                  className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold"
+                />
+                <p className="text-[9px] text-neutral-400">{lang === "en" ? "Taken automatically when a performance invoice is marked paid." : "Inatolewa kiotomatiki ankara inapolipwa."}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
+                  {lang === "en" ? "Default Membership Deduction (%)" : "Makato ya Uanachama (%)"}
+                </label>
+                <input
+                  type="number" min={0} max={100}
+                  value={settings.performanceMembershipDeductionPercent ?? 10}
+                  onChange={(e) => handleChange("performanceMembershipDeductionPercent", parseInt(e.target.value) || 0)}
+                  className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold"
+                />
+                <p className="text-[9px] text-neutral-400">{lang === "en" ? "Default rate suggested on each Cast Payment List." : "Kiwango cha kawaida kinachopendekezwa."}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
+                  {lang === "en" ? "Petty Cash Threshold (Kshs)" : "Kikomo cha Fedha Ndogo (Kshs)"}
+                </label>
+                <input
+                  type="number" min={0}
+                  value={settings.pettyCashThreshold ?? 1000}
+                  onChange={(e) => handleChange("pettyCashThreshold", parseInt(e.target.value) || 0)}
+                  className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold"
+                />
+                <p className="text-[9px] text-neutral-400">{lang === "en" ? "Spends at or below this can use the fast Petty Cash log." : "Matumizi chini ya kiwango hiki yanaweza kutumia Fedha Ndogo."}</p>
+              </div>
+            </div>
           </div>
 
           {/* Repeatable Section Editor Cards */}

@@ -2,9 +2,11 @@ import React from "react";
 import Modal from "./Modal";
 import { BudgetEngagement, ExpenditureRequest, UserRole, UserProfile, Income, Partner, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
-import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X, Users, Landmark } from "lucide-react";
+import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X, Users, Landmark, Percent, Wallet } from "lucide-react";
 import CastPaymentListsBoard from "./CastPaymentListsBoard";
 import BankReconciliationBoard from "./BankReconciliationBoard";
+import PerformanceSettlementsBoard from "./PerformanceSettlementsBoard";
+import PettyCashLogger from "./PettyCashLogger";
 import {
   BarChart,
   Bar,
@@ -62,7 +64,7 @@ export default function FinancialLedger({
   const [rejectionInput, setRejectionInput] = React.useState("");
 
   // Tab State
-  const [activeTab, setActiveTab] = React.useState<"expenditures" | "incomes" | "cast_payments" | "reconciliation">("expenditures");
+  const [activeTab, setActiveTab] = React.useState<"expenditures" | "incomes" | "cast_payments" | "reconciliation" | "settlements" | "petty_cash">("expenditures");
 
   // Year State — records are categorized by the year embedded in their date field.
   // "all" shows the full lifetime ledger (default); picking a year scopes the whole
@@ -840,6 +842,26 @@ export default function FinancialLedger({
           >
             <span className="flex items-center gap-1.5"><Landmark className="w-4 h-4 text-purple-600" /> {lang === "en" ? "Bank Reconciliation" : "Ulinganisho wa Benki"}</span>
           </button>
+          <button
+            onClick={() => setActiveTab("settlements")}
+            className={`pb-2.5 px-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
+              activeTab === "settlements"
+                ? "border-amber-600 text-amber-600"
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <span className="flex items-center gap-1.5"><Percent className="w-4 h-4 text-amber-600" /> {lang === "en" ? "Performance Settlements" : "Ugawaji wa Maonyesho"}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("petty_cash")}
+            className={`pb-2.5 px-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
+              activeTab === "petty_cash"
+                ? "border-orange-600 text-orange-600"
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <span className="flex items-center gap-1.5"><Wallet className="w-4 h-4 text-orange-600" /> {lang === "en" ? "Petty Cash" : "Fedha Ndogo"}</span>
+          </button>
         </div>
 
         {activeTab === "cast_payments" && (
@@ -853,6 +875,17 @@ export default function FinancialLedger({
 
         {activeTab === "reconciliation" && (
           <BankReconciliationBoard lang={lang} />
+        )}
+
+        {activeTab === "settlements" && (
+          <PerformanceSettlementsBoard
+            lang={lang}
+            canConfirm={["treasurer", "chairperson", "vice_chairperson"].includes(currentUser.roleKey || getCanonicalRoleKey(currentUser.role))}
+          />
+        )}
+
+        {activeTab === "petty_cash" && (
+          <PettyCashLogger lang={lang} />
         )}
 
         {(activeTab === "expenditures" || activeTab === "incomes") && (activeTab === "expenditures" ? (

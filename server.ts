@@ -2988,7 +2988,8 @@ const IMMUTABLE_COLLECTIONS = new Set([
   "financial_audit_trails",
   "safeguarding_access_logs",
   "safeguarding_reports",
-  "login_history"
+  "login_history",
+  "performance_settlements"
 ]);
 
 app.delete("/api/:collection/:id", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
@@ -3335,6 +3336,163 @@ app.post("/api/leave_requests", requireAuth, async (req: AuthenticatedRequest, r
 // 14. INVOICES
 app.get("/api/invoices", requireAuth, requirePermission("invoices", "view"), (req, res) => fetchCollection("invoices", req, res));
 app.post("/api/invoices", requireAuth, requirePermission("invoices", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("invoices", "invoices", "invoiceNumber", req, res));
+
+// Dedicated "mark paid" endpoint — the ONLY path that should transition an invoice to
+// "paid", since that's also the trigger for the automatic performance-fee split below.
+// (Draft/sent transitions still go through the generic POST /api/invoices above.)
+app.post("/api/invoices/:id/mark_paid", requireAuth, requirePermission("invoices", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const docRef = db.collection("invoices").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Invoice not found" });
+    const invoice = snap.data() as any;
+    if (invoice.status === "paid") {
+      return res.status(400).json({ error: "This invoice is already marked paid." });
+    }
+    await docRef.set({ status: "paid" }, { merge: true });
+    logActivity(req, "invoices", "mark_paid", req.params.id, invoice.invoiceNumber);
+
+    let settlement = null;
+    if (invoice.category === "performance") {
+      const settingsSnap = await db.collection("org_settings").doc("global").get();
+      const orgCutPercent = Number(settingsSnap.data()?.performanceOrgCutPercent) || 30;
+      const grossAmount = Number(invoice.amount) || 0;
+      const orgCutAmount = Math.round(grossAmount * (orgCutPercent / 100) * 100) / 100;
+      const castPoolAmount = Math.round((grossAmount - orgCutAmount) * 100) / 100;
+      const settlementId = `settle-${Date.now()}`;
+      settlement = {
+        id: settlementId,
+        invoiceId: req.params.id,
+        engagementDescription: invoice.engagementDescription,
+        grossAmount,
+        orgCutPercent,
+        orgCutAmount,
+        castPoolPercent: 100 - orgCutPercent,
+        castPoolAmount,
+        status: "pending_confirmation",
+        createdDate: new Date().toISOString().split("T")[0]
+      };
+      await db.collection("performance_settlements").doc(settlementId).set(settlement);
+      logActivity(req, "finance", "create", settlementId, `Performance settlement pending: ${invoice.engagementDescription}`);
+    }
+
+    return res.json({ success: true, settlement });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to mark invoice paid", details: err.message });
+  }
+});
+
+// 26. PERFORMANCE SETTLEMENTS — the organizational-cut / cast-pool split, auto-
+// calculated when a performance invoice is paid, but never real until a Treasurer,
+// Chairperson, or Vice Chairperson explicitly confirms it below.
+app.get("/api/performance_settlements", requireAuth, requirePermission("finance", "view"), (req, res) => fetchCollection("performance_settlements", req, res));
+
+app.post("/api/performance_settlements/:id/confirm", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (!["treasurer", "chairperson", "vice_chairperson"].includes(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only Treasurer, Chairperson, or Vice Chairperson can confirm a performance settlement." });
+    }
+    const docRef = db.collection("performance_settlements").doc(req.params.id);
+    const snap = await docRef.get();
+    if (!snap.exists) return res.status(404).json({ error: "Settlement not found" });
+    const settlement = snap.data() as any;
+    if (settlement.status === "confirmed") {
+      return res.status(400).json({ error: "This settlement has already been confirmed." });
+    }
+
+    // Allow adjusting the split at confirmation time (e.g. a special-rate engagement)
+    // — but always recompute both amounts from the percent, never trust a client-
+    // supplied amount directly.
+    const orgCutPercent = req.body.orgCutPercent !== undefined ? Math.max(0, Math.min(100, Number(req.body.orgCutPercent))) : settlement.orgCutPercent;
+    const orgCutAmount = Math.round(settlement.grossAmount * (orgCutPercent / 100) * 100) / 100;
+    const castPoolAmount = Math.round((settlement.grossAmount - orgCutAmount) * 100) / 100;
+
+    const incomeId = `income-settle-${req.params.id}`;
+    await db.collection("incomes").doc(incomeId).set({
+      id: incomeId,
+      source: "engagement_fee",
+      amount: orgCutAmount,
+      date: new Date().toISOString().split("T")[0],
+      description: `Organizational management fee (${orgCutPercent}%) — ${settlement.engagementDescription}`,
+      recordedBy: req.user!.name
+    });
+
+    const expenditureId = `exp-settle-${req.params.id}`;
+    await db.collection("expenditures").doc(expenditureId).set({
+      id: expenditureId,
+      description: `Cast/crew payment pool (${100 - orgCutPercent}%) — ${settlement.engagementDescription}`,
+      amount: castPoolAmount,
+      category: "stipend",
+      requestedBy: req.user!.name,
+      requestDate: new Date().toISOString().split("T")[0],
+      // Pre-approved: this money was already earmarked for cast payment the moment the
+      // client paid the invoice — it isn't a new discretionary spend needing separate
+      // approval, just the record a Cast Payment List can be built against.
+      status: "approved",
+      approvedBy: req.user!.name
+    });
+
+    await docRef.set({
+      status: "confirmed",
+      orgCutPercent,
+      orgCutAmount,
+      castPoolPercent: 100 - orgCutPercent,
+      castPoolAmount,
+      confirmedBy: req.user!.name,
+      confirmedDate: new Date().toISOString().split("T")[0],
+      orgIncomeId: incomeId,
+      castExpenditureId: expenditureId
+    }, { merge: true });
+
+    logActivity(req, "finance", "confirm", req.params.id, `Settlement confirmed: ${settlement.engagementDescription}`);
+    return res.json({ success: true, incomeId, expenditureId });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to confirm settlement", details: err.message });
+  }
+});
+
+// 27. PETTY CASH — fast, evidence-required logging for small day-to-day spends. Always
+// auto-approved (below the org's configured threshold) so nothing sits in a pending
+// queue, but a receipt photo is mandatory — the actual fix for "we spent it and forgot
+// to record it."
+app.post("/api/petty_cash", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { amount, description, category, receiptUrl } = req.body;
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: "A positive amount is required." });
+    }
+    if (!description?.trim()) {
+      return res.status(400).json({ error: "A short description is required." });
+    }
+    if (!receiptUrl) {
+      return res.status(400).json({ error: "A receipt photo is required — that's what makes this a clean record." });
+    }
+    const settingsSnap = await db.collection("org_settings").doc("global").get();
+    const threshold = Number(settingsSnap.data()?.pettyCashThreshold) || 1000;
+    if (Number(amount) > threshold) {
+      return res.status(400).json({ error: `Ksh ${Number(amount).toLocaleString()} is above the petty cash threshold (Ksh ${threshold.toLocaleString()}). Use a regular Expenditure Request instead — it needs approval at this size.` });
+    }
+
+    const id = `petty-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const record = {
+      id,
+      description: description.trim(),
+      amount: Number(amount),
+      category: category || "other",
+      requestedBy: req.user!.name,
+      requestDate: new Date().toISOString().split("T")[0],
+      status: "approved",
+      approvedBy: req.user!.name, // self-logged and self-evident at this size — the receipt is the real control
+      receiptUrl,
+      isPettyCash: true
+    };
+    logActivity(req, "finance", "petty_cash", id, `Ksh ${amount} — ${description.trim()}`);
+    return saveDocument("expenditures", id, record, req, res);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to log petty cash entry", details: err.message });
+  }
+});
 
 // 15. ORG SETTINGS
 app.get("/api/org_settings", requireAuth, async (req, res: express.Response) => {
@@ -4753,7 +4911,7 @@ app.get("/api/admin/export", requireAuth, requireRole(["chairperson"]), async (r
       "broadcasts", "leave_requests", "invoices", "org_settings", "contract_renewals",
       "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
       "volunteer_certificates", "cast_payment_lists", "bank_reconciliations", "login_history",
-      "events", "board_meetings", "onboarding_checklists"
+      "events", "board_meetings", "onboarding_checklists", "performance_settlements"
     ];
 
     const backupData: any = {
@@ -4798,7 +4956,7 @@ app.post("/api/admin/purge-data", requireAuth, requireRole(["chairperson"]), asy
       "broadcasts", "leave_requests", "invoices", "contract_renewals",
       "safeguarding_access_logs", "financial_audit_trails", "tasks", "program_sessions",
       "volunteer_certificates", "cast_payment_lists", "bank_reconciliations",
-      "events", "board_meetings", "onboarding_checklists"
+      "events", "board_meetings", "onboarding_checklists", "performance_settlements"
     ];
 
     console.log(`[Purge] Initiating database purge by ${req.user!.name}...`);

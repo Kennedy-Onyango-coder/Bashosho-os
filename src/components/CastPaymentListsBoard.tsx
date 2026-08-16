@@ -32,7 +32,9 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
   const [eventName, setEventName] = React.useState("");
   const [date, setDate] = React.useState(new Date().toISOString().split("T")[0]);
   const [expenditureRequestId, setExpenditureRequestId] = React.useState("");
-  const [deductionRate, setDeductionRate] = React.useState("0");
+  // Defaults to the org-wide 10% membership fund policy on every performance-fee
+  // payout — still adjustable per list for exceptions.
+  const [deductionRate, setDeductionRate] = React.useState("10");
   const [profiles, setProfiles] = React.useState<{ id: string; name: string }[]>([]);
   const [rows, setRows] = React.useState<{ name: string; role: string; phone: string; amount: string; userId: string }[]>([
     { name: "", role: "", phone: "", amount: "", userId: "" }
@@ -94,7 +96,7 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save payment list");
-      setTitle(""); setEventName(""); setExpenditureRequestId(""); setDate(new Date().toISOString().split("T")[0]); setDeductionRate("0");
+      setTitle(""); setEventName(""); setExpenditureRequestId(""); setDate(new Date().toISOString().split("T")[0]); setDeductionRate("10");
       setRows([{ name: "", role: "", phone: "", amount: "", userId: "" }]);
       setShowForm(false);
       fetchAll();

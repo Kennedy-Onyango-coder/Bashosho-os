@@ -26,9 +26,10 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
   // Invoicing Form states
   const [partnerId, setPartnerId] = React.useState("");
   const [engagementDescription, setEngagementDescription] = React.useState("");
+  const [category, setCategory] = React.useState<Invoice["category"]>("other");
   const [amount, setAmount] = React.useState("");
   const [issueDate, setIssueDate] = React.useState(new Date().toISOString().split("T")[0]);
-  const [dueDate, setDueDate] = React.useState("2026-07-26");
+  const [dueDate, setDueDate] = React.useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
   const [status, setStatus] = React.useState<Invoice["status"]>("draft");
   const [isAiDrafting, setIsAiDrafting] = React.useState(false);
 
@@ -128,6 +129,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
       issueDate,
       dueDate,
       status,
+      category,
     };
 
     const updated = [newInvoice, ...invoices];
@@ -140,11 +142,31 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
     setEngagementDescription("");
     setAmount("");
     setIssueDate(new Date().toISOString().split("T")[0]);
-    setDueDate("2026-07-26");
+    setDueDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
     setStatus("draft");
+    setCategory("other");
   };
 
-  const handleUpdateStatus = (invoiceId: string, nextStatus: Invoice["status"]) => {
+  const handleUpdateStatus = async (invoiceId: string, nextStatus: Invoice["status"]) => {
+    if (nextStatus === "paid") {
+      // Dedicated endpoint — this is also what triggers the automatic 30/70
+      // performance-fee split for "performance"-category invoices, so it can't go
+      // through the generic save path other status changes use.
+      try {
+        const res = await fetch(`/api/invoices/${invoiceId}/mark_paid`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to mark invoice paid");
+        setInvoices(invoices.map(inv => inv.id === invoiceId ? { ...inv, status: "paid" } : inv));
+        if (data.settlement) {
+          alert(lang === "en"
+            ? `Marked paid. A Performance Settlement was created — go to Financial Ledger → Performance Settlements to confirm the org cut / cast pool split.`
+            : `Imelipwa. Ugawaji wa mapato umeundwa — nenda Daftari la Fedha → Ugawaji wa Maonyesho kuthibitisha.`);
+        }
+      } catch (err: any) {
+        alert(err.message);
+      }
+      return;
+    }
     let updatedInvoice: Invoice | null = null;
     const updated = invoices.map(inv => {
       if (inv.id === invoiceId) {
@@ -797,6 +819,25 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
               placeholder="e.g. Delivery of 3-Phase Interactive Forum Theatre roadshow addressing Sexual Harassment & Safeguarding metrics across Kiambiu ward informal sectors..."
               className="w-full bg-white border border-neutral-200 rounded-lg p-3 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-sans leading-relaxed"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1 font-mono">
+              {lang === "en" ? "Invoice Type" : "Aina ya Ankara"}
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as Invoice["category"])}
+              className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500"
+            >
+              <option value="other">{lang === "en" ? "Other (grant, service, misc.)" : "Nyingine"}</option>
+              <option value="performance">{lang === "en" ? "Performance / Theatre Engagement" : "Onyesho la Tamthilia"}</option>
+            </select>
+            <p className="text-[10px] text-neutral-400 mt-1">
+              {lang === "en"
+                ? "Performance invoices automatically split 30% to the organization and the rest to a cast payment pool once marked paid."
+                : "Ankara za maonyesho zinagawanya 30% kwa shirika kiotomatiki, iliyobaki kwa wasanii, mara inapolipwa."}
+            </p>
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t">

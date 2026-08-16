@@ -173,6 +173,11 @@ export interface ExpenditureRequest {
   approvedBy?: string;
   rejectionReason?: string;
   receiptUrl?: string;
+  /** Marks an expenditure logged through the fast Petty Cash flow — auto-approved
+   *  because it's below the org's petty-cash threshold, and always carries a receipt
+   *  photo as evidence, unlike a normal expenditure request which can be approved
+   *  without one. */
+  isPettyCash?: boolean;
   /** Multi-approver chain tracking. If empty/undefined, legacy 2-tier status logic applies. */
   approvals?: ExpenditureApproval[];
   /** id of the ExpenditureApprovalTier this request was evaluated against */
@@ -597,6 +602,34 @@ export interface Invoice {
   dueDate: string;
   status: "draft" | "sent" | "paid" | "overdue";
   verificationUrl?: string;
+  /** "performance" triggers the automatic 30/70 organizational-cut split when this
+   *  invoice is marked paid (see PerformanceSettlement). Left unset/"other" for
+   *  invoices that shouldn't auto-split — grants, one-off services, etc. */
+  category?: "performance" | "other";
+}
+
+/** Created automatically the moment a "performance"-category invoice is marked paid.
+ *  Splits the gross fee into the organization's management cut and the pool available
+ *  to pay cast/crew — but nothing moves until a Treasurer/Chairperson/Vice Chairperson
+ *  actually confirms it, so a wrong invoice amount never silently becomes real income. */
+export interface PerformanceSettlement {
+  id: string;
+  invoiceId: string;
+  engagementDescription: string;
+  grossAmount: number;
+  orgCutPercent: number;
+  orgCutAmount: number;
+  castPoolPercent: number;
+  castPoolAmount: number;
+  status: "pending_confirmation" | "confirmed";
+  confirmedBy?: string;
+  confirmedDate?: string;
+  /** Links to the real Income record for the org's cut, created on confirmation. */
+  orgIncomeId?: string;
+  /** Links to the real (pre-approved) ExpenditureRequest for the cast pool, created on
+   *  confirmation — this is what a Cast Payment List then gets built against. */
+  castExpenditureId?: string;
+  createdDate: string;
 }
 
 export interface HandbookSection {
@@ -619,6 +652,17 @@ export interface OrgSettings {
    *  (not just 3 months after their original join date), so nobody already registered
    *  before this feature existed gets locked out on day one of rollout. */
   contractSystemLaunchDate?: string;
+  /** Percentage of a performance/engagement fee retained by the organization when a
+   *  "performance"-category invoice is marked paid. Default 30. */
+  performanceOrgCutPercent?: number;
+  /** Recommended default deduction rate for Cast Payment Lists — the per-member
+   *  membership-fund contribution taken from their share of a performance fee.
+   *  Default 10. Still adjustable per payment list. */
+  performanceMembershipDeductionPercent?: number;
+  /** Expenditures at or below this amount can be logged through the fast Petty Cash
+   *  flow (auto-approved, receipt required) instead of the full Expenditure Request
+   *  approval chain. Default 1000. */
+  pettyCashThreshold?: number;
   codeOfConduct?: string;
   objectives?: string;
   rules?: string;
