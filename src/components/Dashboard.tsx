@@ -817,7 +817,7 @@ export default function Dashboard({
         >
           <FileText size={14} /> {lang === "en" ? "Contract & Renewal" : "Mkataba na Usajili upya"}
           {StorageService.getContractRenewals().filter(r => r.status === "pending_review").length > 0 &&
-            ["chairperson", "programs_director", "vice_chairperson"].includes(getUserRoleKey(currentUser)) && (
+            ["chairperson", "vice_chairperson", "treasurer"].includes(getUserRoleKey(currentUser)) && (
               <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse inline-block"></span>
             )}
         </button>
