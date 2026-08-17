@@ -315,6 +315,11 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
 
   const userRoleKey = currentUser.roleKey || getCanonicalRoleKey(currentUser.role);
   const isAdmin = ["chairperson", "vice_chairperson"].includes(userRoleKey);
+  // Payment verification (confirming a manual claim, recording a manual payment) is a
+  // Treasurer job too — matches what the server already allows. Only the final
+  // contract decision (approve/reject/waive fee, which activates membership) stays
+  // Chairperson/Vice Chairperson only, per policy.
+  const canVerifyPayments = ["treasurer", "chairperson", "vice_chairperson"].includes(userRoleKey);
   // Every authenticated person — including the Chairperson and Vice Chairperson
   // themselves — has their own contract to sign and renew. Admin status only adds
   // the review queue below; it never replaces someone's own personal section.
@@ -700,8 +705,9 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
             </div>
           )}
 
-          {/* SECTION B: CHAIRPERSON / VICE CHAIRPERSON REVIEW */}
-          {isAdmin && (
+          {/* SECTION B: PAYMENT VERIFICATION (Treasurer/Chairperson/Vice Chairperson) +
+              CONTRACT DECISIONS (Chairperson/Vice Chairperson only, gated further below) */}
+          {canVerifyPayments && (
             <div className="space-y-6">
               <div className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-2xs space-y-4">
                 <div className="flex justify-between items-center border-b pb-3">
@@ -819,7 +825,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                               <button onClick={() => exemptionReason.trim() && handleApprove(item.id, exemptionReason.trim())} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded font-bold cursor-pointer">{lang === "en" ? "Approve with Exemption" : "Idhinisha na Msamaha"}</button>
                             </div>
                           </div>
-                        ) : (
+                        ) : isAdmin ? (
                           <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
                             <button onClick={() => handleGenerateAiContractEvaluation(item)} disabled={isDraftingEvaluation && activeDraftItemId === item.id} className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-purple-200 cursor-pointer flex items-center gap-1">
                               <Sparkles size={11} /> {isDraftingEvaluation && activeDraftItemId === item.id ? "Drafting..." : "AI Draft Evaluation"}
@@ -840,6 +846,12 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                               {lang === "en" ? "Approve & Update ID" : "Idhinisha & Sasisha Kadi"}
                             </button>
                           </div>
+                        ) : (
+                          <p className="text-[10px] text-neutral-400 italic border-t pt-3">
+                            {lang === "en"
+                              ? "You can verify payments above — final contract approval is done by the Chairperson or Vice Chairperson."
+                              : "Unaweza kuthibitisha malipo hapo juu — idhini ya mwisho ya mkataba inafanywa na Mwenyekiti au Makamu."}
+                          </p>
                         )}
                       </div>
                       );
