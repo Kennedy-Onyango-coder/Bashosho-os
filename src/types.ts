@@ -178,6 +178,12 @@ export interface ExpenditureRequest {
    *  photo as evidence, unlike a normal expenditure request which can be approved
    *  without one. */
   isPettyCash?: boolean;
+  /** Marks a record entered as part of digitizing an old paper cashbook (e.g. 2022
+   *  onward) — already-approved by construction, since the money was already spent
+   *  long before this system existed. Kept distinct from a live-approved expenditure
+   *  so the audit trail is honest about which records went through real-time review
+   *  versus historical backfill. */
+  isHistoricalEntry?: boolean;
   /** Multi-approver chain tracking. If empty/undefined, legacy 2-tier status logic applies. */
   approvals?: ExpenditureApproval[];
   /** id of the ExpenditureApprovalTier this request was evaluated against */
@@ -377,15 +383,30 @@ export interface BankReconciliation {
   difference: number;
   status: "balanced" | "discrepancy";
   notes?: string;
-  /** Individual statement lines the reconciler is manually checking off against the
-   *  system's own income/expenditure records — a lightweight matching aid, not a full
-   *  automated bank-feed import. */
+  /** Individual statement lines, auto-matched server-side against real income/
+   *  expenditure records by date proximity + amount — not just a manual checklist.
+   *  `matched` stays for backward compatibility with older reconciliations. */
   statementLines?: {
     id: string;
     date: string;
     description: string;
     amount: number;
     matched: boolean;
+    /** Set by the auto-matcher when a real income/expenditure record was found. */
+    matchedRecordId?: string;
+    matchedRecordType?: "income" | "expenditure";
+    matchedRecordDescription?: string;
+  }[];
+  /** Real income/expenditure records dated within the statement period that no
+   *  statement line matched — money the books say happened but the bank statement
+   *  doesn't confirm. The other half of real reconciliation: not just "does the bank
+   *  line have a record" but "does the record have a bank line". */
+  unmatchedSystemRecords?: {
+    id: string;
+    type: "income" | "expenditure";
+    date: string;
+    description: string;
+    amount: number;
   }[];
   reconciledBy: string;
   reconciledDate: string;
@@ -507,6 +528,9 @@ export interface Income {
   linkedPartnerId?: string;
   linkedBudgetId?: string;
   recordedBy: string;
+  /** Marks an income entered while digitizing an old paper cashbook, rather than
+   *  recorded live as the money came in. */
+  isHistoricalEntry?: boolean;
 }
 
 export interface BroadcastReply {

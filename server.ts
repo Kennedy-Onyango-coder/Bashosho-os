@@ -3494,6 +3494,86 @@ app.post("/api/petty_cash", requireAuth, async (req: AuthenticatedRequest, res: 
   }
 });
 
+// 28. BULK HISTORICAL ENTRY — digitizing an old paper cashbook. Restricted to
+// Treasurer/Chairperson. Historical expenditures are created already-approved (the
+// money was spent long before this system existed — routing each one through the
+// live multi-tier approval chain would be nonsensical), but every record is flagged
+// isHistoricalEntry so the audit trail stays honest about which entries went through
+// real-time review versus backfill.
+app.post("/api/finance/bulk_historical_entry", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+    if (!["treasurer", "chairperson"].includes(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only Treasurer or Chairperson can bulk-enter historical financial records." });
+    }
+    const { entries } = req.body;
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ error: "entries must be a non-empty array." });
+    }
+    if (entries.length > 200) {
+      return res.status(400).json({ error: "Enter at most 200 rows at a time — split larger batches into multiple submissions." });
+    }
+
+    const batch = db.batch();
+    let created = 0;
+    const errors: string[] = [];
+
+    entries.forEach((e: any, idx: number) => {
+      const amount = Number(e.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        errors.push(`Row ${idx + 1}: invalid amount`);
+        return;
+      }
+      if (!e.date) {
+        errors.push(`Row ${idx + 1}: date is required`);
+        return;
+      }
+      if (!e.description?.trim()) {
+        errors.push(`Row ${idx + 1}: description is required`);
+        return;
+      }
+      if (e.type === "income") {
+        const id = `income-hist-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`;
+        batch.set(db.collection("incomes").doc(id), {
+          id,
+          source: e.source || "other",
+          amount,
+          date: e.date,
+          description: e.description.trim(),
+          recordedBy: req.user!.name,
+          isHistoricalEntry: true
+        });
+        created++;
+      } else if (e.type === "expenditure") {
+        const id = `exp-hist-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`;
+        batch.set(db.collection("expenditures").doc(id), {
+          id,
+          description: e.description.trim(),
+          amount,
+          category: e.category || "other",
+          requestedBy: req.user!.name,
+          requestDate: e.date,
+          status: "approved",
+          approvedBy: req.user!.name,
+          isHistoricalEntry: true
+        });
+        created++;
+      } else {
+        errors.push(`Row ${idx + 1}: type must be "income" or "expenditure"`);
+      }
+    });
+
+    if (created > 0) {
+      await batch.commit();
+      logActivity(req, "finance", "bulk_historical_entry", undefined, `${created} historical records entered`);
+    }
+
+    return res.json({ success: created > 0, created, errors });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to save historical entries", details: err.message });
+  }
+});
+
 // 15. ORG SETTINGS
 app.get("/api/org_settings", requireAuth, async (req, res: express.Response) => {
   try {
@@ -4781,16 +4861,89 @@ app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", 
       db.collection("incomes").get(),
       db.collection("expenditures").get()
     ]);
-    const totalIncome = incomesSnap.docs
-      .map(d => d.data() as any)
-      .filter(i => !i.date || i.date <= statementPeriodEnd)
-      .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
-    const totalApprovedExpense = expSnap.docs
-      .map(d => d.data() as any)
-      .filter(e => e.status === "approved" && (!e.requestDate || e.requestDate <= statementPeriodEnd))
-      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const allIncomes = incomesSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+    const allExpenditures = expSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })).filter((e: any) => e.status === "approved");
+
+    const totalIncome = allIncomes
+      .filter((i: any) => !i.date || i.date <= statementPeriodEnd)
+      .reduce((sum: number, i: any) => sum + (Number(i.amount) || 0), 0);
+    const totalApprovedExpense = allExpenditures
+      .filter((e: any) => !e.requestDate || e.requestDate <= statementPeriodEnd)
+      .reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
     const systemBalance = totalIncome - totalApprovedExpense;
     const difference = Number(bankStatementBalance) - systemBalance;
+
+    // --- Auto-matching engine ---
+    // Matches each statement line to a real income/expenditure record by amount
+    // (within a small tolerance) and closest date within a 5-day window, so entries
+    // logged a day or two apart from when the bank actually cleared them still match.
+    // Each system record can only be consumed by one statement line, preventing one
+    // real payment from being counted as matching several bank lines.
+    const usedIncomeIds = new Set<string>();
+    const usedExpenseIds = new Set<string>();
+    const DATE_WINDOW_DAYS = 5;
+    const AMOUNT_TOLERANCE = 0.5;
+
+    const findBestMatch = (candidates: any[], used: Set<string>, absAmount: number, dateStr: string, dateField: string) => {
+      let best: any = null;
+      let bestDiffDays = Infinity;
+      for (const rec of candidates) {
+        if (used.has(rec.id)) continue;
+        const recAmt = Number(rec.amount) || 0;
+        if (Math.abs(recAmt - absAmount) > AMOUNT_TOLERANCE) continue;
+        const recDateStr = rec[dateField];
+        if (!recDateStr) continue;
+        if (!dateStr) { if (!best) { best = rec; bestDiffDays = 0; } continue; }
+        const diffDays = Math.abs((new Date(recDateStr).getTime() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= DATE_WINDOW_DAYS && diffDays < bestDiffDays) { best = rec; bestDiffDays = diffDays; }
+      }
+      return best;
+    };
+
+    const matchedLines = (Array.isArray(statementLines) ? statementLines : []).map((l: any, idx: number) => {
+      const rawAmount = Number(l.amount) || 0;
+      const absAmount = Math.abs(rawAmount);
+      const dateStr = l.date || "";
+      // Positive lines are checked against income first (deposits), negative against
+      // expenditure first (withdrawals) — but fall back to the other side too, since
+      // the PDF parser can't always reliably tell a credit from a debit column.
+      const primaryIsIncome = rawAmount >= 0;
+      let matchType: "income" | "expenditure" | null = null;
+      let match = primaryIsIncome
+        ? findBestMatch(allIncomes, usedIncomeIds, absAmount, dateStr, "date")
+        : findBestMatch(allExpenditures, usedExpenseIds, absAmount, dateStr, "requestDate");
+      if (match) matchType = primaryIsIncome ? "income" : "expenditure";
+      if (!match) {
+        match = primaryIsIncome
+          ? findBestMatch(allExpenditures, usedExpenseIds, absAmount, dateStr, "requestDate")
+          : findBestMatch(allIncomes, usedIncomeIds, absAmount, dateStr, "date");
+        if (match) matchType = primaryIsIncome ? "expenditure" : "income";
+      }
+      if (match && matchType) {
+        (matchType === "income" ? usedIncomeIds : usedExpenseIds).add(match.id);
+      }
+      return {
+        id: l.id || `line-${idx}`,
+        date: dateStr,
+        description: l.description || "",
+        amount: rawAmount,
+        matched: !!match,
+        matchedRecordId: match?.id,
+        matchedRecordType: matchType || undefined,
+        matchedRecordDescription: match ? (match.description || match.source || "") : undefined
+      };
+    });
+
+    // The reverse direction: real records in-period that no statement line claimed.
+    const periodStart = statementPeriodStart || "0000-01-01";
+    const unmatchedSystemRecords = [
+      ...allIncomes
+        .filter((i: any) => !usedIncomeIds.has(i.id) && i.date && i.date >= periodStart && i.date <= statementPeriodEnd)
+        .map((i: any) => ({ id: i.id, type: "income" as const, date: i.date, description: i.description || i.source || "", amount: Number(i.amount) || 0 })),
+      ...allExpenditures
+        .filter((e: any) => !usedExpenseIds.has(e.id) && e.requestDate && e.requestDate >= periodStart && e.requestDate <= statementPeriodEnd)
+        .map((e: any) => ({ id: e.id, type: "expenditure" as const, date: e.requestDate, description: e.description || "", amount: Number(e.amount) || 0 }))
+    ].sort((a, b) => a.date.localeCompare(b.date));
 
     const id = `recon-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const record = {
@@ -4802,18 +4955,14 @@ app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", 
       difference,
       status: Math.abs(difference) < 0.01 ? "balanced" : "discrepancy",
       notes: notes || "",
-      statementLines: Array.isArray(statementLines) ? statementLines.map((l: any, idx: number) => ({
-        id: l.id || `line-${idx}`,
-        date: l.date || "",
-        description: l.description || "",
-        amount: Number(l.amount) || 0,
-        matched: !!l.matched
-      })) : [],
+      statementLines: matchedLines,
+      unmatchedSystemRecords,
       reconciledBy: req.user!.name,
       reconciledDate: new Date().toISOString().split("T")[0]
     };
     logActivity(req, "finance", "create", id, `Bank reconciliation: ${statementPeriodEnd}`);
-    return saveDocument("bank_reconciliations", id, record, req, res);
+    await db.collection("bank_reconciliations").doc(id).set({ ...record, updatedAt: new Date().toISOString() });
+    return res.json({ success: true, id, ...record });
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to save bank reconciliation", details: err.message });
   }

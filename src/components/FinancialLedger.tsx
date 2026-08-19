@@ -2,11 +2,12 @@ import React from "react";
 import Modal from "./Modal";
 import { BudgetEngagement, ExpenditureRequest, UserRole, UserProfile, Income, Partner, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
-import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X, Users, Landmark, Percent, Wallet } from "lucide-react";
+import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X, Users, Landmark, Percent, Wallet, BookOpen } from "lucide-react";
 import CastPaymentListsBoard from "./CastPaymentListsBoard";
 import BankReconciliationBoard from "./BankReconciliationBoard";
 import PerformanceSettlementsBoard from "./PerformanceSettlementsBoard";
 import PettyCashLogger from "./PettyCashLogger";
+import BulkHistoricalEntryBoard from "./BulkHistoricalEntryBoard";
 import {
   BarChart,
   Bar,
@@ -64,7 +65,7 @@ export default function FinancialLedger({
   const [rejectionInput, setRejectionInput] = React.useState("");
 
   // Tab State
-  const [activeTab, setActiveTab] = React.useState<"expenditures" | "incomes" | "cast_payments" | "reconciliation" | "settlements" | "petty_cash">("expenditures");
+  const [activeTab, setActiveTab] = React.useState<"expenditures" | "incomes" | "cast_payments" | "reconciliation" | "settlements" | "petty_cash" | "historical_entry">("expenditures");
 
   // Year State — records are categorized by the year embedded in their date field.
   // "all" shows the full lifetime ledger (default); picking a year scopes the whole
@@ -862,7 +863,23 @@ export default function FinancialLedger({
           >
             <span className="flex items-center gap-1.5"><Wallet className="w-4 h-4 text-orange-600" /> {lang === "en" ? "Petty Cash" : "Fedha Ndogo"}</span>
           </button>
+          {["treasurer", "chairperson"].includes(currentUser.roleKey || getCanonicalRoleKey(currentUser.role)) && (
+            <button
+              onClick={() => setActiveTab("historical_entry")}
+              className={`pb-2.5 px-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
+                activeTab === "historical_entry"
+                  ? "border-neutral-800 text-neutral-800"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4 text-neutral-700" /> {lang === "en" ? "Historical Entry" : "Rekodi za Zamani"}</span>
+            </button>
+          )}
         </div>
+
+        {activeTab === "historical_entry" && (
+          <BulkHistoricalEntryBoard lang={lang} />
+        )}
 
         {activeTab === "cast_payments" && (
           <CastPaymentListsBoard

@@ -13,6 +13,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
   const [submitting, setSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [resultMsg, setResultMsg] = React.useState<{ status: string; difference: number } | null>(null);
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
   const [periodStart, setPeriodStart] = React.useState("");
   const [periodEnd, setPeriodEnd] = React.useState(new Date().toISOString().split("T")[0]);
@@ -137,6 +138,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save reconciliation");
       setResultMsg({ status: data.status, difference: data.difference });
+      setExpandedId(data.id);
       setPeriodStart(""); setBankBalance(""); setNotes(""); setLines([]);
       clearUpload();
       fetchRecords();
@@ -293,10 +295,17 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
         </div>
       ) : (
         <div className="space-y-3">
-          {sorted.map(r => (
+          {sorted.map(r => {
+            const lines = r.statementLines || [];
+            const matchedCount = lines.filter(l => l.matched).length;
+            const unmatchedLines = lines.filter(l => !l.matched);
+            const unmatchedRecords = r.unmatchedSystemRecords || [];
+            const isExpanded = expandedId === r.id;
+            const hasDetail = lines.length > 0 || unmatchedRecords.length > 0;
+            return (
             <div key={r.id} className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
               <div className="flex justify-between items-start gap-3 flex-wrap">
-                <div>
+                <div className="flex-1 min-w-[220px]">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h4 className="text-sm font-bold text-neutral-900">
                       {r.statementPeriodStart || "—"} → {r.statementPeriodEnd}
@@ -311,11 +320,69 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
                     <span className={r.difference !== 0 ? "font-bold text-red-600" : ""}>{lang === "en" ? "Diff" : "Tofauti"}: Ksh {r.difference.toLocaleString()}</span>
                     <span>{lang === "en" ? "by" : "na"} {r.reconciledBy}</span>
                   </div>
+                  {lines.length > 0 && (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{matchedCount}/{lines.length} {lang === "en" ? "lines auto-matched" : "zililingana"}</span>
+                      {unmatchedLines.length > 0 && (
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">{unmatchedLines.length} {lang === "en" ? "unmatched" : "hazikulingana"}</span>
+                      )}
+                      {unmatchedRecords.length > 0 && (
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-red-50 text-red-700">{unmatchedRecords.length} {lang === "en" ? "records not in statement" : "hazipo kwenye taarifa"}</span>
+                      )}
+                    </div>
+                  )}
                   {r.notes && <p className="text-[10px] text-neutral-500 italic mt-1">{r.notes}</p>}
                 </div>
+                {hasDetail && (
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                    className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer shrink-0"
+                  >
+                    {isExpanded ? (lang === "en" ? "Hide detail" : "Ficha") : (lang === "en" ? "View matching detail" : "Ona Maelezo")}
+                  </button>
+                )}
               </div>
+
+              {isExpanded && (
+                <div className="mt-3 pt-3 border-t border-neutral-100 space-y-3">
+                  {lines.length > 0 && (
+                    <div>
+                      <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">{lang === "en" ? "Statement Lines" : "Miamala ya Taarifa"}</p>
+                      <div className="space-y-1">
+                        {lines.map(l => (
+                          <div key={l.id} className={`flex justify-between items-center text-[10px] rounded-lg px-2.5 py-1.5 ${l.matched ? "bg-emerald-50" : "bg-amber-50"}`}>
+                            <span className={l.matched ? "text-emerald-700" : "text-amber-700"}>
+                              {l.date} · {l.description || (lang === "en" ? "(no description)" : "(hakuna maelezo)")}
+                              {l.matched && l.matchedRecordDescription && (
+                                <span className="font-bold"> → {l.matchedRecordType === "income" ? (lang === "en" ? "Income" : "Mapato") : (lang === "en" ? "Expense" : "Matumizi")}: {l.matchedRecordDescription}</span>
+                              )}
+                            </span>
+                            <span className="font-bold font-mono shrink-0 pl-2">Ksh {l.amount.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {unmatchedRecords.length > 0 && (
+                    <div>
+                      <p className="text-[9px] font-bold text-red-500 uppercase tracking-wider mb-1.5">
+                        {lang === "en" ? "System records with no matching statement line" : "Kumbukumbu za mfumo bila mlinganisho"}
+                      </p>
+                      <div className="space-y-1">
+                        {unmatchedRecords.map(u => (
+                          <div key={u.id} className="flex justify-between items-center text-[10px] bg-red-50 rounded-lg px-2.5 py-1.5">
+                            <span className="text-red-700">{u.date} · {u.type === "income" ? (lang === "en" ? "Income" : "Mapato") : (lang === "en" ? "Expense" : "Matumizi")}: {u.description}</span>
+                            <span className="font-bold font-mono shrink-0 pl-2">Ksh {u.amount.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
