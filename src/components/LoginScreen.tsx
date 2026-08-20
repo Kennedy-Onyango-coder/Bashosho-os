@@ -292,7 +292,7 @@ export default function LoginScreen({ onLoginSuccess, lang, onChangeLang, onBack
                     required
                     value={emailOrPhone}
                     onChange={(e) => setEmailOrPhone(e.target.value)}
-                    placeholder="konyango98@gmail.com"
+                    placeholder="name@example.com"
                     className="appearance-none block w-full px-3 py-2.5 border border-neutral-300 rounded-xl placeholder-neutral-400 focus:outline-none focus:ring-[#E31E24] focus:border-[#E31E24] sm:text-xs"
                   />
                 </div>
@@ -401,7 +401,7 @@ export default function LoginScreen({ onLoginSuccess, lang, onChangeLang, onBack
                     required
                     value={recoveryEmailOrPhone}
                     onChange={(e) => setRecoveryEmailOrPhone(e.target.value)}
-                    placeholder="konyango98@gmail.com"
+                    placeholder="name@example.com"
                     className="appearance-none block w-full px-3 py-2.5 border border-neutral-300 rounded-xl placeholder-neutral-400 focus:outline-none focus:ring-[#E31E24] focus:border-[#E31E24] sm:text-xs"
                   />
                 </div>
@@ -417,7 +417,7 @@ export default function LoginScreen({ onLoginSuccess, lang, onChangeLang, onBack
                     required
                     value={recoveryEmergencyPhone}
                     onChange={(e) => setRecoveryEmergencyPhone(e.target.value)}
-                    placeholder="+254 722 999111"
+                    placeholder="+254 7XX XXXXXX"
                     className="appearance-none block w-full px-3 py-2.5 border border-neutral-300 rounded-xl placeholder-neutral-400 focus:outline-none focus:ring-[#E31E24] focus:border-[#E31E24] sm:text-xs"
                   />
                 </div>

@@ -538,16 +538,19 @@ export function generateVerificationToken(type: string, id: string): string {
 const SEED_PROFILES = [
   {
     id: "m-1",
-    name: "Kennedy Onyango",
-    email: "konyango98@gmail.com",
-    phone: "+254 798 132 410",
+    name: "Demo Chairperson",
+    email: "demo.chairperson@bashosho.example",
+    phone: "+254 700 000000",
     role: "Chairperson (Admin)",
     isActive: true,
     joinDate: "2020-01-15",
-    memberNumber: "BT-CBO-101",
+    memberNumber: "BT-CBO-DEMO-101",
     status: "Active",
     skills: ["Directing", "Screenwriting", "Community Advocacy", "Leadership"],
-    emergencyContact: { name: "Priscilla Onyango", phone: "+254 722 999111", relationship: "Spouse" },
+    emergencyContact: { name: "Demo Emergency Contact", phone: "+254 700 000001", relationship: "Spouse" },
+    // NOTE: this is DEMO-mode seed data only (APP_SEED_MODE=demo), never used
+    // for the real production Chairperson account — see MINIMAL_PRODUCTION_SEED
+    // below, which uses a randomized one-time PIN instead of a fixed password.
     passwordHash: hashPassword("1234"),
     mustChangePassword: true
   }
@@ -762,67 +765,43 @@ export async function seedDatabaseIfEmpty() {
     
     const seedStatusRef = db.collection("system_meta").doc("seed_status");
     const seedStatusDoc = await seedStatusRef.get();
-    
-    // Real database clean reset trigger
-    const cleanResetRef = db.collection("system_meta").doc("clean_reset_done_v2");
-    const cleanResetSnap = await cleanResetRef.get();
-    
-    if (!cleanResetSnap.exists) {
-      console.log("[Seeding] Initiating one-time clean reset. Purging all demo data & profiles...");
-      const COLLECTIONS_TO_PURGE = [
-        "profiles",
-        "partners",
-        "assets",
-        "documents",
-        "budgets",
-        "expenditures",
-        "incomes",
-        "attendance_sheets",
-        "grants",
-        "classes",
-        "safeguarding_reports",
-        "broadcasts",
-        "leave_requests",
-        "invoices",
-        "contract_renewals"
-      ];
-      
-      for (const col of COLLECTIONS_TO_PURGE) {
-        try {
-          const snap = await db.collection(col).get();
-          if (!snap.empty) {
-            const purgeBatch = db.batch();
-            snap.docs.forEach(doc => {
-              purgeBatch.delete(doc.ref);
-            });
-            await purgeBatch.commit();
-            console.log(`[Purge] Cleared ${snap.size} documents from collection '${col}'.`);
-          }
-        } catch (err: any) {
-          console.warn(`[Purge] Error clearing collection '${col}':`, err.message);
-        }
-      }
-      
-      // Seed ONLY the clean administrator profile and global org settings
-      const seedBatch = db.batch();
-      
-      DEMO_SEED.profiles.forEach(p => {
-        seedBatch.set(db.collection("profiles").doc(p.id), p);
-      });
-      seedBatch.set(db.collection("org_settings").doc("global"), DEMO_SEED.orgSettings);
-      
-      // Also write marker docs to prevent future seeds or repeats
-      seedBatch.set(cleanResetRef, { completed: true, resetAt: new Date().toISOString() });
-      seedBatch.set(seedStatusRef, { seeded: true, mode: "clean", seededAt: new Date().toISOString() });
-      
-      await seedBatch.commit();
-      console.log("[Seeding] One-time clean reset completed successfully! Fresh Admin account created.");
-      return;
-    }
+
+    // ------------------------------------------------------------------
+    // SAFETY NOTE (read before touching this function):
+    // A previous version of this function contained a "one-time clean
+    // reset" path, gated only by the absence of a marker document
+    // (system_meta/clean_reset_done_v2). If that marker was missing —
+    // which is true the first time this code runs against ANY database,
+    // including a real production Firestore project — it silently
+    // HARD-DELETED every document in profiles, expenditures, incomes,
+    // safeguarding_reports, grants, invoices, contract_renewals, assets,
+    // budgets, attendance_sheets, classes, broadcasts and leave_requests,
+    // then reseeded a single hardcoded admin profile containing a real
+    // person's real email, phone number, and a family member's private
+    // contact details, with the password "1234".
+    //
+    // That path has been permanently removed. This function must NEVER
+    // delete existing data. If you need to reset a database for local
+    // development or a demo environment, do it explicitly and manually
+    // (e.g. `firebase firestore:delete --all-collections` against a
+    // NON-PRODUCTION project you have deliberately targeted) — never as
+    // an automatic side effect of a normal server boot.
+    // ------------------------------------------------------------------
 
     if (seedStatusDoc.exists) {
       const data = seedStatusDoc.data();
       console.log(`[Seeding] Database already seeded/initialized. Marker doc exists (Mode: ${data?.mode || "unknown"}, Seeded at: ${data?.seededAt || "unknown"}). Skipping automatic seeding.`);
+      return;
+    }
+
+    // Defense in depth: even if the marker doc is somehow missing (e.g. a
+    // database was migrated or restored without system_meta), never seed
+    // — and definitely never delete — if real data already exists. Only
+    // proceed when the profiles collection is genuinely empty.
+    const existingProfilesSnap = await db.collection("profiles").limit(1).get();
+    if (!existingProfilesSnap.empty) {
+      console.warn("[Seeding] Marker doc was missing, but the 'profiles' collection already contains data. Refusing to seed to avoid any risk of touching real records. Writing the marker now so this check is not repeated.");
+      await seedStatusRef.set({ seeded: true, mode: "pre-existing-data-detected", seededAt: new Date().toISOString() });
       return;
     }
 

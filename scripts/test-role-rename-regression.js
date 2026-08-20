@@ -1,13 +1,30 @@
 async function testRegression() {
-  const BASE_URL = 'http://localhost:3000';
+  const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
+
+  // Test credentials must be supplied via environment variables — never
+  // hardcode a real (or real-looking) account or password in this file.
+  // Point this at a local/dev/demo server only, never at production.
+  const TEST_EMAIL = process.env.TEST_CHAIRPERSON_EMAIL;
+  const TEST_PASSWORD = process.env.TEST_CHAIRPERSON_PASSWORD;
+
+  if (!TEST_EMAIL || !TEST_PASSWORD) {
+    console.error(
+      'Missing test credentials. Set TEST_CHAIRPERSON_EMAIL and TEST_CHAIRPERSON_PASSWORD ' +
+      '(e.g. the demo-mode seed account when running with APP_SEED_MODE=demo against a ' +
+      'local/mock Firestore) before running this script. Refusing to run without them so ' +
+      'nobody is tempted to hardcode a real credential here again.'
+    );
+    process.exit(1);
+  }
+
   console.log('=== Starting Role Rename Regression Test ===\n');
 
   // 1. Login as Chairperson
-  console.log('1. Logging in as Chairperson (konyango98@gmail.com)...');
+  console.log(`1. Logging in as Chairperson (${TEST_EMAIL})...`);
   const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ emailOrPhone: 'konyango98@gmail.com', password: '1234' })
+    body: JSON.stringify({ emailOrPhone: TEST_EMAIL, password: TEST_PASSWORD })
   });
 
   if (!loginRes.ok) {
