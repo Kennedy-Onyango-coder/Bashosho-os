@@ -11,7 +11,20 @@ export enum UserRole {
   TREASURER = "treasurer",
   SAFEGUARDING_OFFICER = "safeguarding_officer",
   PROGRAM_MEMBER = "program_member",
-  VOLUNTEER = "volunteer"
+  VOLUNTEER = "volunteer",
+  // Added to match Bashosho Talents CBO's actual Constitution (Sections 10-11), which
+  // distinguishes the elected Management Committee from the appointed Programs &
+  // Operations Team. These are intentionally NEW, ADDITIVE roleKeys — nothing existing
+  // was renamed or removed, so no historical profile or role_permissions doc is affected.
+  // Executive Director is deliberately kept separate from CHAIRPERSON (previously the
+  // fuzzy matcher below merged "executive director" into "chairperson", which meant
+  // anyone holding that title inherited the unconditional chairperson bypass in
+  // userHasPermission() — see server.ts). Even where the same real person holds both
+  // offices (as the Constitution's Section 6 Founders clause anticipates), the system
+  // should be able to tell which hat they're acting under.
+  EXECUTIVE_DIRECTOR = "executive_director",
+  MEMBER_REPRESENTATIVE = "member_representative",
+  COMMUNICATIONS_MARKETING = "communications_marketing"
 }
 
 export function getCanonicalRoleKey(roleOrName?: string, docId?: string): string {
@@ -25,6 +38,9 @@ export function getCanonicalRoleKey(roleOrName?: string, docId?: string): string
     if (idLower === "safeguarding_officer" || idLower === "safeguarding_mel") return UserRole.SAFEGUARDING_OFFICER;
     if (idLower === "program_member") return UserRole.PROGRAM_MEMBER;
     if (idLower === "volunteer" || idLower === "volunteer_staff") return UserRole.VOLUNTEER;
+    if (idLower === "executive_director") return UserRole.EXECUTIVE_DIRECTOR;
+    if (idLower === "member_representative") return UserRole.MEMBER_REPRESENTATIVE;
+    if (idLower === "communications_marketing") return UserRole.COMMUNICATIONS_MARKETING;
   }
 
   if (!roleOrName) return "";
@@ -39,15 +55,37 @@ export function getCanonicalRoleKey(roleOrName?: string, docId?: string): string
   if (str === UserRole.SAFEGUARDING_OFFICER || str === "safeguarding_mel") return UserRole.SAFEGUARDING_OFFICER;
   if (str === UserRole.PROGRAM_MEMBER) return UserRole.PROGRAM_MEMBER;
   if (str === UserRole.VOLUNTEER || str === "volunteer_staff") return UserRole.VOLUNTEER;
+  if (str === UserRole.EXECUTIVE_DIRECTOR) return UserRole.EXECUTIVE_DIRECTOR;
+  if (str === UserRole.MEMBER_REPRESENTATIVE) return UserRole.MEMBER_REPRESENTATIVE;
+  if (str === UserRole.COMMUNICATIONS_MARKETING) return UserRole.COMMUNICATIONS_MARKETING;
 
   // Matching display strings
-  if (str.includes("chairperson") || str.includes("chair") || str.includes("executive director") || str.includes("cbo chief")) {
+  // "Executive Director" / "CBO Chief" is checked BEFORE and separately from chairperson
+  // — these are the appointed operational head of the Programs & Operations Team, not
+  // the elected Chairperson, even when the same person holds both offices in practice.
+  if (str.includes("executive director") || str.includes("cbo chief")) {
+    return UserRole.EXECUTIVE_DIRECTOR;
+  }
+  if (str.includes("chairperson") || str.includes("chair")) {
     return UserRole.CHAIRPERSON;
   }
   if (str.includes("vice")) {
     return UserRole.VICE_CHAIRPERSON;
   }
-  if (str.includes("program") && (str.includes("director") || str.includes("lead") || str.includes("operations"))) {
+  // "Member Representative" must be checked before the generic "member" fallback below,
+  // otherwise it silently resolves to plain program_member and loses its Management
+  // Committee standing.
+  if (str.includes("member") && (str.includes("representative") || str.includes(" rep") || str.endsWith("rep"))) {
+    return UserRole.MEMBER_REPRESENTATIVE;
+  }
+  if (str.includes("communications") || str.includes("marketing")) {
+    return UserRole.COMMUNICATIONS_MARKETING;
+  }
+  // "coordinator" added alongside director/lead/operations — the Constitution's actual
+  // title for this seat is "Programs Coordinator", which previously fell through to the
+  // generic slugify fallback below instead of resolving to the existing programs_director
+  // roleKey (kept as-is, unrenamed, to avoid touching any existing stored data).
+  if (str.includes("program") && (str.includes("director") || str.includes("lead") || str.includes("operations") || str.includes("coordinator"))) {
     return UserRole.PROGRAMS_DIRECTOR;
   }
   if (str.includes("secretary")) {
@@ -188,6 +226,16 @@ export interface ExpenditureRequest {
   approvals?: ExpenditureApproval[];
   /** id of the ExpenditureApprovalTier this request was evaluated against */
   approvalTierId?: string;
+  /** Optional: the roleKey of the Programs & Operations Team portfolio this spend falls
+   *  under (e.g. "theatre_film_director"), when the expenditure is specific to one
+   *  person's operational area rather than general organizational spending. When set,
+   *  the approval endpoint blocks the matching role from approving or rejecting this
+   *  request — even where that role would otherwise qualify as an approver — because
+   *  several Management Committee members also hold an operational portfolio, and
+   *  nobody should be able to approve spending in their own program area. See the
+   *  Conflict of Interest Policy, Section 3 (segregation rule). Optional and additive:
+   *  requests without this field behave exactly as before. */
+  programOwnerRoleKey?: string;
 }
 
 export interface ExpenditureApproval {

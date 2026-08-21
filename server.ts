@@ -155,6 +155,9 @@ function getCanonicalRoleKey(roleOrName?: string, docId?: string, strict: boolea
     if (idLower === "safeguarding_officer" || idLower === "safeguarding_mel") return "safeguarding_officer";
     if (idLower === "program_member") return "program_member";
     if (idLower === "volunteer" || idLower === "volunteer_staff") return "volunteer";
+    if (idLower === "executive_director") return "executive_director";
+    if (idLower === "member_representative") return "member_representative";
+    if (idLower === "communications_marketing") return "communications_marketing";
   }
 
   if (!roleOrName) return "";
@@ -168,6 +171,9 @@ function getCanonicalRoleKey(roleOrName?: string, docId?: string, strict: boolea
   if (str === "safeguarding_officer" || str === "safeguarding_mel") return "safeguarding_officer";
   if (str === "program_member") return "program_member";
   if (str === "volunteer" || str === "volunteer_staff") return "volunteer";
+  if (str === "executive_director") return "executive_director";
+  if (str === "member_representative") return "member_representative";
+  if (str === "communications_marketing") return "communications_marketing";
 
   // STRICT MODE — used when creating or renaming a role (see /api/roles). Only an exact
   // match above is allowed to resolve to a privileged system roleKey. The fuzzy
@@ -182,13 +188,34 @@ function getCanonicalRoleKey(roleOrName?: string, docId?: string, strict: boolea
     return str.replace(/[^a-z0-9]+/g, "_");
   }
 
-  if (str.includes("chairperson") || str.includes("chair") || str.includes("executive director") || str.includes("cbo chief")) {
+  // "Executive Director" / "CBO Chief" is checked BEFORE and separately from chairperson
+  // — these are the appointed operational head of the Programs & Operations Team, not
+  // the elected Chairperson, even when the same person holds both offices in practice.
+  // Previously merged into "chairperson", which meant this title inherited the
+  // unconditional chairperson bypass a few lines below in userHasPermission().
+  if (str.includes("executive director") || str.includes("cbo chief")) {
+    return "executive_director";
+  }
+  if (str.includes("chairperson") || str.includes("chair")) {
     return "chairperson";
   }
   if (str.includes("vice")) {
     return "vice_chairperson";
   }
-  if (str.includes("program") && (str.includes("director") || str.includes("lead") || str.includes("operations"))) {
+  // "Member Representative" must be checked before the generic "member" fallback below,
+  // otherwise it silently resolves to plain program_member and loses its Management
+  // Committee standing.
+  if (str.includes("member") && (str.includes("representative") || str.includes(" rep") || str.endsWith("rep"))) {
+    return "member_representative";
+  }
+  if (str.includes("communications") || str.includes("marketing")) {
+    return "communications_marketing";
+  }
+  // "coordinator" added alongside director/lead/operations — the Constitution's actual
+  // title for this seat is "Programs Coordinator", which previously fell through to the
+  // generic slugify fallback instead of resolving to the existing programs_director
+  // roleKey (kept as-is, unrenamed, to avoid touching any existing stored data).
+  if (str.includes("program") && (str.includes("director") || str.includes("lead") || str.includes("operations") || str.includes("coordinator"))) {
     return "programs_director";
   }
   if (str.includes("secretary")) {
@@ -2725,7 +2752,21 @@ app.post("/api/expenditures", requireAuth, async (req: AuthenticatedRequest, res
           return res.status(400).json({ error: "Security Restriction: Self-approval is strictly forbidden." });
         }
 
+        // Segregation-of-duties check (Conflict of Interest Policy, Section 3): a person
+        // cannot approve or reject an expenditure declared against their own operational
+        // portfolio, even where someone else submitted the request on their behalf, and
+        // even where their role would otherwise be an eligible approver. This
+        // deliberately applies BEFORE the chairperson bypass a few lines below — the
+        // whole point is that a founder wearing their Chairperson hat still cannot
+        // approve spending under their own Programs & Operations Team hat.
         const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+        if (existing.programOwnerRoleKey && existing.programOwnerRoleKey === userRoleKey) {
+          return res.status(403).json({
+            error: "Conflict of Interest: You cannot approve or reject an expenditure declared against your own operational portfolio.",
+            details: "This request is marked as belonging to the '" + existing.programOwnerRoleKey + "' portfolio. Ask another eligible approver to review it instead — see the Conflict of Interest Policy, Section 3."
+          });
+        }
+
         const amount = Number(existing.amount);
         const tiers = await getExpenditureApprovalTiers();
         const tier = pickTierForAmount(tiers, amount);
@@ -4601,9 +4642,13 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
         if (profSnap.exists) name = profSnap.data()!.name;
       }
       const grossAmount = Number(p.grossAmount) || 0;
-      // Server computes the deduction from the list's rate — never trusted from the
-      // client — so a payee's net amount can't be tampered with in transit.
-      const deductionAmount = Math.round(grossAmount * (rate / 100) * 100) / 100;
+      // Membership development fund deduction applies ONLY to registered Bashosho
+      // members (payments linked to a real userId) — outsourced/external cast and crew
+      // are not members and are never subject to this deduction, per organizational
+      // policy. Server computes this — never trusted from the client — so a payee's
+      // net amount can't be tampered with in transit, and so a payment can't be
+      // mislabeled as "member" client-side just to change what's withheld.
+      const deductionAmount = p.userId ? Math.round(grossAmount * (rate / 100) * 100) / 100 : 0;
       resolvedPayments.push({
         id: p.id || `pay-${idx}`,
         name,

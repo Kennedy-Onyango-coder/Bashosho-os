@@ -61,7 +61,11 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
   const rowsTotal = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const amountMismatch = linkedExpenditure ? Math.abs(rowsTotal - linkedExpenditure.amount) > 0.01 : false;
   const rateNum = Math.max(0, Math.min(100, Number(deductionRate) || 0));
-  const totalDeductionPreview = Math.round(rowsTotal * (rateNum / 100) * 100) / 100;
+  // Mirrors the server: the membership fund deduction only applies to rows linked to a
+  // registered member (userId set) — external/outsourced cast rows contribute 0 here,
+  // so this preview matches what will actually be saved.
+  const memberRowsTotal = rows.reduce((sum, r) => sum + (r.userId ? (Number(r.amount) || 0) : 0), 0);
+  const totalDeductionPreview = Math.round(memberRowsTotal * (rateNum / 100) * 100) / 100;
 
   const addRow = () => setRows([...rows, { name: "", role: "", phone: "", amount: "", userId: "" }]);
   const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx));
@@ -214,12 +218,12 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono"
               />
               <p className="text-[9px] text-neutral-400 mt-1">
-                {lang === "en" ? "Withheld from each payee's gross amount toward organizational development." : "Inatolewa kutoka kwa kila mlipwaji kuelekea maendeleo ya shirika."}
+                {lang === "en" ? "Withheld from each registered member's gross amount toward organizational development. Outsourced/external cast are exempt." : "Inatolewa kutoka kwa kila mwanachama aliyesajiliwa kuelekea maendeleo ya shirika. Wasanii wa nje hawakatwi."}
               </p>
             </div>
             {rateNum > 0 && (
               <div className="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 text-xs font-bold text-purple-700">
-                {lang === "en" ? "Total to Membership Fund" : "Jumla kwa Mfuko"}: Ksh {totalDeductionPreview.toLocaleString()}
+                {lang === "en" ? "Total to Membership Fund (members only)" : "Jumla kwa Mfuko (wanachama pekee)"}: Ksh {totalDeductionPreview.toLocaleString()}
               </div>
             )}
           </div>
@@ -237,7 +241,9 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
             <div className="space-y-2">
               {rows.map((row, idx) => {
                 const gross = Number(row.amount) || 0;
-                const rowDeduction = Math.round(gross * (rateNum / 100) * 100) / 100;
+                // Deduction only applies to rows linked to a registered member — mirrors
+                // the server-side rule exactly (see /api/cast_payment_lists).
+                const rowDeduction = row.userId ? Math.round(gross * (rateNum / 100) * 100) / 100 : 0;
                 const rowNet = gross - rowDeduction;
                 return (
                 <div key={idx} className="space-y-1">
@@ -254,9 +260,16 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                       <Trash2 size={14} />
                     </button>
                   </div>
-                  {gross > 0 && rateNum > 0 && (
+                  {gross > 0 && rateNum > 0 && row.userId && (
                     <p className="text-[9px] text-neutral-400 pl-1">
                       {lang === "en" ? "Gross" : "Jumla"} Ksh {gross.toLocaleString()} − {lang === "en" ? "deduction" : "makato"} Ksh {rowDeduction.toLocaleString()} = <strong className="text-neutral-600">{lang === "en" ? "net" : "halisi"} Ksh {rowNet.toLocaleString()}</strong>
+                    </p>
+                  )}
+                  {gross > 0 && rateNum > 0 && !row.userId && (
+                    <p className="text-[9px] text-emerald-600 pl-1">
+                      {lang === "en"
+                        ? `External cast — no membership deduction. Full Ksh ${gross.toLocaleString()} paid.`
+                        : `Msanii wa nje — hakuna makato. Ksh ${gross.toLocaleString()} kamili italipwa.`}
                     </p>
                   )}
                 </div>
