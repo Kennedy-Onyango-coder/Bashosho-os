@@ -43,10 +43,20 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [lRes, eRes, pRes] = await Promise.all([fetch("/api/cast_payment_lists"), fetch("/api/expenditures"), fetch("/api/profiles")]);
+      const [lRes, eRes, pRes, sRes] = await Promise.all([fetch("/api/cast_payment_lists"), fetch("/api/expenditures"), fetch("/api/profiles"), fetch("/api/org_settings")]);
       if (lRes.ok) setLists(await lRes.json());
       if (eRes.ok) setExpenditures(await eRes.json());
       if (pRes.ok) setProfiles(await pRes.json());
+      if (sRes.ok) {
+        const settings = await sRes.json();
+        // Seed the default from the org's configured policy (Settings → Financial
+        // Policies) rather than a hardcoded literal. Still adjustable per list below
+        // for genuine exceptions — see the note on that field.
+        const policyRate = Number(settings?.performanceMembershipDeductionPercent);
+        if (Number.isFinite(policyRate) && policyRate >= 0) {
+          setDeductionRate(String(policyRate));
+        }
+      }
     } catch (err) {
       console.error("Failed to load cast payment lists:", err);
     } finally {

@@ -11,6 +11,7 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
   const [settlements, setSettlements] = React.useState<PerformanceSettlement[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [editingPercent, setEditingPercent] = React.useState<Record<string, string>>({});
+  const [overrideReason, setOverrideReason] = React.useState<Record<string, string>>({});
   const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
 
   const fetchSettlements = async () => {
@@ -31,10 +32,13 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
     setConfirmingId(s.id);
     try {
       const pct = editingPercent[s.id];
+      const isOverride = pct !== undefined && Number(pct) !== s.orgCutPercent;
+      const body: any = pct !== undefined ? { orgCutPercent: Number(pct) } : {};
+      if (isOverride) body.overrideReason = (overrideReason[s.id] || "").trim();
       const res = await fetch(`/api/performance_settlements/${s.id}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pct !== undefined ? { orgCutPercent: Number(pct) } : {})
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to confirm settlement");
@@ -106,10 +110,26 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
                         <p className="text-[9px] text-neutral-400">{lang === "en" ? "→ Cast/Crew Pool" : "→ Malipo ya Wasanii"}</p>
                       </div>
                     </div>
+                    {editingPercent[s.id] !== undefined && Number(editingPercent[s.id]) !== s.orgCutPercent && (
+                      <div>
+                        <label className="block text-[9px] font-bold text-amber-600 uppercase tracking-wider mb-1">
+                          {lang === "en"
+                            ? `Reason for deviating from the ${s.orgCutPercent}% policy rate (required)`
+                            : `Sababu ya kutofautiana na kiwango cha sera ${s.orgCutPercent}% (inahitajika)`}
+                        </label>
+                        <input
+                          type="text"
+                          value={overrideReason[s.id] ?? ""}
+                          onChange={e => setOverrideReason(prev => ({ ...prev, [s.id]: e.target.value }))}
+                          placeholder={lang === "en" ? "e.g. negotiated special rate for this engagement" : "mfano: kiwango maalum kilichokubaliwa"}
+                          className="w-full bg-white border border-amber-300 rounded-lg px-2 py-1.5 text-xs"
+                        />
+                      </div>
+                    )}
                     {canConfirm && (
                       <button
                         onClick={() => handleConfirm(s)}
-                        disabled={confirmingId === s.id}
+                        disabled={confirmingId === s.id || (editingPercent[s.id] !== undefined && Number(editingPercent[s.id]) !== s.orgCutPercent && !(overrideReason[s.id] || "").trim())}
                         className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <CheckCircle2 size={14} /> {confirmingId === s.id ? (lang === "en" ? "Confirming..." : "Inathibitisha...") : (lang === "en" ? "Confirm & Post to Ledger" : "Thibitisha")}

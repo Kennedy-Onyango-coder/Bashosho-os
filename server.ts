@@ -3444,8 +3444,18 @@ app.post("/api/performance_settlements/:id/confirm", requireAuth, async (req: Au
 
     // Allow adjusting the split at confirmation time (e.g. a special-rate engagement)
     // — but always recompute both amounts from the percent, never trust a client-
-    // supplied amount directly.
-    const orgCutPercent = req.body.orgCutPercent !== undefined ? Math.max(0, Math.min(100, Number(req.body.orgCutPercent))) : settlement.orgCutPercent;
+    // supplied amount directly. Any deviation from the policy-derived percent set at
+    // creation must be justified and recorded, so the audit trail shows WHY a
+    // historical settlement doesn't match the org's standard policy value at the time.
+    const policyPercent = settlement.orgCutPercent;
+    const orgCutPercent = req.body.orgCutPercent !== undefined ? Math.max(0, Math.min(100, Number(req.body.orgCutPercent))) : policyPercent;
+    const overrideReason = typeof req.body.overrideReason === "string" ? req.body.overrideReason.trim() : "";
+    if (orgCutPercent !== policyPercent && !overrideReason) {
+      return res.status(400).json({
+        error: `This settlement was created at the standard ${policyPercent}% org-cut policy rate. You're confirming it at ${orgCutPercent}% instead — a reason is required for this exception.`,
+        field: "overrideReason"
+      });
+    }
     const orgCutAmount = Math.round(settlement.grossAmount * (orgCutPercent / 100) * 100) / 100;
     const castPoolAmount = Math.round((settlement.grossAmount - orgCutAmount) * 100) / 100;
 
@@ -3483,7 +3493,11 @@ app.post("/api/performance_settlements/:id/confirm", requireAuth, async (req: Au
       confirmedBy: req.user!.name,
       confirmedDate: new Date().toISOString().split("T")[0],
       orgIncomeId: incomeId,
-      castExpenditureId: expenditureId
+      castExpenditureId: expenditureId,
+      // Audit trail: the policy-derived rate this settlement was created under, and
+      // (only when they differ) who justified deviating from it and why.
+      policyOrgCutPercent: policyPercent,
+      ...(orgCutPercent !== policyPercent ? { orgCutOverrideReason: overrideReason, orgCutOverriddenBy: req.user!.name } : {})
     }, { merge: true });
 
     logActivity(req, "finance", "confirm", req.params.id, `Settlement confirmed: ${settlement.engagementDescription}`);
@@ -4617,6 +4631,20 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
     const expData = expSnap.data()!;
     if (expData.status !== "approved") {
       return res.status(400).json({ error: "The linked expenditure request must be approved before a payment list can be recorded against it." });
+    }
+    // Prevent double-payment: an approved expenditure authorizes ONE cast payment
+    // distribution, not one per submission attempt. Block a second list against the
+    // same expenditure unless every prior list against it was rejected.
+    const priorListsSnap = await db.collection("cast_payment_lists")
+      .where("expenditureRequestId", "==", expenditureRequestId)
+      .get();
+    const activePriorList = priorListsSnap.docs.find(d => d.data().status !== "rejected");
+    if (activePriorList) {
+      return res.status(409).json({
+        error: "This expenditure already has a cast payment list against it.",
+        details: `Existing list "${activePriorList.data().title}" is currently "${activePriorList.data().status}". Reject it first if it was submitted in error, before creating a new one.`,
+        existingListId: activePriorList.id
+      });
     }
     const rate = Math.max(0, Math.min(100, Number(deductionRate) || 0));
     const totalGross = payments.reduce((sum: number, p: any) => sum + (Number(p.grossAmount) || 0), 0);

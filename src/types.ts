@@ -701,6 +701,14 @@ export interface PerformanceSettlement {
   /** Links to the real (pre-approved) ExpenditureRequest for the cast pool, created on
    *  confirmation — this is what a Cast Payment List then gets built against. */
   castExpenditureId?: string;
+  /** The org's performanceOrgCutPercent policy value at the moment this settlement was
+   *  created — preserved even if org policy changes later, and used to detect whether
+   *  the confirming user deviated from it (see orgCutOverrideReason). */
+  policyOrgCutPercent?: number;
+  /** Required justification, captured only when orgCutPercent at confirmation differs
+   *  from policyOrgCutPercent — e.g. a negotiated special rate for one engagement. */
+  orgCutOverrideReason?: string;
+  orgCutOverriddenBy?: string;
   createdDate: string;
 }
 
