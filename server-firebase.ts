@@ -1204,6 +1204,16 @@ export async function seedHomepageContentIfEmpty() {
 }
 
 export async function saveFile(filePath: string, buffer: Buffer, contentType: string, isPublic: boolean): Promise<string> {
+  // Defense in depth: reject any path attempting to escape its intended location,
+  // regardless of whether the specific caller already sanitized its own input. This
+  // matters most for the local mock-storage fallback below, which resolves filePath
+  // onto a real filesystem via path.join() — an unsanitized "../../../etc/something"
+  // there is a real traversal risk in a way a flat Cloud Storage object key is not.
+  const segments = filePath.split(/[/\\]/);
+  if (filePath.startsWith("/") || filePath.startsWith("\\") || segments.some(seg => seg === "..")) {
+    throw new Error(`Refusing to save file to a path that looks like a traversal attempt: ${filePath}`);
+  }
+
   if (db.isMock) {
     const fullPath = path.join(process.cwd(), "mock-storage", filePath);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });

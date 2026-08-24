@@ -1134,20 +1134,32 @@ app.get("/api/payments/status/:transactionId", requireAuth, async (req: Authenti
 app.post("/api/upload", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
     const { filename, image } = req.body;
-    if (!image || !filename) {
+    if (!image || !filename || typeof filename !== "string") {
       return res.status(400).json({ error: "Missing image base64 data or filename" });
     }
 
+    // Previously, if decodeBase64Image() rejected the input, this endpoint fell back to
+    // decoding the raw string as "image/webp" anyway — completely undoing the point of
+    // validating it in the first place. Any input that fails validation is now rejected
+    // outright, with no fallback path.
     const decoded = decodeBase64Image(image);
-    const mimeType = decoded ? decoded.mimeType : "image/webp";
-    const buffer = decoded ? decoded.buffer : Buffer.from(image.replace(/^data:image\/\w+;base64,/, ""), "base64");
+    if (!decoded) {
+      return res.status(400).json({ error: "Invalid or unrecognized image upload. Only JPEG, PNG and WebP images are accepted." });
+    }
+    const { mimeType, buffer } = decoded;
 
-    const cleanFilename = filename.replace(/\.[^/.]+$/, "");
-    // Previously this only ever produced "webp" or "jpg" regardless of actual content —
-    // so a PNG upload (needed for transparent signatures/logos) got saved with a ".jpg"
-    // filename while containing real PNG bytes. In local mock-storage mode, files are
-    // served by extension-based Content-Type sniffing, so this silently broke rendering
-    // for any non-JPEG, non-WEBP image (most damagingly, transparent signature PNGs).
+    const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB — no size limit existed here before
+    if (buffer.length > MAX_UPLOAD_BYTES) {
+      return res.status(400).json({ error: "File size limit exceeded. Uploads must be 10MB or smaller." });
+    }
+
+    // Strip the extension, then strip anything that isn't a safe filename character —
+    // in particular "/", "\" and ".." — before this becomes part of a storage path.
+    // filename is arbitrary client input; nothing here should be trusted to be a plain
+    // leaf filename without checking.
+    const withoutExt = filename.replace(/\.[^/.]+$/, "");
+    const cleanFilename = withoutExt.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100) || "file";
+
     const extensionForMimeType: Record<string, string> = {
       "image/png": "png",
       "image/webp": "webp",
@@ -5550,12 +5562,54 @@ function signupRateLimiter(req: express.Request, res: express.Response, next: ex
   }
 }
 
+// Only these image types are accepted anywhere in the app. Notably excludes
+// image/svg+xml — SVGs can embed <script> and are a known stored-XSS vector when later
+// served back to a browser, so they are never treated as a safe "image" upload here.
+const ALLOWED_IMAGE_MIME_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+// Real file-signature ("magic bytes") checks — the actual bytes of the decoded buffer
+// must match what the declared MIME type claims, independent of what the client says.
+function bufferMatchesImageSignature(buffer: Buffer, mimeType: string): boolean {
+  if (buffer.length < 12) return false;
+  if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
+    return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  }
+  if (mimeType === "image/png") {
+    const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    return sig.every((b, i) => buffer[i] === b);
+  }
+  if (mimeType === "image/webp") {
+    return buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+  }
+  return false;
+}
+
 function decodeBase64Image(base64Str: string): { buffer: Buffer; mimeType: string } | null {
-  if (!base64Str) return null;
-  const match = base64Str.match(/^data:(image\/\w+);base64,/);
-  const mimeType = match ? match[1] : "image/jpeg";
-  const cleanBase64 = base64Str.replace(/^data:image\/\w+;base64,/, "");
-  const buffer = Buffer.from(cleanBase64, "base64");
+  if (!base64Str || typeof base64Str !== "string") return null;
+  // Previously this defaulted to "image/jpeg" whenever the string didn't match the
+  // expected data-URI prefix — meaning every caller's `mimeType.startsWith("image/")`
+  // check downstream was trivially satisfied by ANY input, including one deliberately
+  // crafted with no prefix (or a non-image prefix) to smuggle arbitrary file content
+  // past what was supposed to be an image-only restriction. There is no longer a
+  // default: an unrecognized or missing prefix is now a hard rejection.
+  const match = base64Str.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+  if (!match) return null;
+  const mimeType = match[1].toLowerCase();
+  if (!ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) return null;
+
+  const cleanBase64 = base64Str.slice(match[0].length);
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(cleanBase64, "base64");
+  } catch {
+    return null;
+  }
+  if (buffer.length === 0) return null;
+
+  // The declared MIME type is only a label the client chose — verify the actual bytes
+  // match before trusting it for anything (storage extension, downstream rendering).
+  if (!bufferMatchesImageSignature(buffer, mimeType)) return null;
+
   return { buffer, mimeType };
 }
 
