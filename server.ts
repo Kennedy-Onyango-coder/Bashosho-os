@@ -141,6 +141,7 @@ interface AuthenticatedRequest extends express.Request {
     email: string;
     role: string;
     roleKey?: string;
+    signatureUrl?: string;
   };
 }
 
@@ -279,7 +280,12 @@ async function requireAuth(req: AuthenticatedRequest, res: express.Response, nex
       name: pData.name || decoded.name,
       email: pData.email || decoded.email,
       role: pData.role || decoded.role,
-      roleKey: resolvedRoleKey
+      roleKey: resolvedRoleKey,
+      // Always the real, current on-file signature for this account — never something
+      // the request body claims. Any endpoint that needs to attach "the current user's
+      // signature" to a record should read it from here, not from req.body, so nobody
+      // can submit their own record carrying someone else's signature image.
+      signatureUrl: pData.signatureUrl
     };
     next();
   } catch (error) {
@@ -3837,7 +3843,11 @@ app.post("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest
           photoUrl: req.body.photoUrl ?? existing.photoUrl,
           signedConduct: !!req.body.signedConduct,
           agreedObjectives: !!req.body.agreedObjectives,
-          signatureUrl: req.body.signatureUrl ?? existing.signatureUrl
+          // Always the submitter's own on-file signature (see requireAuth) — never
+          // req.body.signatureUrl. That field previously let a member type in ANY
+          // signature image URL, including someone else's, to appear on their own
+          // renewal record.
+          signatureUrl: req.user!.signatureUrl || existing.signatureUrl
         };
         return saveDocument("contract_renewals", id, updated, req, res);
       }
@@ -3853,7 +3863,9 @@ app.post("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest
       photoUrl: req.body.photoUrl || "",
       signedConduct: !!req.body.signedConduct,
       agreedObjectives: !!req.body.agreedObjectives,
-      signatureUrl: req.body.signatureUrl || "",
+      // Same rule as the update path above — always the submitter's own on-file
+      // signature, never a client-supplied URL.
+      signatureUrl: req.user!.signatureUrl || "",
       paymentStatus: "pending",
       feeRequired: renewalFee,
       payments: [],
