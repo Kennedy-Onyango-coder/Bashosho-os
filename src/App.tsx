@@ -33,6 +33,7 @@ import BeneficiaryRegistration from "./components/BeneficiaryRegistration";
 import SecuritySettingsPanel from "./components/SecuritySettingsPanel";
 import TasksBoard from "./components/TasksBoard";
 import ProgramOutcomesBoard from "./components/ProgramOutcomesBoard";
+import MEDashboardBoard from "./components/MEDashboardBoard";
 import AttendanceRegisterBoard from "./components/AttendanceRegisterBoard";
 import AdminMembersDirectory from "./components/AdminMembersDirectory";
 import EventsCalendar from "./components/EventsCalendar";
@@ -63,7 +64,8 @@ import {
   CalendarDays,
   Gavel,
   ListChecks,
-  X
+  X,
+  PieChart
 } from "lucide-react";
 
 export default function App() {
@@ -834,6 +836,20 @@ export default function App() {
                     </button>
                   )}
 
+                  {can("program_sessions") && (
+                    <button
+                      onClick={() => { setActiveTab("me_dashboard"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-me-dashboard-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "me_dashboard"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <PieChart size={14} className="shrink-0" /> {lang === "en" ? "M&E Dashboard" : "Dashibodi ya M&E"}
+                    </button>
+                  )}
+
                   {can("attendance_registers") && (
                     <button
                       onClick={() => { setActiveTab("attendance_registers"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
@@ -1279,6 +1295,12 @@ export default function App() {
               {activeTab === "program_sessions" && currentUser && (
                 <ErrorBoundary fallbackTitle="Program Outcomes Failure">
                   <ProgramOutcomesBoard lang={lang} currentUser={currentUser} canEditAll={can("program_sessions", "edit")} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "me_dashboard" && currentUser && (
+                <ErrorBoundary fallbackTitle="M&E Dashboard Failure">
+                  <MEDashboardBoard lang={lang} />
                 </ErrorBoundary>
               )}
 

@@ -10,6 +10,7 @@ import { getStorage } from "firebase-admin/storage";
 import { DocumentData, FieldValue } from "firebase-admin/firestore";
 import crypto from "crypto";
 import { generateTotpSecret, generateTotpUri, verifyTotpToken, generateBackupCodes } from "./totp";
+import { calculatePerformanceSettlement, calculateCastPayment } from "./financialCalculations";
 
 // Safety net for local development: some Google Cloud client libraries fire background
 // credential/metadata-probing promises that reject OUTSIDE any of our own try/catch blocks
@@ -3454,8 +3455,7 @@ app.post("/api/invoices/:id/mark_paid", requireAuth, requirePermission("invoices
       const settingsSnap = await db.collection("org_settings").doc("global").get();
       const orgCutPercent = Number(settingsSnap.data()?.performanceOrgCutPercent) || 30;
       const grossAmount = Number(invoice.amount) || 0;
-      const orgCutAmount = Math.round(grossAmount * (orgCutPercent / 100) * 100) / 100;
-      const castPoolAmount = Math.round((grossAmount - orgCutAmount) * 100) / 100;
+      const { orgCutAmount, castPoolAmount, castPoolPercent } = calculatePerformanceSettlement(grossAmount, orgCutPercent);
       const settlementId = `settle-${Date.now()}`;
       settlement = {
         id: settlementId,
@@ -3464,7 +3464,7 @@ app.post("/api/invoices/:id/mark_paid", requireAuth, requirePermission("invoices
         grossAmount,
         orgCutPercent,
         orgCutAmount,
-        castPoolPercent: 100 - orgCutPercent,
+        castPoolPercent,
         castPoolAmount,
         status: "pending_confirmation",
         createdDate: new Date().toISOString().split("T")[0]
@@ -3512,8 +3512,7 @@ app.post("/api/performance_settlements/:id/confirm", requireAuth, async (req: Au
         field: "overrideReason"
       });
     }
-    const orgCutAmount = Math.round(settlement.grossAmount * (orgCutPercent / 100) * 100) / 100;
-    const castPoolAmount = Math.round((settlement.grossAmount - orgCutAmount) * 100) / 100;
+    const { orgCutAmount, castPoolAmount, castPoolPercent } = calculatePerformanceSettlement(settlement.grossAmount, orgCutPercent);
 
     const incomeId = `income-settle-${req.params.id}`;
     await db.collection("incomes").doc(incomeId).set({
@@ -3528,7 +3527,7 @@ app.post("/api/performance_settlements/:id/confirm", requireAuth, async (req: Au
     const expenditureId = `exp-settle-${req.params.id}`;
     await db.collection("expenditures").doc(expenditureId).set({
       id: expenditureId,
-      description: `Cast/crew payment pool (${100 - orgCutPercent}%) — ${settlement.engagementDescription}`,
+      description: `Cast/crew payment pool (${castPoolPercent}%) — ${settlement.engagementDescription}`,
       amount: castPoolAmount,
       category: "stipend",
       requestedBy: req.user!.name,
@@ -3544,7 +3543,7 @@ app.post("/api/performance_settlements/:id/confirm", requireAuth, async (req: Au
       status: "confirmed",
       orgCutPercent,
       orgCutAmount,
-      castPoolPercent: 100 - orgCutPercent,
+      castPoolPercent,
       castPoolAmount,
       confirmedBy: req.user!.name,
       confirmedDate: new Date().toISOString().split("T")[0],
@@ -4753,7 +4752,7 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
       // policy. Server computes this — never trusted from the client — so a payee's
       // net amount can't be tampered with in transit, and so a payment can't be
       // mislabeled as "member" client-side just to change what's withheld.
-      const deductionAmount = p.userId ? Math.round(grossAmount * (rate / 100) * 100) / 100 : 0;
+      const { deductionAmount, netAmount } = calculateCastPayment(grossAmount, rate, !!p.userId);
       resolvedPayments.push({
         id: p.id || `pay-${idx}`,
         name,
@@ -4762,7 +4761,7 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
         userId: p.userId || undefined,
         grossAmount,
         deductionAmount,
-        netAmount: Math.round((grossAmount - deductionAmount) * 100) / 100
+        netAmount
       });
     }
 
