@@ -2251,12 +2251,33 @@ app.post("/api/profiles/me/avatar", requireAuth, async (req: AuthenticatedReques
 app.post("/api/profiles", requireAuth, requirePermission("roles", "edit"), async (req: AuthenticatedRequest, res): Promise<any> => {
   const profile = req.body;
   if (!profile.id) return res.status(400).json({ error: "Missing profile ID" });
-  
+
   profile.roleKey = profile.roleKey || getCanonicalRoleKey(profile.role, profile.id);
 
-  // Set default pin hash if not present
+  // SECURITY FIX: this previously assigned every admin-created profile the fixed,
+  // publicly-known PIN "1234" and never flagged the account for a forced password
+  // change — meaning any account created through this endpoint (as opposed to the
+  // self-signup-approval flow, which already does this correctly) could sit
+  // indefinitely on a guessable shared PIN. Now mirrors the signup-approval flow:
+  // a securely random 6-digit PIN, hashed, with mustChangePassword forced on.
+  let generatedPin: string | undefined;
   if (!profile.passwordHash) {
-    profile.passwordHash = hashPassword("1234");
+    generatedPin = Math.floor(100000 + crypto.randomBytes(4).readUInt32BE(0) % 900000).toString();
+    profile.passwordHash = hashPassword(generatedPin);
+    profile.mustChangePassword = true;
+  }
+
+  // saveDocument writes its own response (success/conflict/error) — if a PIN was just
+  // generated, intercept that response just long enough to attach it once, then let the
+  // real response go out. It is never stored or logged anywhere else in cleartext.
+  if (generatedPin) {
+    const originalJson = res.json.bind(res);
+    res.json = ((body: any) => {
+      if (body && body.success) {
+        return originalJson({ ...body, generatedPin });
+      }
+      return originalJson(body);
+    }) as typeof res.json;
   }
   return saveDocument("profiles", profile.id, profile, req, res);
 });
