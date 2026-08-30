@@ -52,7 +52,7 @@ export default function OnboardingChecklistBoard({ lang }: OnboardingChecklistBo
             <ListChecks className="text-[#E31E24]" size={20} />
             {lang === "en" ? "New Member Onboarding" : "Kuanzisha Wanachama Wapya"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {lang === "en" ? "Automatically created when a signup is approved — track each step through to done." : "Inaundwa moja kwa moja mwanachama anapokubaliwa — fuatilia hatua kila moja."}
           </p>
         </div>
@@ -63,9 +63,9 @@ export default function OnboardingChecklistBoard({ lang }: OnboardingChecklistBo
       </div>
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-10 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-10 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
       ) : visibleChecklists.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en" ? "No onboarding checklists to show." : "Hakuna orodha za kuanzisha."}
         </div>
       ) : (
@@ -93,7 +93,7 @@ export default function OnboardingChecklistBoard({ lang }: OnboardingChecklistBo
                       >
                         {s.completed && <Check size={11} className="text-white" />}
                       </button>
-                      <span className={`text-xs ${s.completed ? "text-neutral-400 line-through" : "text-neutral-700"}`}>
+                      <span className={`text-xs ${s.completed ? "text-neutral-500 line-through" : "text-neutral-700"}`}>
                         {s.label}
                         {s.completed && s.completedBy && <span className="text-[9px] text-neutral-300 font-mono block">{s.completedDate} · {s.completedBy}</span>}
                       </span>

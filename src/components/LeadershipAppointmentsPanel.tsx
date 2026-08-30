@@ -84,7 +84,7 @@ Draft formal appointment letter and mandate duties according to Bashosho Talents
           <p className="text-xs font-semibold text-neutral-500 mt-2 font-mono uppercase tracking-wider">
             {lang === "en" ? "No Leadership Appointments Yet" : "Hakuna Teuzi zilizoundwa bado"}
           </p>
-          <p className="text-[11px] text-neutral-400 mt-1 max-w-sm mx-auto">
+          <p className="text-[11px] text-neutral-500 mt-1 max-w-sm mx-auto">
             {lang === "en"
               ? "Use the 'Invite Member' form in the Overview tab to create a leadership appointment with formal terms."
               : "Tumia fomu ya 'Unda Akaunti' katika ukurasa wa muhtasari ili kuteua kiongozi rasmi."}
@@ -94,7 +94,7 @@ Draft formal appointment letter and mandate duties according to Bashosho Talents
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-neutral-200 text-neutral-400 font-semibold font-mono uppercase text-[9px] tracking-wider">
+              <tr className="border-b border-neutral-200 text-neutral-500 font-semibold font-mono uppercase text-[9px] tracking-wider">
                 <th className="py-3 px-4">{lang === "en" ? "Appointee" : "Mteuliwa"}</th>
                 <th className="py-3 px-4">{lang === "en" ? "Position" : "Cheo"}</th>
                 <th className="py-3 px-4">{lang === "en" ? "Term Start" : "Kuanza kwa Kipindi"}</th>

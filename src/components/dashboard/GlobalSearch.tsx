@@ -46,7 +46,7 @@ export default function GlobalSearch({ profiles, documents, grants, onOpenDocume
 
   const iconFor = (type: SearchResult["type"]) => {
     if (type === "member") return <User size={15} className="text-blue-400" />;
-    if (type === "document") return <FileText size={15} className="text-neutral-400" />;
+    if (type === "document") return <FileText size={15} className="text-neutral-500" />;
     return <Landmark size={15} className="text-emerald-400" />;
   };
 

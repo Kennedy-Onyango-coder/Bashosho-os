@@ -802,7 +802,7 @@ export default function Dashboard({
           className={`pb-3 px-1 transition-all border-b-2 flex items-center gap-1.5 ${
             dashboardSubTab === "overview"
               ? "border-[#E31E24] text-neutral-900"
-              : "border-transparent text-neutral-400 hover:text-neutral-600"
+              : "border-transparent text-neutral-500 hover:text-neutral-600"
           } cursor-pointer`}
         >
           <LayoutDashboard size={14} /> {lang === "en" ? "Overview" : "Muhtasari"}
@@ -812,7 +812,7 @@ export default function Dashboard({
           className={`pb-3 px-1 transition-all border-b-2 flex items-center gap-1.5 ${
             dashboardSubTab === "renewals"
               ? "border-[#E31E24] text-neutral-900"
-              : "border-transparent text-neutral-400 hover:text-neutral-600"
+              : "border-transparent text-neutral-500 hover:text-neutral-600"
           } cursor-pointer`}
         >
           <FileText size={14} /> {lang === "en" ? "Contract & Renewal" : "Mkataba na Usajili upya"}
@@ -826,7 +826,7 @@ export default function Dashboard({
           className={`pb-3 px-1 transition-all border-b-2 flex items-center gap-1.5 ${
             dashboardSubTab === "appointments"
               ? "border-[#E31E24] text-neutral-900"
-              : "border-transparent text-neutral-400 hover:text-neutral-600"
+              : "border-transparent text-neutral-500 hover:text-neutral-600"
           } cursor-pointer`}
         >
           <Crown size={14} /> {lang === "en" ? "Leadership Appointments" : "Teuzi za Uongozi"}
@@ -1270,7 +1270,7 @@ export default function Dashboard({
                   return (
                     <div key={partner.id} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors flex justify-between items-start flex-wrap gap-4">
                       <div className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-200/50 px-2 py-0.5 rounded">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 bg-neutral-200/50 px-2 py-0.5 rounded">
                           {partner.category.replace("_", " ")}
                         </span>
                         <h4 className="text-xs font-extrabold text-[#1B1B1B] mt-1">{partner.name}</h4>
@@ -1305,7 +1305,7 @@ export default function Dashboard({
                   );
                 })}
                 {partners.length === 0 && (
-                  <p className="text-xs text-neutral-400 italic text-center py-6">{lang === "en" ? "No partners recorded yet." : "Hakuna wadau bado."}</p>
+                  <p className="text-xs text-neutral-500 italic text-center py-6">{lang === "en" ? "No partners recorded yet." : "Hakuna wadau bado."}</p>
                 )}
               </div>
             </div>
@@ -1465,7 +1465,7 @@ export default function Dashboard({
                             </span>
                             <h4 className="text-[11px] font-black text-neutral-800 mt-1.5 leading-tight">{p.name}</h4>
                             <p className="text-[9px] text-neutral-500 mt-1 truncate">Lead: {p.contactPerson}</p>
-                            <div className="mt-2.5 pt-2 border-t border-neutral-100 flex items-center justify-between text-[8px] font-mono text-neutral-400">
+                            <div className="mt-2.5 pt-2 border-t border-neutral-100 flex items-center justify-between text-[8px] font-mono text-neutral-500">
                               <span>MOU Ref: {p.id.toUpperCase()}</span>
                             </div>
                           </div>
@@ -1536,7 +1536,7 @@ export default function Dashboard({
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-gray-200 text-neutral-400 font-mono font-bold uppercase tracking-wider text-[10px]">
+                    <tr className="border-b border-gray-200 text-neutral-500 font-mono font-bold uppercase tracking-wider text-[10px]">
                       <th className="pb-3 pr-2">{lang === "en" ? "Description" : "Maelezo"}</th>
                       <th className="pb-3 px-2">{lang === "en" ? "Requested By" : "Mwombaji"}</th>
                       <th className="pb-3 px-2">{lang === "en" ? "Amount" : "Kiasi"}</th>
@@ -1614,11 +1614,11 @@ export default function Dashboard({
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 text-left">
                     <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
-                      <span className="text-[8px] text-neutral-400 font-mono font-bold block uppercase">{lang === "en" ? "LAST RECONCILED" : "ILISAWAZISHWA MWISHO"}</span>
+                      <span className="text-[8px] text-neutral-500 font-mono font-bold block uppercase">{lang === "en" ? "LAST RECONCILED" : "ILISAWAZISHWA MWISHO"}</span>
                       <span className="text-[11px] font-bold text-neutral-700 mt-1 block">{reconcileDate}</span>
                     </div>
                     <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
-                      <span className="text-[8px] text-neutral-400 font-mono font-bold block uppercase">{lang === "en" ? "UNRECONCILED" : "BILA KULINGANISHWA"}</span>
+                      <span className="text-[8px] text-neutral-500 font-mono font-bold block uppercase">{lang === "en" ? "UNRECONCILED" : "BILA KULINGANISHWA"}</span>
                       <span className={`text-[11px] font-bold mt-1 block ${unreconciledCount > 0 ? "text-amber-600 font-black animate-pulse" : "text-emerald-600"}`}>
                         {unreconciledCount > 0 ? (lang === "en" ? `${unreconciledCount} transactions` : `${unreconciledCount} muamala`) : (lang === "en" ? "Fully Matched" : "Safi Kabisa")}
                       </span>
@@ -1669,7 +1669,7 @@ export default function Dashboard({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-gray-200 text-neutral-400 font-mono font-bold uppercase tracking-wider text-[10px]">
+                  <tr className="border-b border-gray-200 text-neutral-500 font-mono font-bold uppercase tracking-wider text-[10px]">
                     <th className="pb-3 pr-2">{lang === "en" ? "Member Name" : "Jina la Mwanachama"}</th>
                     <th className="pb-3 px-2">{lang === "en" ? "Staff/Volunteer Role" : "Jukumu"}</th>
                     <th className="pb-3 px-2">{lang === "en" ? "Clock-In Streak" : "Mfululizo wa Mahudhurio"}</th>
@@ -1828,7 +1828,7 @@ export default function Dashboard({
                     <h4 className="text-xs font-black text-neutral-800 uppercase">
                       {lang === "en" ? "Upload Official Passport Photo" : "Pakia Picha ya Kitambulisho"}
                     </h4>
-                    <p className="text-[10px] text-neutral-400">
+                    <p className="text-[10px] text-neutral-500">
                       {lang === "en" ? "Ensure your face is clear for the CBO card" : "Hakikisha sura inaonekana vizuri kwa kadi"}
                     </p>
                   </div>
@@ -1845,7 +1845,7 @@ export default function Dashboard({
                       onChange={handleMemberDashboardPhotoChange}
                     />
                   </label>
-                  <span className="text-[9px] text-neutral-400 font-mono">
+                  <span className="text-[9px] text-neutral-500 font-mono">
                     Max 1.5MB • JPEG/PNG
                   </span>
                 </div>
@@ -1932,7 +1932,7 @@ export default function Dashboard({
                   {broadcasts.some(b => !isRead(b.id)) && (
                     <button
                       onClick={markAllAsRead}
-                      className="text-[9px] text-neutral-400 hover:text-neutral-600 font-bold uppercase tracking-wider font-mono cursor-pointer"
+                      className="text-[9px] text-neutral-500 hover:text-neutral-600 font-bold uppercase tracking-wider font-mono cursor-pointer"
                     >
                       {lang === "en" ? "Mark all as read" : "Soma zote"}
                     </button>
@@ -1987,7 +1987,7 @@ export default function Dashboard({
                                 <div key={r.id} className="bg-neutral-50 rounded-lg px-2.5 py-1.5">
                                   <div className="flex justify-between items-baseline">
                                     <span className="text-[10px] font-bold text-neutral-700">{r.userName}</span>
-                                    <span className="text-[9px] font-mono text-neutral-400">{new Date(r.timestamp).toLocaleDateString()}</span>
+                                    <span className="text-[9px] font-mono text-neutral-500">{new Date(r.timestamp).toLocaleDateString()}</span>
                                   </div>
                                   <p className="text-[11px] text-neutral-600">{r.message}</p>
                                 </div>
@@ -2031,7 +2031,7 @@ export default function Dashboard({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="border-b border-gray-200 text-neutral-400 font-mono font-bold uppercase tracking-wider text-[10px]">
+                        <tr className="border-b border-gray-200 text-neutral-500 font-mono font-bold uppercase tracking-wider text-[10px]">
                           <th className="pb-2 pr-2">{lang === "en" ? "Event / Outreach" : "Mradi / Outreach"}</th>
                           <th className="pb-2 px-2">{lang === "en" ? "Date" : "Tarehe"}</th>
                           <th className="pb-2 px-2 text-center">{lang === "en" ? "Hours" : "Saa"}</th>
@@ -2446,7 +2446,7 @@ export default function Dashboard({
             />
           </div>
 
-          <p className="text-[10px] text-neutral-400 text-center mt-4 leading-relaxed font-semibold">
+          <p className="text-[10px] text-neutral-500 text-center mt-4 leading-relaxed font-semibold">
             {lang === "en"
               ? "Click 'Print Card' on the bottom right of the card to print. Click on the card itself to verify its digital registration status."
               : "Bonyeza 'Print Card' chini ya kadi ili kupiga chapa. Bonyeza kadi yenyewe kuthibitisha usajili wake wa dijitali."}
@@ -2719,11 +2719,11 @@ export default function Dashboard({
                 <div className="p-4 bg-neutral-50 border border-neutral-150 rounded-xl space-y-3.5 text-xs text-neutral-800">
                   <div className="grid grid-cols-2 gap-4 border-b border-neutral-200 pb-3">
                     <div>
-                      <span className="text-[10px] font-semibold text-neutral-400 uppercase font-mono">{lang === "en" ? "Designated Title" : "Cheo cha Kazi"}</span>
+                      <span className="text-[10px] font-semibold text-neutral-500 uppercase font-mono">{lang === "en" ? "Designated Title" : "Cheo cha Kazi"}</span>
                       <p className="font-bold text-[#E31E24] mt-0.5 text-sm uppercase font-mono"> {pendingAcknowledgeAppt.role}</p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-semibold text-neutral-400 uppercase font-mono">{lang === "en" ? "Term of Office" : "Kipindi cha Kazi"}</span>
+                      <span className="text-[10px] font-semibold text-neutral-500 uppercase font-mono">{lang === "en" ? "Term of Office" : "Kipindi cha Kazi"}</span>
                       <p className="font-semibold text-neutral-900 mt-0.5">
                         {pendingAcknowledgeAppt.termStart} {lang === "en" ? "to" : "hadi"} {pendingAcknowledgeAppt.termEnd || (lang === "en" ? "Indefinite" : "Hadi ukomo")}
                       </p>
@@ -2731,7 +2731,7 @@ export default function Dashboard({
                   </div>
 
                   <div>
-                    <span className="text-[10px] font-semibold text-neutral-400 uppercase font-mono">{lang === "en" ? "Outline of Key Responsibilities" : "Majukumu Makuu ya Kazi"}</span>
+                    <span className="text-[10px] font-semibold text-neutral-500 uppercase font-mono">{lang === "en" ? "Outline of Key Responsibilities" : "Majukumu Makuu ya Kazi"}</span>
                     <p className="font-serif leading-relaxed text-neutral-700 mt-1 whitespace-pre-wrap max-h-[160px] overflow-y-auto pr-1">
                       {pendingAcknowledgeAppt.responsibilities}
                     </p>
@@ -2772,7 +2772,7 @@ export default function Dashboard({
                   >
                     {lang === "en" ? "Remind Me Later" : "Kumbusha Baadaye"}
                   </button>
-                  <p className="text-[10px] font-mono text-center text-neutral-400 pt-1">
+                  <p className="text-[10px] font-mono text-center text-neutral-500 pt-1">
                     {lang === "en"
                       ? "By accepting, you agree to the community guidelines and code of conduct."
                       : "Kwa kukubali, unakubaliana na misingi na maadili ya jamii yetu."}

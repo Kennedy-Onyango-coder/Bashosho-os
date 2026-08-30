@@ -757,7 +757,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             transition={{ duration: 0.7, delay: 1.1 }}
             className="pt-4 border-t border-neutral-800/80 max-w-xl mx-auto"
           >
-            <p className="text-[11px] font-mono text-neutral-400 font-medium">
+            <p className="text-[11px] font-mono text-neutral-500 font-medium">
               Kiambiu Informal Settlement, Kamukunji, Nairobi · Registration No. <span className="text-white font-bold">DSD/KAM/CBO/5/4/22/269</span>
             </p>
           </motion.div>
@@ -814,15 +814,15 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-neutral-900 text-white p-4 rounded-2xl text-center space-y-1 border border-neutral-800">
                   <span className="text-2xl md:text-3xl font-black text-[#E31E24]">2020</span>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Founded</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 font-mono">Founded</p>
                 </div>
                 <div className="bg-neutral-900 text-white p-4 rounded-2xl text-center space-y-1 border border-neutral-800">
                   <span className="text-2xl md:text-3xl font-black text-[#00A651]">2022</span>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Registered</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 font-mono">Registered</p>
                 </div>
                 <div className="bg-neutral-900 text-white p-4 rounded-2xl text-center space-y-1 border border-neutral-800">
                   <span className="text-xl md:text-2xl font-black text-white">Kiambiu</span>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Base</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 font-mono">Base</p>
                 </div>
               </div>
 
@@ -1137,25 +1137,25 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               <div className="bg-neutral-800/90 border border-neutral-700/80 p-5 rounded-2xl space-y-2">
                 <Film className="text-[#E31E24]" size={24} />
                 <h4 className="text-sm font-bold text-white">Script & Direction</h4>
-                <p className="text-[11px] text-neutral-400">Story structure, character arcs, and director's block setup.</p>
+                <p className="text-[11px] text-neutral-500">Story structure, character arcs, and director's block setup.</p>
               </div>
 
               <div className="bg-neutral-800/90 border border-neutral-700/80 p-5 rounded-2xl space-y-2">
                 <Camera className="text-[#00A651]" size={24} />
                 <h4 className="text-sm font-bold text-white">Camera & Lighting</h4>
-                <p className="text-[11px] text-neutral-400">Cinematography, framing, exposure, and lighting rigs.</p>
+                <p className="text-[11px] text-neutral-500">Cinematography, framing, exposure, and lighting rigs.</p>
               </div>
 
               <div className="bg-neutral-800/90 border border-neutral-700/80 p-5 rounded-2xl space-y-2">
                 <Wrench className="text-amber-500" size={24} />
                 <h4 className="text-sm font-bold text-white">Sound & Editing</h4>
-                <p className="text-[11px] text-neutral-400">Field audio recording, dialogue sync, and digital editing.</p>
+                <p className="text-[11px] text-neutral-500">Field audio recording, dialogue sync, and digital editing.</p>
               </div>
 
               <div className="bg-neutral-800/90 border border-neutral-700/80 p-5 rounded-2xl space-y-2">
                 <Users className="text-blue-500" size={24} />
                 <h4 className="text-sm font-bold text-white">Practical Crew</h4>
-                <p className="text-[11px] text-neutral-400">Real on-set crew experience in advocacy films.</p>
+                <p className="text-[11px] text-neutral-500">Real on-set crew experience in advocacy films.</p>
               </div>
             </div>
           </div>
@@ -1410,11 +1410,11 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                   </div>
                   <div className="p-4 space-y-2 flex-1 flex flex-col">
                     <h4 className="text-sm font-bold text-neutral-900">{asset.name}</h4>
-                    <p className="text-[10px] font-mono uppercase text-neutral-400 tracking-wider">{asset.category}</p>
+                    <p className="text-[10px] font-mono uppercase text-neutral-500 tracking-wider">{asset.category}</p>
                     <div className="flex-1"></div>
                     <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
                       <span className="text-sm font-black text-[#00A651] font-mono">
-                        Ksh {(asset.dailyRate || 1500).toLocaleString()}<span className="text-[10px] text-neutral-400 font-normal">/day</span>
+                        Ksh {(asset.dailyRate || 1500).toLocaleString()}<span className="text-[10px] text-neutral-500 font-normal">/day</span>
                       </span>
                       <button
                         onClick={() => setSelectedHireAsset(asset)}
@@ -1487,7 +1487,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             <h2 className="text-2xl md:text-4xl font-black text-white tracking-tight font-sans">
               Support Our Work
             </h2>
-            <p className="text-neutral-400 text-sm max-w-2xl font-medium">
+            <p className="text-neutral-500 text-sm max-w-2xl font-medium">
               Three direct ways to collaborate, commission our creative services, or fuel our ongoing community interventions in Kiambiu.
             </p>
           </div>
@@ -1551,7 +1551,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                 <div className="p-3 bg-neutral-900 border border-neutral-700 rounded-xl space-y-1">
                   <span className="text-[10px] font-mono uppercase font-bold text-emerald-400 block">Lipa na M-Pesa Buy Goods Till</span>
                   <p className="text-lg font-mono font-black text-white">8671238</p>
-                  <p className="text-[10px] text-neutral-400">Account: Bashosho Talents CBO</p>
+                  <p className="text-[10px] text-neutral-500">Account: Bashosho Talents CBO</p>
                 </div>
               </div>
 
@@ -1623,7 +1623,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                   {partner.name}
                 </p>
                 {partner.category && (
-                  <span className="text-[9px] font-mono text-neutral-400 font-semibold uppercase tracking-wider">
+                  <span className="text-[9px] font-mono text-neutral-500 font-semibold uppercase tracking-wider">
                     {partner.category}
                   </span>
                 )}
@@ -1665,11 +1665,11 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
               <RevealItem>
               <TiltCard className="bg-white border border-neutral-200 rounded-3xl p-6 space-y-4 shadow-2xs hover:border-[#E31E24]/50 transition-colors flex flex-col justify-between h-full">
                 <div className="space-y-3">
-                  <div className="w-16 h-16 rounded-2xl bg-neutral-100 border border-neutral-200 overflow-hidden flex items-center justify-center text-neutral-400 font-bold">
+                  <div className="w-16 h-16 rounded-2xl bg-neutral-100 border border-neutral-200 overflow-hidden flex items-center justify-center text-neutral-500 font-bold">
                     {member.photoUrl ? (
                       <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover" />
                     ) : (
-                      <User size={32} className="text-neutral-400" />
+                      <User size={32} className="text-neutral-500" />
                     )}
                   </div>
 
@@ -1788,7 +1788,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                 <p className="text-[10px] font-bold text-[#00A651] uppercase -mt-1">TALENTS CBO</p>
               </div>
             </div>
-            <p className="text-xs text-neutral-400 leading-relaxed font-medium">
+            <p className="text-xs text-neutral-500 leading-relaxed font-medium">
               Youth participatory performance art, film, and mental health campaign in Kiambiu slum, Nairobi.
             </p>
             <div className="pt-1">
@@ -1799,7 +1799,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
 
           <div className="space-y-4 text-xs">
             <h3 className="font-bold text-[#E31E24] uppercase tracking-wider font-mono">Quick Navigation</h3>
-            <ul className="space-y-2 text-neutral-400 font-medium">
+            <ul className="space-y-2 text-neutral-500 font-medium">
               <li><a href="#about-section" className="hover:text-white transition-colors">About Us</a></li>
               <li><a href="#approach-section" className="hover:text-white transition-colors">Our Methodology</a></li>
               <li><a href="#programs-section" className="hover:text-white transition-colors">Core Programs</a></li>
@@ -1818,7 +1818,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
             </ul>
           </div>
 
-          <div className="space-y-4 text-xs text-neutral-400 font-medium">
+          <div className="space-y-4 text-xs text-neutral-500 font-medium">
             <h3 className="font-bold text-[#E31E24] uppercase tracking-wider font-mono">Official Contacts</h3>
             <p className="flex items-center gap-2"><Mail size={14} className="text-[#E31E24]" /> <strong className="text-white font-mono">{content.contactEmail}</strong></p>
             <p className="flex items-center gap-2"><Phone size={14} className="text-[#E31E24]" /> <strong className="text-white font-mono">{content.contactPhone}</strong></p>
@@ -1987,7 +1987,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                     : "Asante kwa kuwasiliana na Bashosho Talents CBO. Ombi lako limesajiliwa katika bodi yetu ya Ufadhili na Washirika."}
                 </p>
                 <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl max-w-xs mx-auto">
-                  <span className="text-[10px] text-neutral-400 uppercase font-mono font-bold block">Inquiry Tracking Ref</span>
+                  <span className="text-[10px] text-neutral-500 uppercase font-mono font-bold block">Inquiry Tracking Ref</span>
                   <span className="text-lg font-mono font-black text-emerald-700">{taasBookingSuccessRef}</span>
                 </div>
                 <div className="pt-2">
@@ -2385,7 +2385,7 @@ export default function HomePage({ lang, onChangeLang, onNavigateToPortal }: Hom
                  programInquiry.type === "film_apply" ? (lang === "en" ? "Apply to Film Academy" : "Omba Mafunzo ya Filamu") :
                  (lang === "en" ? "Book a Performance" : "Omba Maonyesho ya Jukwaani")}
               </div>
-              <p className="text-[10px] text-neutral-400 font-mono font-normal">
+              <p className="text-[10px] text-neutral-500 font-mono font-normal">
                 {programInquiry.program.title[lang]}
               </p>
             </div>

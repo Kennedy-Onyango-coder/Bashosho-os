@@ -101,7 +101,7 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
         <h1 className="mt-4 text-lg font-bold uppercase tracking-wider text-red-500 font-sans">
           Bashosho Talents CBO
         </h1>
-        <p className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest mt-1">
+        <p className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mt-1">
           Official Digital Registry
         </p>
       </header>
@@ -112,7 +112,7 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
           {loading ? (
             <div className="space-y-4 py-8">
               <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-sm font-mono text-neutral-400">Performing Cryptographic Signature Check...</p>
+              <p className="text-sm font-mono text-neutral-500">Performing Cryptographic Signature Check...</p>
             </div>
           ) : errorMsg ? (
             <div className="space-y-6 py-4">
@@ -141,7 +141,7 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 <h2 className="text-xl font-black font-sans text-emerald-500 uppercase tracking-wide">
                   Document Verified
                 </h2>
-                <p className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">
+                <p className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
                   Authentic Community Record
                 </p>
               </div>
@@ -151,15 +151,15 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "membership" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Verified Holder</span>
+                      <span className="text-neutral-500 font-medium">Verified Holder</span>
                       <span className="font-bold text-neutral-100">{result.name}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Assigned Role</span>
+                      <span className="text-neutral-500 font-medium">Assigned Role</span>
                       <span className="font-semibold text-red-400 uppercase">{result.role}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Status</span>
+                      <span className="text-neutral-500 font-medium">Status</span>
                       <span className="font-mono font-bold text-emerald-400 uppercase">{result.status}</span>
                     </div>
                   </>
@@ -168,11 +168,11 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "class_certificate" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Program Name</span>
+                      <span className="text-neutral-500 font-medium">Program Name</span>
                       <span className="font-bold text-neutral-100">{result.className}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Issuing CBO</span>
+                      <span className="text-neutral-500 font-medium">Issuing CBO</span>
                       <span className="font-semibold text-neutral-100">{result.orgName}</span>
                     </div>
                   </>
@@ -181,15 +181,15 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "invoice" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Invoice Number</span>
+                      <span className="text-neutral-500 font-medium">Invoice Number</span>
                       <span className="font-mono font-bold text-neutral-100">{result.invoiceNumber}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Certified Amount</span>
+                      <span className="text-neutral-500 font-medium">Certified Amount</span>
                       <span className="font-mono font-bold text-neutral-100">Ksh {Number(result?.amount || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Payment Status</span>
+                      <span className="text-neutral-500 font-medium">Payment Status</span>
                       <span className="font-bold uppercase text-amber-500" style={{ color: result.status === "paid" ? "#10B981" : "#F59E0B" }}>
                         {result.status}
                       </span>
@@ -200,19 +200,19 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "leadership_appointment" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Appointed Leader</span>
+                      <span className="text-neutral-500 font-medium">Appointed Leader</span>
                       <span className="font-bold text-neutral-100">{result.appointeeName}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Leadership Position</span>
+                      <span className="text-neutral-500 font-medium">Leadership Position</span>
                       <span className="font-semibold text-red-400 uppercase">{result.role}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Term Start Date</span>
+                      <span className="text-neutral-500 font-medium">Term Start Date</span>
                       <span className="font-mono text-neutral-100">{result.termStart}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Term End Date</span>
+                      <span className="text-neutral-500 font-medium">Term End Date</span>
                       <span className="font-mono text-neutral-100">{result.termEnd || "Indefinite / Open-ended"}</span>
                     </div>
                   </>
@@ -221,19 +221,19 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "document" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Document Title</span>
+                      <span className="text-neutral-500 font-medium">Document Title</span>
                       <span className="font-bold text-neutral-100">{result.title}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Type</span>
+                      <span className="text-neutral-500 font-medium">Type</span>
                       <span className="font-semibold text-red-400 uppercase">{result.docType}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Author</span>
+                      <span className="text-neutral-500 font-medium">Author</span>
                       <span className="font-mono text-neutral-100">{result.author}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Date</span>
+                      <span className="text-neutral-500 font-medium">Date</span>
                       <span className="font-mono text-neutral-100">{result.date}</span>
                     </div>
                   </>
@@ -242,19 +242,19 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "volunteer_certificate" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Recipient</span>
+                      <span className="text-neutral-500 font-medium">Recipient</span>
                       <span className="font-bold text-neutral-100">{result.recipientName}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Recognition Tier</span>
+                      <span className="text-neutral-500 font-medium">Recognition Tier</span>
                       <span className="font-semibold text-red-400 uppercase">{result.tier}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Hours of Service</span>
+                      <span className="text-neutral-500 font-medium">Hours of Service</span>
                       <span className="font-mono text-neutral-100">{result.hoursAtIssue} Hrs</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Issued Date</span>
+                      <span className="text-neutral-500 font-medium">Issued Date</span>
                       <span className="font-mono text-neutral-100">{result.issuedDate}</span>
                     </div>
                   </>
@@ -263,23 +263,23 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "asset" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Asset Name</span>
+                      <span className="text-neutral-500 font-medium">Asset Name</span>
                       <span className="font-bold text-neutral-100">{result.assetName}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Category</span>
+                      <span className="text-neutral-500 font-medium">Category</span>
                       <span className="font-semibold text-red-400 uppercase">{result.assetCategory}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Serial Number</span>
+                      <span className="text-neutral-500 font-medium">Serial Number</span>
                       <span className="font-mono text-neutral-100">{result.assetSerial}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Condition</span>
+                      <span className="text-neutral-500 font-medium">Condition</span>
                       <span className="font-mono text-neutral-100 uppercase">{result.assetCondition}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Current Custodian</span>
+                      <span className="text-neutral-500 font-medium">Current Custodian</span>
                       <span className="font-mono text-neutral-100">{result.assetCustodian}</span>
                     </div>
                   </>
@@ -288,27 +288,27 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "attendance_register" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Event</span>
+                      <span className="text-neutral-500 font-medium">Event</span>
                       <span className="font-bold text-neutral-100">{result.eventTitle}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Type</span>
+                      <span className="text-neutral-500 font-medium">Type</span>
                       <span className="font-semibold text-red-400 uppercase">{result.eventType}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Venue</span>
+                      <span className="text-neutral-500 font-medium">Venue</span>
                       <span className="font-mono text-neutral-100">{result.eventVenue}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Date</span>
+                      <span className="text-neutral-500 font-medium">Date</span>
                       <span className="font-mono text-neutral-100">{result.eventDate}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Attendees Recorded</span>
+                      <span className="text-neutral-500 font-medium">Attendees Recorded</span>
                       <span className="font-mono text-neutral-100">{result.attendeeCount}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Approval Status</span>
+                      <span className="text-neutral-500 font-medium">Approval Status</span>
                       <span className="font-mono text-neutral-100 uppercase">{result.approvalStatus}</span>
                     </div>
                   </>
@@ -317,23 +317,23 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "cast_payment_list" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Event</span>
+                      <span className="text-neutral-500 font-medium">Event</span>
                       <span className="font-bold text-neutral-100">{result.eventName}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Payment Date</span>
+                      <span className="text-neutral-500 font-medium">Payment Date</span>
                       <span className="font-mono text-neutral-100">{result.paymentDate}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Payees</span>
+                      <span className="text-neutral-500 font-medium">Payees</span>
                       <span className="font-mono text-neutral-100">{result.payeeCount}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Total Amount</span>
+                      <span className="text-neutral-500 font-medium">Total Amount</span>
                       <span className="font-mono text-neutral-100">Ksh {result.totalAmount?.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Approval Status</span>
+                      <span className="text-neutral-500 font-medium">Approval Status</span>
                       <span className="font-mono text-neutral-100 uppercase">{result.approvalStatus}</span>
                     </div>
                   </>
@@ -342,27 +342,27 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                 {result.type === "contract_renewal" && (
                   <>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Member</span>
+                      <span className="text-neutral-500 font-medium">Member</span>
                       <span className="font-bold text-neutral-100">{result.memberName}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Role</span>
+                      <span className="text-neutral-500 font-medium">Role</span>
                       <span className="font-semibold text-red-400 uppercase">{result.memberRole}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Status</span>
+                      <span className="text-neutral-500 font-medium">Status</span>
                       <span className="font-mono text-neutral-100 uppercase">{result.approvalStatus}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Payment</span>
+                      <span className="text-neutral-500 font-medium">Payment</span>
                       <span className="font-mono text-neutral-100 uppercase">{result.paymentStatus}</span>
                     </div>
                     <div className="flex justify-between items-baseline border-b border-neutral-700/30 pb-2">
-                      <span className="text-neutral-400 font-medium">Valid Until</span>
+                      <span className="text-neutral-500 font-medium">Valid Until</span>
                       <span className="font-mono text-neutral-100">{result.expiryDate}</span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-neutral-400 font-medium">Reviewed By</span>
+                      <span className="text-neutral-500 font-medium">Reviewed By</span>
                       <span className="font-mono text-neutral-100">{result.reviewedBy}</span>
                     </div>
                   </>
@@ -378,13 +378,13 @@ export default function PublicVerificationScreen({ path }: { path: string }) {
                   <p className="text-[11px] font-bold text-emerald-300 font-sans">
                     Digital Signature Verified
                   </p>
-                  <p className="text-[9px] font-mono text-neutral-400">
+                  <p className="text-[9px] font-mono text-neutral-500">
                     Signed & Sealed by CBO Executive Leadership (Chairperson / Secretary)
                   </p>
                 </div>
               </div>
 
-              <div className="text-[10px] text-neutral-400 font-sans leading-normal">
+              <div className="text-[10px] text-neutral-500 font-sans leading-normal">
                 This verification check was authorized and logged by the <strong className="text-neutral-300">{result.orgName}</strong> server.
               </div>
             </div>

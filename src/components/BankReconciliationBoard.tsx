@@ -159,7 +159,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
             <Landmark className="text-[#E31E24]" size={20} />
             {lang === "en" ? "Bank Reconciliation" : "Ulinganisho wa Benki"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {lang === "en"
               ? "Enter the closing balance from a bank statement received by email — the system compares it against your own recorded books for that period automatically."
               : "Weka kiasi cha mwisho kutoka taarifa ya benki iliyopokelewa kwa barua pepe — mfumo utalinganisha na kumbukumbu zake mwenyewe kwa kipindi hicho."}
@@ -182,7 +182,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
             <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
               <Upload size={12} /> {lang === "en" ? "Upload Bank Statement (PDF)" : "Pakia Taarifa ya Benki (PDF)"}
             </p>
-            <p className="text-[10px] text-neutral-400">
+            <p className="text-[10px] text-neutral-500">
               {lang === "en"
                 ? "Upload the statement PDF your bank emailed — if it's password-protected, we'll ask for the password. This auto-fills the balance and transactions below for you to review, it doesn't save anything automatically."
                 : "Pakia PDF ya taarifa iliyotumwa na benki kwa barua pepe — ikiwa ina password, tutakuuliza. Hii itajaza kiasi na miamala hapa chini kwa ukague, haihifadhi chochote moja kwa moja."}
@@ -199,7 +199,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
             ) : (
               <div className="flex items-center justify-between bg-white border border-neutral-200 rounded-lg px-3 py-2">
                 <span className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5"><FileText size={13} /> {uploadedFile.name}</span>
-                <button type="button" onClick={clearUpload} className="text-neutral-400 hover:text-red-600 cursor-pointer"><X size={14} /></button>
+                <button type="button" onClick={clearUpload} className="text-neutral-500 hover:text-red-600 cursor-pointer"><X size={14} /></button>
               </div>
             )}
 
@@ -208,7 +208,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
             {needsPassword && (
               <div className="flex gap-2 items-center">
                 <div className="flex-1 relative">
-                  <Lock size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                  <Lock size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
                   <input
                     type="password"
                     value={statementPassword}
@@ -262,7 +262,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
                   <input type="date" value={l.date} onChange={e => updateLine(idx, "date", e.target.value)} className="col-span-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
                   <input placeholder={lang === "en" ? "Description from statement" : "Maelezo"} value={l.description} onChange={e => updateLine(idx, "description", e.target.value)} className="col-span-6 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
                   <input type="number" placeholder="Ksh" value={l.amount} onChange={e => updateLine(idx, "amount", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-mono" />
-                  <button type="button" onClick={() => removeLine(idx)} className="col-span-1 text-neutral-400 hover:text-red-600 cursor-pointer flex justify-center">
+                  <button type="button" onClick={() => removeLine(idx)} className="col-span-1 text-neutral-500 hover:text-red-600 cursor-pointer flex justify-center">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -288,9 +288,9 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
       )}
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading reconciliation history..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "Loading reconciliation history..." : "Inapakia..."}</p>
       ) : sorted.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en" ? "No reconciliations recorded yet." : "Hakuna ulinganisho uliorekodiwa bado."}
         </div>
       ) : (
@@ -347,7 +347,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
                 <div className="mt-3 pt-3 border-t border-neutral-100 space-y-3">
                   {lines.length > 0 && (
                     <div>
-                      <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">{lang === "en" ? "Statement Lines" : "Miamala ya Taarifa"}</p>
+                      <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider mb-1.5">{lang === "en" ? "Statement Lines" : "Miamala ya Taarifa"}</p>
                       <div className="space-y-1">
                         {lines.map(l => (
                           <div key={l.id} className={`flex justify-between items-center text-[10px] rounded-lg px-2.5 py-1.5 ${l.matched ? "bg-emerald-50" : "bg-amber-50"}`}>

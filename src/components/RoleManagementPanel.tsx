@@ -474,13 +474,13 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between border-b pb-2">
             <h4 className="text-xs font-black uppercase text-neutral-500 tracking-wider flex items-center gap-1.5">
-              <Briefcase size={12} className="text-neutral-400" />
+              <Briefcase size={12} className="text-neutral-500" />
               {t[lang].rolesListHeader}
             </h4>
             <button 
               onClick={fetchRoles}
               disabled={loadingRoles}
-              className="text-neutral-400 hover:text-neutral-600 disabled:opacity-50 p-1 cursor-pointer transition-colors"
+              className="text-neutral-500 hover:text-neutral-600 disabled:opacity-50 p-1 cursor-pointer transition-colors"
               title="Refresh Roles"
               aria-label="Refresh roles"
             >
@@ -490,12 +490,12 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
 
           <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
             {loadingRoles && roles.length === 0 ? (
-              <div className="text-center py-8 text-xs text-neutral-400">
+              <div className="text-center py-8 text-xs text-neutral-500">
                 <span className="w-4 h-4 rounded-full border-2 border-red-500 border-t-transparent animate-spin inline-block mr-2 align-middle"></span>
                 Loading system roles...
               </div>
             ) : roles.length === 0 ? (
-              <div className="text-center py-8 text-xs text-neutral-400 border border-dashed rounded-xl">
+              <div className="text-center py-8 text-xs text-neutral-500 border border-dashed rounded-xl">
                 No active roles found.
               </div>
             ) : (
@@ -520,7 +520,7 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
                           </span>
                         )}
                         <span className="text-[10px] text-neutral-500 flex items-center gap-1 font-mono">
-                          <Users size={10} className="text-neutral-400" />
+                          <Users size={10} className="text-neutral-500" />
                           {count} {t[lang].userCountLabel}
                         </span>
                       </div>
@@ -793,7 +793,7 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
                       )}
                     </div>
                     <div className="space-y-1 text-center sm:text-left flex-grow">
-                      <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
+                      <label className="block text-[9px] font-bold text-neutral-500 uppercase tracking-wider">
                         {lang === "en" ? "Official ID Passport Photo" : "Picha ya Pasipoti ya Kitambulisho"}
                       </label>
                       <div className="flex items-center gap-2">
@@ -806,7 +806,7 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
                             onChange={handleMemberPhotoChange}
                           />
                         </label>
-                        <span className="text-[8.5px] text-neutral-400 font-mono">Max 1.5MB</span>
+                        <span className="text-[8.5px] text-neutral-500 font-mono">Max 1.5MB</span>
                       </div>
                     </div>
                   </div>

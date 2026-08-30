@@ -118,7 +118,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
           <Users className="text-[#E31E24]" size={20} />
           {lang === "en" ? "Members Directory" : "Orodha ya Wanachama"}
         </h2>
-        <p className="text-xs text-neutral-400 mt-1">
+        <p className="text-xs text-neutral-500 mt-1">
           {lang === "en"
             ? "Full details on every member, volunteer, and leader — join date, contract status, and contact info in one place."
             : "Maelezo kamili ya kila mwanachama, mwanajitolea, na kiongozi — tarehe ya kujiunga, hali ya mkataba, na mawasiliano."}
@@ -126,7 +126,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
       </div>
 
       <div className="relative">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
         <input
           type="text"
           value={search}
@@ -139,20 +139,20 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
       {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-10 text-center">{lang === "en" ? "Loading members..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-10 text-center">{lang === "en" ? "Loading members..." : "Inapakia..."}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-xs text-neutral-400 py-10 text-center">{lang === "en" ? "No members found." : "Hakuna wanachama waliopatikana."}</p>
+        <p className="text-xs text-neutral-500 py-10 text-center">{lang === "en" ? "No members found." : "Hakuna wanachama waliopatikana."}</p>
       ) : (
         <div className="border border-neutral-200 rounded-xl overflow-hidden divide-y divide-neutral-100">
           {filtered.map(m => (
             <div key={m.id} className="p-3 flex items-center gap-3 hover:bg-neutral-50 text-xs">
               <button onClick={() => setDetailMember(m)} className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
                 <div className="w-10 h-10 rounded-full bg-neutral-100 border border-neutral-200 overflow-hidden flex items-center justify-center shrink-0">
-                  {m.avatar ? <img src={m.avatar} alt={m.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <span className="text-neutral-400 font-bold">{m.name?.[0]}</span>}
+                  {m.avatar ? <img src={m.avatar} alt={m.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <span className="text-neutral-500 font-bold">{m.name?.[0]}</span>}
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-neutral-800 truncate">{m.name}</p>
-                  <p className="text-[10px] text-neutral-400 font-mono">{displayRole(m.role)} · {lang === "en" ? "joined" : "alijiunga"} {m.joinDate || "—"}</p>
+                  <p className="text-[10px] text-neutral-500 font-mono">{displayRole(m.role)} · {lang === "en" ? "joined" : "alijiunga"} {m.joinDate || "—"}</p>
                 </div>
               </button>
               <div className="shrink-0">
@@ -167,14 +167,14 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
               <button
                 onClick={() => { setRequestTarget(m); setRequestMessage(""); }}
                 title={lang === "en" ? "Request information" : "Omba Taarifa"}
-                className="text-neutral-400 hover:text-blue-600 cursor-pointer shrink-0"
+                className="text-neutral-500 hover:text-blue-600 cursor-pointer shrink-0"
               >
                 <MessageSquare size={14} />
               </button>
               <button
                 onClick={() => handleDeleteProfile(m)}
                 title={lang === "en" ? "Delete profile" : "Futa Wasifu"}
-                className="text-neutral-400 hover:text-red-600 cursor-pointer shrink-0"
+                className="text-neutral-500 hover:text-red-600 cursor-pointer shrink-0"
               >
                 <Trash2 size={14} />
               </button>
@@ -195,7 +195,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
             placeholder={lang === "en" ? "e.g. Please update your emergency contact and phone number." : "mfano: Tafadhali sasisha nambari yako ya dharura na simu."}
             className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
           />
-          <p className="text-[10px] text-neutral-400">
+          <p className="text-[10px] text-neutral-500">
             {lang === "en" ? "This creates a task on their dashboard asking them to respond." : "Hii inaunda jukumu kwenye dashibodi yao ikiwauliza kujibu."}
           </p>
           <button
@@ -214,7 +214,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-16 h-16 rounded-full bg-neutral-100 border border-neutral-200 overflow-hidden flex items-center justify-center shrink-0">
-                {detailMember.avatar ? <img src={detailMember.avatar} alt={detailMember.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <span className="text-neutral-400 font-bold text-xl">{detailMember.name?.[0]}</span>}
+                {detailMember.avatar ? <img src={detailMember.avatar} alt={detailMember.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <span className="text-neutral-500 font-bold text-xl">{detailMember.name?.[0]}</span>}
               </div>
               <div>
                 <h3 className="text-base font-black text-neutral-900">{detailMember.name}</h3>
@@ -222,12 +222,12 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Joined" : "Alijiunga"}</span><span className="font-bold text-neutral-900">{detailMember.joinDate || "—"}</span></div>
-              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Member No." : "Namba"}</span><span className="font-bold text-neutral-900">{detailMember.memberNumber || "—"}</span></div>
-              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">Email</span><span className="font-bold text-neutral-900 break-all">{detailMember.email || "—"}</span></div>
-              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Phone" : "Simu"}</span><span className="font-bold text-neutral-900">{detailMember.phone || "—"}</span></div>
-              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Emergency Contact" : "Dharura"}</span><span className="font-bold text-neutral-900">{detailMember.emergencyContact?.name ? `${detailMember.emergencyContact.name} (${detailMember.emergencyContact.phone || "—"})` : "—"}</span></div>
-              <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Contract Due" : "Mwisho wa Mkataba"}</span><span className="font-bold text-neutral-900">{detailMember.contractStatus.dueDate}</span></div>
+              <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Joined" : "Alijiunga"}</span><span className="font-bold text-neutral-900">{detailMember.joinDate || "—"}</span></div>
+              <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Member No." : "Namba"}</span><span className="font-bold text-neutral-900">{detailMember.memberNumber || "—"}</span></div>
+              <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">Email</span><span className="font-bold text-neutral-900 break-all">{detailMember.email || "—"}</span></div>
+              <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Phone" : "Simu"}</span><span className="font-bold text-neutral-900">{detailMember.phone || "—"}</span></div>
+              <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Emergency Contact" : "Dharura"}</span><span className="font-bold text-neutral-900">{detailMember.emergencyContact?.name ? `${detailMember.emergencyContact.name} (${detailMember.emergencyContact.phone || "—"})` : "—"}</span></div>
+              <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Contract Due" : "Mwisho wa Mkataba"}</span><span className="font-bold text-neutral-900">{detailMember.contractStatus.dueDate}</span></div>
             </div>
             <div className="flex gap-2 pt-2 border-t border-neutral-100">
               <button

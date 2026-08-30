@@ -93,7 +93,7 @@ export default function BulkHistoricalEntryBoard({ lang }: BulkHistoricalEntryBo
           <BookOpen className="text-[#E31E24]" size={20} />
           {lang === "en" ? "Bulk Historical Entry" : "Uwekaji wa Rekodi za Zamani"}
         </h2>
-        <p className="text-xs text-neutral-400 mt-1">
+        <p className="text-xs text-neutral-500 mt-1">
           {lang === "en"
             ? "Digitize your old paper cashbook fast — add as many rows as you need, fill in each line exactly as it appears in the book, then save them all at once. Every entry is tagged as a historical record for a clean audit trail."
             : "Weka rekodi za kitabu chako cha zamani cha fedha haraka — ongeza safu nyingi utakavyo, jaza kila mstari kama ulivyo kwenye kitabu, kisha hifadhi zote mara moja."}
@@ -118,7 +118,7 @@ export default function BulkHistoricalEntryBoard({ lang }: BulkHistoricalEntryBo
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider text-left">
+              <tr className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider text-left">
                 <th className="pb-2 pr-2">{lang === "en" ? "Type" : "Aina"}</th>
                 <th className="pb-2 pr-2">{lang === "en" ? "Date" : "Tarehe"}</th>
                 <th className="pb-2 pr-2">{lang === "en" ? "Description" : "Maelezo"}</th>
@@ -144,7 +144,7 @@ export default function BulkHistoricalEntryBoard({ lang }: BulkHistoricalEntryBo
                     </select>
                   </td>
                   <td className="py-1.5 pr-2"><input type="number" min="0" value={row.amount} onChange={e => updateRow(idx, "amount", e.target.value)} className="w-24 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1.5 text-[11px] font-mono" /></td>
-                  <td className="py-1.5"><button onClick={() => removeRow(idx)} className="text-neutral-400 hover:text-red-600 cursor-pointer"><Trash2 size={13} /></button></td>
+                  <td className="py-1.5"><button onClick={() => removeRow(idx)} className="text-neutral-500 hover:text-red-600 cursor-pointer"><Trash2 size={13} /></button></td>
                 </tr>
               ))}
             </tbody>

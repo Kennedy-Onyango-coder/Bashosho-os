@@ -95,7 +95,7 @@ export default function MembersVolunteersPanel({ lang }: MembersVolunteersPanelP
           <h2 className="text-xl font-black text-white mt-1.5 font-sans">
             {lang === "en" ? "Members & Volunteers" : "Wanachama na Wajitolea"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <p className="text-xs text-neutral-500 mt-0.5">
             {lang === "en"
               ? "Full roster of registered members and volunteers, with live status and attendance."
               : "Orodha kamili ya wanachama na wajitolea waliosajiliwa, na hali yao ya sasa."}
@@ -157,7 +157,7 @@ export default function MembersVolunteersPanel({ lang }: MembersVolunteersPanelP
         <>
           <div className="flex flex-wrap gap-2 items-center bg-white border border-neutral-200 rounded-xl p-3">
             <div className="relative flex-1 min-w-[200px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
               <input
                 type="text"
                 value={searchQuery}
@@ -216,7 +216,7 @@ export default function MembersVolunteersPanel({ lang }: MembersVolunteersPanelP
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-neutral-900 truncate">{p.name}</p>
-                              <p className="text-[10px] text-neutral-400 font-mono">{p.memberNumber}</p>
+                              <p className="text-[10px] text-neutral-500 font-mono">{p.memberNumber}</p>
                             </div>
                           </div>
                         </td>
@@ -241,7 +241,7 @@ export default function MembersVolunteersPanel({ lang }: MembersVolunteersPanelP
                   })}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-10 text-center text-neutral-400 text-xs">
+                      <td colSpan={7} className="py-10 text-center text-neutral-500 text-xs">
                         {lang === "en" ? "No members match your filters." : "Hakuna wanachama wanaolingana na uchujaji wako."}
                       </td>
                     </tr>
@@ -267,34 +267,34 @@ export default function MembersVolunteersPanel({ lang }: MembersVolunteersPanelP
                   <p className="text-xs text-red-600 font-bold">{selectedMember.role}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedMember(null)} className="text-neutral-400 hover:text-neutral-700 cursor-pointer">
+              <button onClick={() => setSelectedMember(null)} className="text-neutral-500 hover:text-neutral-700 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="bg-neutral-50 rounded-lg p-3">
-                <span className="block text-[9px] font-bold text-neutral-400 uppercase">{lang === "en" ? "Member #" : "Namba"}</span>
+                <span className="block text-[9px] font-bold text-neutral-500 uppercase">{lang === "en" ? "Member #" : "Namba"}</span>
                 <span className="font-mono font-bold text-neutral-800">{selectedMember.memberNumber}</span>
               </div>
               <div className="bg-neutral-50 rounded-lg p-3">
-                <span className="block text-[9px] font-bold text-neutral-400 uppercase">{lang === "en" ? "Status" : "Hali"}</span>
+                <span className="block text-[9px] font-bold text-neutral-500 uppercase">{lang === "en" ? "Status" : "Hali"}</span>
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${statusBadge(selectedMember).cls}`}>{statusBadge(selectedMember).label}</span>
               </div>
             </div>
 
             <div className="space-y-2 text-xs">
-              <p className="flex items-center gap-2 text-neutral-700"><Phone size={13} className="text-neutral-400" /> {selectedMember.phone || "\u2014"}</p>
-              <p className="flex items-center gap-2 text-neutral-700"><Mail size={13} className="text-neutral-400" /> {selectedMember.email || "\u2014"}</p>
-              <p className="flex items-center gap-2 text-neutral-700"><Calendar size={13} className="text-neutral-400" /> {lang === "en" ? "Joined" : "Alijiunga"} {selectedMember.joinDate}</p>
+              <p className="flex items-center gap-2 text-neutral-700"><Phone size={13} className="text-neutral-500" /> {selectedMember.phone || "\u2014"}</p>
+              <p className="flex items-center gap-2 text-neutral-700"><Mail size={13} className="text-neutral-500" /> {selectedMember.email || "\u2014"}</p>
+              <p className="flex items-center gap-2 text-neutral-700"><Calendar size={13} className="text-neutral-500" /> {lang === "en" ? "Joined" : "Alijiunga"} {selectedMember.joinDate}</p>
               {(selectedMember.validFrom || selectedMember.validUntil) && (
-                <p className="flex items-center gap-2 text-neutral-700"><Shield size={13} className="text-neutral-400" /> {lang === "en" ? "Valid until" : "Hadi"} {selectedMember.validUntil || "\u2014"}</p>
+                <p className="flex items-center gap-2 text-neutral-700"><Shield size={13} className="text-neutral-500" /> {lang === "en" ? "Valid until" : "Hadi"} {selectedMember.validUntil || "\u2014"}</p>
               )}
             </div>
 
             {selectedMember.skills?.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold text-neutral-400 uppercase mb-1.5 flex items-center gap-1"><Award size={11} /> {lang === "en" ? "Skills" : "Ujuzi"}</p>
+                <p className="text-[10px] font-bold text-neutral-500 uppercase mb-1.5 flex items-center gap-1"><Award size={11} /> {lang === "en" ? "Skills" : "Ujuzi"}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedMember.skills.map((s) => (
                     <span key={s} className="bg-neutral-100 text-neutral-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{s}</span>
@@ -312,7 +312,7 @@ export default function MembersVolunteersPanel({ lang }: MembersVolunteersPanelP
             )}
 
             <div className="bg-neutral-50 rounded-lg p-3 text-xs">
-              <p className="text-[9px] font-bold text-neutral-400 uppercase">{lang === "en" ? "Attendance" : "Mahudhurio"}</p>
+              <p className="text-[9px] font-bold text-neutral-500 uppercase">{lang === "en" ? "Attendance" : "Mahudhurio"}</p>
               {(() => {
                 const stats = getMemberAttendanceStats(selectedMember.id, attendance);
                 return (

@@ -2164,7 +2164,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
                 />
               </div>
                   <div className="md:col-span-8 space-y-2 text-center md:text-left">
-                    <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
                       {lang === "en" ? "Replace Image File (Optional)" : "Badilisha Faili la Picha (Chaguo)"}
                     </p>
                     <input

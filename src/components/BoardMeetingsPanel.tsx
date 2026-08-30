@@ -101,7 +101,7 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
             <Gavel className="text-[#E31E24]" size={20} />
             {lang === "en" ? "Board Meetings" : "Mikutano ya Bodi"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {lang === "en" ? "Schedule with an agenda, then link the real minutes once it's happened." : "Panga na ajenda, kisha unganisha kumbukumbu baada ya mkutano."}
           </p>
         </div>
@@ -141,9 +141,9 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
             <div className="space-y-1.5">
               {agendaItems.map((item, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <span className="text-xs text-neutral-400 pt-1.5 font-mono">{idx + 1}.</span>
+                  <span className="text-xs text-neutral-500 pt-1.5 font-mono">{idx + 1}.</span>
                   <input value={item} onChange={e => updateAgendaItem(idx, e.target.value)} placeholder={lang === "en" ? "Agenda item..." : "Kipengele cha ajenda..."} className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
-                  <button type="button" onClick={() => removeAgendaItem(idx)} className="text-neutral-400 hover:text-red-600 cursor-pointer"><Trash2 size={14} /></button>
+                  <button type="button" onClick={() => removeAgendaItem(idx)} className="text-neutral-500 hover:text-red-600 cursor-pointer"><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>
@@ -155,9 +155,9 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
       )}
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading meetings..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "Loading meetings..." : "Inapakia..."}</p>
       ) : sortedMeetings.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en" ? "No board meetings scheduled yet." : "Hakuna mikutano iliyopangwa bado."}
         </div>
       ) : (
@@ -172,7 +172,7 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
                       {m.status}
                     </span>
                   </div>
-                  <p className="text-[10px] font-mono text-neutral-400 mt-0.5">{m.date}{m.time ? ` · ${m.time}` : ""}{m.location ? ` · ${m.location}` : ""}</p>
+                  <p className="text-[10px] font-mono text-neutral-500 mt-0.5">{m.date}{m.time ? ` · ${m.time}` : ""}{m.location ? ` · ${m.location}` : ""}</p>
                 </div>
                 {m.status === "scheduled" && (
                   <button onClick={() => markCompleted(m)} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer flex items-center gap-1">

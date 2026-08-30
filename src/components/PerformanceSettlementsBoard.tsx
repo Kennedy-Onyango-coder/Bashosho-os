@@ -60,7 +60,7 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
           <Percent className="text-[#E31E24]" size={20} />
           {lang === "en" ? "Performance Settlements" : "Ugawaji wa Mapato ya Maonyesho"}
         </h2>
-        <p className="text-xs text-neutral-400 mt-1">
+        <p className="text-xs text-neutral-500 mt-1">
           {lang === "en"
             ? "Every performance/engagement invoice marked paid lands here first — the organizational cut and cast pool are calculated automatically, but nothing becomes real income or an expenditure until confirmed below."
             : "Kila ankara ya onyesho iliyolipwa inaonekana hapa kwanza — mgawanyo unakokotolewa kiotomatiki, lakini hauwi rasmi hadi uthibitishwe."}
@@ -68,7 +68,7 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
       </div>
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-10 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-10 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
       ) : (
         <>
           <div>
@@ -76,7 +76,7 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
               <Clock size={14} className="text-amber-500" /> {lang === "en" ? "Awaiting Confirmation" : "Inasubiri Uthibitisho"} ({pending.length})
             </h3>
             {pending.length === 0 ? (
-              <p className="text-xs text-neutral-400 bg-white border border-neutral-200 rounded-xl p-6 text-center">
+              <p className="text-xs text-neutral-500 bg-white border border-neutral-200 rounded-xl p-6 text-center">
                 {lang === "en" ? "Nothing waiting — every settlement is confirmed." : "Hakuna kinachosubiri."}
               </p>
             ) : (
@@ -86,12 +86,12 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="text-sm font-bold text-neutral-900">{s.engagementDescription}</h4>
-                        <p className="text-[10px] font-mono text-neutral-400">{s.createdDate} · {lang === "en" ? "Gross" : "Jumla"}: Ksh {s.grossAmount.toLocaleString()}</p>
+                        <p className="text-[10px] font-mono text-neutral-500">{s.createdDate} · {lang === "en" ? "Gross" : "Jumla"}: Ksh {s.grossAmount.toLocaleString()}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 bg-neutral-50 rounded-lg p-3 text-xs">
                       <div className="flex-1">
-                        <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-wider mb-1">{lang === "en" ? "Org Cut %" : "% ya Shirika"}</label>
+                        <label className="block text-[9px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Org Cut %" : "% ya Shirika"}</label>
                         <input
                           type="number" min="0" max="100"
                           value={editingPercent[s.id] ?? String(s.orgCutPercent)}
@@ -103,11 +103,11 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
                       <ArrowRight size={14} className="text-neutral-300 shrink-0" />
                       <div className="text-right flex-1">
                         <p className="font-bold text-purple-700">Ksh {Math.round(s.grossAmount * (Number(editingPercent[s.id] ?? s.orgCutPercent) / 100)).toLocaleString()}</p>
-                        <p className="text-[9px] text-neutral-400">{lang === "en" ? "→ Org Development Fund" : "→ Mfuko wa Maendeleo"}</p>
+                        <p className="text-[9px] text-neutral-500">{lang === "en" ? "→ Org Development Fund" : "→ Mfuko wa Maendeleo"}</p>
                       </div>
                       <div className="text-right flex-1">
                         <p className="font-bold text-emerald-700">Ksh {Math.round(s.grossAmount - s.grossAmount * (Number(editingPercent[s.id] ?? s.orgCutPercent) / 100)).toLocaleString()}</p>
-                        <p className="text-[9px] text-neutral-400">{lang === "en" ? "→ Cast/Crew Pool" : "→ Malipo ya Wasanii"}</p>
+                        <p className="text-[9px] text-neutral-500">{lang === "en" ? "→ Cast/Crew Pool" : "→ Malipo ya Wasanii"}</p>
                       </div>
                     </div>
                     {editingPercent[s.id] !== undefined && Number(editingPercent[s.id]) !== s.orgCutPercent && (
@@ -147,7 +147,7 @@ export default function PerformanceSettlementsBoard({ lang, canConfirm }: Perfor
               <div className="overflow-x-auto bg-white border border-neutral-200 rounded-xl">
                 <table className="w-full text-left text-xs text-neutral-600">
                   <thead>
-                    <tr className="border-b border-neutral-200 text-[10px] text-neutral-400 font-mono tracking-wider uppercase">
+                    <tr className="border-b border-neutral-200 text-[10px] text-neutral-500 font-mono tracking-wider uppercase">
                       <th className="py-2 px-3">{lang === "en" ? "Engagement" : "Tukio"}</th>
                       <th className="py-2 px-3 text-right">{lang === "en" ? "Gross" : "Jumla"}</th>
                       <th className="py-2 px-3 text-right">{lang === "en" ? "Org Cut" : "Sehemu ya Shirika"}</th>

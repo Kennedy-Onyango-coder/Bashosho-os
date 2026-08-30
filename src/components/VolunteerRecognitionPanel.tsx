@@ -91,7 +91,7 @@ export default function VolunteerRecognitionPanel({ lang, currentUser, volunteer
           <p className="text-sm font-black text-neutral-900">
             {earnedTier ? earnedTier.label[lang] : (lang === "en" ? "No tier yet" : "Bado hakuna daraja")}
           </p>
-          <p className="text-[11px] text-neutral-400">
+          <p className="text-[11px] text-neutral-500">
             {nextTier
               ? (lang === "en"
                   ? `${nextTier.minHours - volunteerHours} more hrs to reach ${nextTier.label.en}`
@@ -114,15 +114,15 @@ export default function VolunteerRecognitionPanel({ lang, currentUser, volunteer
 
       {/* Issued certificates list */}
       {loading ? (
-        <p className="text-xs text-neutral-400 text-center py-3">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 text-center py-3">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
       ) : certificates.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-neutral-100">
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Your Certificates" : "Vyeti Vyako"}</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Your Certificates" : "Vyeti Vyako"}</p>
           {certificates.map(cert => (
             <div key={cert.id} className="flex items-center justify-between bg-neutral-50 border border-neutral-150 rounded-lg px-3 py-2">
               <div>
                 <p className="text-xs font-bold text-neutral-800 capitalize">{cert.tier} — {cert.hoursAtIssue} hrs</p>
-                <p className="text-[10px] font-mono text-neutral-400">{cert.issuedDate}</p>
+                <p className="text-[10px] font-mono text-neutral-500">{cert.issuedDate}</p>
               </div>
               <button
                 onClick={() => setPrintingCert(cert)}

@@ -333,16 +333,16 @@ export default function MemberSelfServicePanel({ currentUser, lang, onRefreshUse
 
           <div className="space-y-2">
             {leaveRequests.length === 0 ? (
-              <p className="text-xs text-neutral-400 py-6 text-center">{tt.noRequests}</p>
+              <p className="text-xs text-neutral-500 py-6 text-center">{tt.noRequests}</p>
             ) : (
               leaveRequests.map(lr => (
                 <div key={lr.id} className="bg-white border border-neutral-200 rounded-lg p-3 flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
-                      <Clock size={11} className="text-neutral-400" /> {lr.startDate} → {lr.endDate}
+                      <Clock size={11} className="text-neutral-500" /> {lr.startDate} → {lr.endDate}
                     </p>
                     <p className="text-[11px] text-neutral-500 mt-1">{lr.reason}</p>
-                    {lr.respondedBy && <p className="text-[10px] text-neutral-400 mt-1">{tt.respondedBy}: {lr.respondedBy}</p>}
+                    {lr.respondedBy && <p className="text-[10px] text-neutral-500 mt-1">{tt.respondedBy}: {lr.respondedBy}</p>}
                   </div>
                   {statusBadge(lr.status)}
                 </div>
@@ -377,7 +377,7 @@ export default function MemberSelfServicePanel({ currentUser, lang, onRefreshUse
                 </p>
               </div>
             ) : (
-              <p className="text-xs text-neutral-400">{tt.noContract}</p>
+              <p className="text-xs text-neutral-500">{tt.noContract}</p>
             )}
           </div>
 
@@ -387,14 +387,14 @@ export default function MemberSelfServicePanel({ currentUser, lang, onRefreshUse
               <div className="space-y-2">
                 {myAppointments.map(a => (
                   <div key={a.id} className="text-xs flex items-center gap-2">
-                    <Briefcase size={11} className="text-neutral-400" />
+                    <Briefcase size={11} className="text-neutral-500" />
                     <span className="font-bold">{a.role}</span>
-                    <span className="text-neutral-400">— {a.appointmentDate}</span>
+                    <span className="text-neutral-500">— {a.appointmentDate}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-neutral-400">{tt.noLeadership}</p>
+              <p className="text-xs text-neutral-500">{tt.noLeadership}</p>
             )}
           </div>
         </div>

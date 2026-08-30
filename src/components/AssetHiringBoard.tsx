@@ -539,21 +539,21 @@ export default function AssetHiringBoard({
       {/* 2. Rental Income KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-xs text-left">
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Total Hire Income" : "Mapato Kamili ya Kukodi"}</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Total Hire Income" : "Mapato Kamili ya Kukodi"}</p>
           <p className="text-2xl font-black text-[#00A651] mt-1 font-mono">Ksh {totalRentalRevenue.toLocaleString()}</p>
-          <span className="text-[9px] text-neutral-400 font-medium block mt-1"> {lang === "en" ? "Successfully synchronized to financials" : "Kusawazishwa kikamilifu na mhasibu"}</span>
+          <span className="text-[9px] text-neutral-500 font-medium block mt-1"> {lang === "en" ? "Successfully synchronized to financials" : "Kusawazishwa kikamilifu na mhasibu"}</span>
         </div>
 
         <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-xs text-left">
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Active External Hires" : "Vifaa vilivyokodishwa Sasa"}</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Active External Hires" : "Vifaa vilivyokodishwa Sasa"}</p>
           <p className="text-2xl font-black text-amber-600 mt-1 font-mono">{activeRentalsCount}</p>
-          <span className="text-[9px] text-neutral-400 font-medium block mt-1">{lang === "en" ? "Units currently in client possession" : "Vifaa vilivyo nje kwa wateja"}</span>
+          <span className="text-[9px] text-neutral-500 font-medium block mt-1">{lang === "en" ? "Units currently in client possession" : "Vifaa vilivyo nje kwa wateja"}</span>
         </div>
 
         <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-xs text-left">
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Pending Rent Receipts" : "Mapato ya Kukodi Yanayofuatiliwa"}</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Pending Rent Receipts" : "Mapato ya Kukodi Yanayofuatiliwa"}</p>
           <p className="text-2xl font-black text-red-500 mt-1 font-mono">Ksh {pendingHireKsh.toLocaleString()}</p>
-          <span className="text-[9px] text-neutral-400 font-medium block mt-1"> {lang === "en" ? "Unpaid client balances" : "Mabaki yanayosubiriwa kutoka kwa wateja"}</span>
+          <span className="text-[9px] text-neutral-500 font-medium block mt-1"> {lang === "en" ? "Unpaid client balances" : "Mabaki yanayosubiriwa kutoka kwa wateja"}</span>
         </div>
       </div>
 
@@ -562,7 +562,7 @@ export default function AssetHiringBoard({
         <div className="space-y-4">
           <div className="flex justify-between items-center bg-white border rounded-xl px-4 py-3 gap-4">
             <div className="relative max-w-sm w-full">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
               <input
                 type="text"
                 value={searchQuery}
@@ -609,7 +609,7 @@ export default function AssetHiringBoard({
                           {item.category}
                         </span>
                         <h4 className="text-sm font-bold text-neutral-900 mt-1 font-sans">{item.name}</h4>
-                        <p className="text-[9px] font-mono font-semibold text-neutral-400">SERIAL: {item.serialNumber}</p>
+                        <p className="text-[9px] font-mono font-semibold text-neutral-500">SERIAL: {item.serialNumber}</p>
                       </div>
 
                       <div className="flex flex-col items-end gap-1">
@@ -639,7 +639,7 @@ export default function AssetHiringBoard({
                         </span>
                       </p>
                       <p className="flex items-center gap-1">
-                        {item.acquisitionType === "donated" ? <Gift size={11} className="text-purple-500" /> : <DollarSign size={11} className="text-neutral-400" />}
+                        {item.acquisitionType === "donated" ? <Gift size={11} className="text-purple-500" /> : <DollarSign size={11} className="text-neutral-500" />}
                         {item.acquisitionType === "donated"
                           ? (lang === "en" ? `Donated by ${item.donatedBy || "—"}` : `Ilitolewa na ${item.donatedBy || "—"}`)
                           : (lang === "en" ? "Purchased by CBO" : "Ilinunuliwa na CBO")}
@@ -651,7 +651,7 @@ export default function AssetHiringBoard({
                           : (lang === "en" ? "No receipt on file" : "Hakuna stakabadhi")}
                       </p>
                       <p className="col-span-2 flex items-center gap-1">
-                        <ClipboardCheck size={11} className={inspectionStatus.overdue ? "text-red-500" : "text-neutral-400"} />
+                        <ClipboardCheck size={11} className={inspectionStatus.overdue ? "text-red-500" : "text-neutral-500"} />
                         {lang === "en" ? "Next inspection due" : "Ukaguzi ujao"}: {" "}
                         <span className={`font-bold ${inspectionStatus.overdue ? "text-red-600" : "text-neutral-800"}`}>
                           {inspectionStatus.dueDate}{inspectionStatus.overdue ? (lang === "en" ? " (overdue)" : " (imechelewa)") : ""}
@@ -693,7 +693,7 @@ export default function AssetHiringBoard({
                     <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200">
                       {isEditing ? (
                         <div className="space-y-3">
-                          <p className="text-[10px] font-bold uppercase text-neutral-400 tracking-wider">Edit Hire Parameters</p>
+                          <p className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider">Edit Hire Parameters</p>
                           <div className="flex items-center gap-4">
                             <label className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700">
                               <input
@@ -768,7 +768,7 @@ export default function AssetHiringBoard({
           <div className="flex justify-between items-center border-b pb-4 mb-4 flex-wrap gap-2">
             <div>
               <h3 className="text-sm font-bold text-neutral-900">{lang === "en" ? "External Rental Engagements Ledger" : "Daftari la Mikataba na Malipo ya Vifaa"}</h3>
-              <p className="text-xs text-neutral-400 mt-0.5">{lang === "en" ? "Historical log of third-party contracts, daily charges, and return statuses." : "Kumbukumbu ya vifaa vyote vilivyokodishwa kwa watu wa nje na malipo."}</p>
+              <p className="text-xs text-neutral-500 mt-0.5">{lang === "en" ? "Historical log of third-party contracts, daily charges, and return statuses." : "Kumbukumbu ya vifaa vyote vilivyokodishwa kwa watu wa nje na malipo."}</p>
             </div>
             
             {isAuthorized && (
@@ -783,16 +783,16 @@ export default function AssetHiringBoard({
           </div>
 
           {allRentals.length === 0 ? (
-            <div className="py-12 text-center text-neutral-400">
+            <div className="py-12 text-center text-neutral-500">
               <Package className="mx-auto text-neutral-300 mb-3" size={32} />
               <p className="text-sm font-bold">{lang === "en" ? "No external rental contracts recorded." : "Hakuna kumbukumbu za ukodishaji zilizosajiliwa bado."}</p>
-              <p className="text-xs text-neutral-400 mt-1">{lang === "en" ? "Equipments hired out will appear here." : "Vifaa vinavyokodishwa vitaonekana hapa."}</p>
+              <p className="text-xs text-neutral-500 mt-1">{lang === "en" ? "Equipments hired out will appear here." : "Vifaa vinavyokodishwa vitaonekana hapa."}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-neutral-200 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  <tr className="border-b border-neutral-200 text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
                     <th className="py-3 px-4">{lang === "en" ? "Client Details" : "Mteja"}</th>
                     <th className="py-3 px-4">{lang === "en" ? "Equipment" : "Kifaa"}</th>
                     <th className="py-3 px-4">{lang === "en" ? "Rental Period" : "Muda wa Kukodi"}</th>
@@ -807,7 +807,7 @@ export default function AssetHiringBoard({
                     <tr key={rent.rentalId} className="hover:bg-neutral-50/50">
                       <td className="py-3 px-4">
                         <p className="font-bold text-neutral-900">{rent.clientName}</p>
-                        <p className="text-[10px] text-neutral-400 font-mono">{rent.clientPhone}</p>
+                        <p className="text-[10px] text-neutral-500 font-mono">{rent.clientPhone}</p>
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-semibold text-neutral-700">{rent.assetName}</span>
@@ -906,7 +906,7 @@ export default function AssetHiringBoard({
                     </option>
                   ))}
                 </select>
-                <span className="text-[9px] text-neutral-400 block font-medium">
+                <span className="text-[9px] text-neutral-500 block font-medium">
                   {lang === "en" 
                     ? "Only assets marked 'Available for External Hire' inside inventory settings are shown here."
                     : "Vifaa vilivyowekwa huru kwa ajili ya kukodishwa tu ndivyo vinavyoonekana hapa."}
@@ -1055,7 +1055,7 @@ export default function AssetHiringBoard({
                         {agreementDraft}
                       </div>
                     ) : (
-                      <div className="border border-dashed rounded-lg p-4 text-center text-neutral-400 text-[10px] flex flex-col justify-center items-center h-[140px]">
+                      <div className="border border-dashed rounded-lg p-4 text-center text-neutral-500 text-[10px] flex flex-col justify-center items-center h-[140px]">
                         <Info size={16} className="text-neutral-300 mb-1" />
                         {lang === "en" ? "Drafted terms will be displayed here." : "Mkataba ulioandaliwa utatokea hapa."}
                       </div>
@@ -1313,7 +1313,7 @@ export default function AssetHiringBoard({
 
             {inspectingAsset.inspectionHistory && inspectingAsset.inspectionHistory.length > 0 && (
               <div className="pt-3 border-t border-neutral-100 space-y-1.5">
-                <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Past Inspections" : "Ukaguzi Uliopita"}</p>
+                <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Past Inspections" : "Ukaguzi Uliopita"}</p>
                 {[...inspectingAsset.inspectionHistory].sort((a, b) => b.date.localeCompare(a.date)).map(h => (
                   <div key={h.id} className="text-[10px] bg-neutral-50 rounded-lg px-2.5 py-1.5">
                     <span className="font-bold text-neutral-700">{h.date}</span> — {h.condition} {lang === "en" ? "by" : "na"} {h.inspectedBy}
@@ -1367,7 +1367,7 @@ export default function AssetHiringBoard({
 
             {reassigningAsset.assignmentHistory && reassigningAsset.assignmentHistory.length > 0 && (
               <div className="pt-3 border-t border-neutral-100 space-y-1.5">
-                <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Custody Chain" : "Historia ya Umiliki"}</p>
+                <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Custody Chain" : "Historia ya Umiliki"}</p>
                 {[...reassigningAsset.assignmentHistory].sort((a, b) => b.assignedDate.localeCompare(a.assignedDate)).map(h => (
                   <div key={h.id} className="text-[10px] bg-neutral-50 rounded-lg px-2.5 py-1.5">
                     <span className="font-bold text-neutral-700">{h.assignedDate}</span> — {h.custodian} ({lang === "en" ? "by" : "na"} {h.assignedBy})
@@ -1400,34 +1400,34 @@ export default function AssetHiringBoard({
                 <p className="text-xs font-mono text-neutral-500 uppercase">{printingAsset.category} • Serial: {printingAsset.serialNumber}</p>
               </div>
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Current Custodian" : "Kiongozi wa Sasa"}</span><span className="font-bold text-neutral-900">{printingAsset.custodian}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Location" : "Eneo"}</span><span className="font-bold text-neutral-900">{printingAsset.location || "—"}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Condition" : "Hali"}</span><span className="font-bold text-neutral-900 uppercase">{printingAsset.condition}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Date Acquired" : "Tarehe ya Kupata"}</span><span className="font-bold text-neutral-900">{printingAsset.purchaseDate}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Value" : "Thamani"}</span><span className="font-bold text-neutral-900">Ksh {printingAsset.purchaseCost.toLocaleString()}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Current Custodian" : "Kiongozi wa Sasa"}</span><span className="font-bold text-neutral-900">{printingAsset.custodian}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Location" : "Eneo"}</span><span className="font-bold text-neutral-900">{printingAsset.location || "—"}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Condition" : "Hali"}</span><span className="font-bold text-neutral-900 uppercase">{printingAsset.condition}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Date Acquired" : "Tarehe ya Kupata"}</span><span className="font-bold text-neutral-900">{printingAsset.purchaseDate}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Value" : "Thamani"}</span><span className="font-bold text-neutral-900">Ksh {printingAsset.purchaseCost.toLocaleString()}</span></div>
                 <div>
-                  <span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Acquisition" : "Ilipatikanaje"}</span>
+                  <span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Acquisition" : "Ilipatikanaje"}</span>
                   <span className="font-bold text-neutral-900">
                     {printingAsset.acquisitionType === "donated" ? `${lang === "en" ? "Donated by" : "Ilitolewa na"} ${printingAsset.donatedBy || "—"}` : (lang === "en" ? "Purchased" : "Ilinunuliwa")}
                   </span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Receipt" : "Stakabadhi"}</span>
+                  <span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Receipt" : "Stakabadhi"}</span>
                   <span className="font-bold text-neutral-900">
                     {printingAsset.hasReceipt ? `${lang === "en" ? "On file" : "Ipo"}${printingAsset.receiptRef ? ` — ${printingAsset.receiptRef}` : ""}` : (lang === "en" ? "None on file" : "Haipo")}
                   </span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Next Inspection Due" : "Ukaguzi Ujao"}</span>
+                  <span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Next Inspection Due" : "Ukaguzi Ujao"}</span>
                   <span className="font-bold text-neutral-900">{getInspectionStatus(printingAsset).dueDate}</span>
                 </div>
               </div>
 
               {printingAsset.assignmentHistory && printingAsset.assignmentHistory.length > 0 && (
                 <div className="pt-3 border-t border-neutral-200">
-                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">{lang === "en" ? "Custody Chain" : "Historia ya Umiliki"}</p>
+                  <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1.5">{lang === "en" ? "Custody Chain" : "Historia ya Umiliki"}</p>
                   <table className="w-full text-[10px] font-sans">
-                    <thead><tr className="text-neutral-400 uppercase border-b"><th className="text-left py-1">Date</th><th className="text-left py-1">Custodian</th><th className="text-left py-1">Assigned By</th></tr></thead>
+                    <thead><tr className="text-neutral-500 uppercase border-b"><th className="text-left py-1">Date</th><th className="text-left py-1">Custodian</th><th className="text-left py-1">Assigned By</th></tr></thead>
                     <tbody>
                       {[...printingAsset.assignmentHistory].sort((a, b) => b.assignedDate.localeCompare(a.assignedDate)).map(h => (
                         <tr key={h.id} className="border-b border-neutral-100"><td className="py-1">{h.assignedDate}</td><td className="py-1 font-bold">{h.custodian}</td><td className="py-1">{h.assignedBy}</td></tr>
@@ -1439,9 +1439,9 @@ export default function AssetHiringBoard({
 
               {printingAsset.inspectionHistory && printingAsset.inspectionHistory.length > 0 && (
                 <div className="pt-3 border-t border-neutral-200">
-                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">{lang === "en" ? "Inspection History" : "Historia ya Ukaguzi"}</p>
+                  <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1.5">{lang === "en" ? "Inspection History" : "Historia ya Ukaguzi"}</p>
                   <table className="w-full text-[10px] font-sans">
-                    <thead><tr className="text-neutral-400 uppercase border-b"><th className="text-left py-1">Date</th><th className="text-left py-1">Condition</th><th className="text-left py-1">Inspected By</th></tr></thead>
+                    <thead><tr className="text-neutral-500 uppercase border-b"><th className="text-left py-1">Date</th><th className="text-left py-1">Condition</th><th className="text-left py-1">Inspected By</th></tr></thead>
                     <tbody>
                       {[...printingAsset.inspectionHistory].sort((a, b) => b.date.localeCompare(a.date)).map(h => (
                         <tr key={h.id} className="border-b border-neutral-100"><td className="py-1">{h.date}</td><td className="py-1 font-bold uppercase">{h.condition}</td><td className="py-1">{h.inspectedBy}</td></tr>
@@ -1501,20 +1501,20 @@ export default function AssetHiringBoard({
               {/* Receipt Metadata Grid */}
               <div className="grid grid-cols-2 gap-4 text-xs font-sans border-b pb-4">
                 <div>
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Receipt & Contract Ref</span>
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Receipt & Contract Ref</span>
                   <span className="font-mono font-bold text-neutral-900 text-sm">BT-RCT-{selectedReceiptRental.rentalId.toUpperCase()}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Issue Date</span>
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Issue Date</span>
                   <span className="font-mono font-semibold text-neutral-800">{selectedReceiptRental.startDate}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Renter / Client Name</span>
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Renter / Client Name</span>
                   <span className="font-bold text-neutral-900 text-sm">{selectedReceiptRental.clientName}</span>
                   <span className="block text-[10px] font-mono text-neutral-500">{selectedReceiptRental.clientPhone}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Rental Duration</span>
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Rental Duration</span>
                   <span className="font-mono font-semibold text-neutral-800">{selectedReceiptRental.startDate} to {selectedReceiptRental.endDate}</span>
                 </div>
               </div>

@@ -184,7 +184,7 @@ export default function RolePermissionsMatrix({ lang, roleId, roleName, isSystem
             <p className="text-xs text-amber-800">{tt.chairNote}</p>
           </div>
         ) : loading ? (
-          <div className="p-10 flex items-center justify-center text-neutral-400">
+          <div className="p-10 flex items-center justify-center text-neutral-500">
             <Loader2 size={20} className="animate-spin" />
           </div>
         ) : (
@@ -193,7 +193,7 @@ export default function RolePermissionsMatrix({ lang, roleId, roleName, isSystem
             {success && <p className="text-[11px] text-green-600 mb-2 px-2">{success}</p>}
             <table className="w-full text-[11px] border-collapse">
               <thead>
-                <tr className="text-left text-neutral-400 uppercase font-mono text-[9px]">
+                <tr className="text-left text-neutral-500 uppercase font-mono text-[9px]">
                   <th className="py-2 px-2">{tt.module}</th>
                   {PERMISSION_ACTIONS.map(a => (
                     <th key={a} className="py-2 px-2 text-center">{ACTION_LABELS[a][lang]}</th>

@@ -501,7 +501,7 @@ export default function LoginScreen({ onLoginSuccess, lang, onChangeLang, onBack
 
           {/* Quick Info Block */}
           <div className="mt-6 border-t border-neutral-100 pt-6 text-center">
-            <p className="text-[10px] font-mono text-neutral-400 leading-relaxed">
+            <p className="text-[10px] font-mono text-neutral-500 leading-relaxed">
               {lang === "en" 
                 ? "This is a secured application system for Bashosho Talents CBO Kiambiu. Access logs are automatically audited." 
                 : "Huu ni mfumo wa usalama wa Bashosho Talents CBO Kiambiu. Kumbukumbu za uingiaji zinakaguliwa kiotomatiki."}

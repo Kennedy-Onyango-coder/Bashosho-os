@@ -178,7 +178,7 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
             <Users className="text-[#E31E24]" size={20} />
             {lang === "en" ? "Cast & Crew Payment Lists" : "Orodha za Malipo ya Wasanii"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {lang === "en"
               ? "Every payout list must be tied to an approved expenditure and matches its amount exactly. Chairperson or Vice Chairperson reviews before it's final."
               : "Kila orodha ya malipo lazima iunganishwe na matumizi yaliyoidhinishwa na ilingane kikamilifu. Mwenyekiti au Makamu wanaikagua kabla ya kukamilika."}
@@ -241,7 +241,7 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                 placeholder="0"
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono"
               />
-              <p className="text-[9px] text-neutral-400 mt-1">
+              <p className="text-[9px] text-neutral-500 mt-1">
                 {lang === "en" ? "Withheld from each registered member's gross amount toward organizational development. Outsourced/external cast are exempt." : "Inatolewa kutoka kwa kila mwanachama aliyesajiliwa kuelekea maendeleo ya shirika. Wasanii wa nje hawakatwi."}
               </p>
             </div>
@@ -277,7 +277,7 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                 <UserPlus size={12} /> {lang === "en" ? "Add Row" : "Ongeza"}
               </button>
             </div>
-            <p className="text-[9px] text-neutral-400 mb-2">
+            <p className="text-[9px] text-neutral-500 mb-2">
               {lang === "en" ? "Link a row to a registered member/volunteer so this payment shows on their own dashboard — or just type a name for external cast." : "Unganisha safu na mwanachama aliyesajiliwa ili malipo yaonekane kwenye dashibodi yao — au andika jina tu kwa wasanii wa nje."}
             </p>
             <div className="space-y-2">
@@ -294,16 +294,16 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                       <option value="">{lang === "en" ? "— External —" : "— Nje —"}</option>
                       {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
-                    <input placeholder={lang === "en" ? "Full name" : "Jina kamili"} value={row.name} onChange={e => updateRow(idx, "name", e.target.value)} disabled={!!row.userId} className="col-span-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs disabled:bg-neutral-100 disabled:text-neutral-400" />
+                    <input placeholder={lang === "en" ? "Full name" : "Jina kamili"} value={row.name} onChange={e => updateRow(idx, "name", e.target.value)} disabled={!!row.userId} className="col-span-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs disabled:bg-neutral-100 disabled:text-neutral-500" />
                     <input placeholder={lang === "en" ? "Role" : "Wadhifa"} value={row.role} onChange={e => updateRow(idx, "role", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
                     <input placeholder={lang === "en" ? "Phone" : "Simu"} value={row.phone} onChange={e => updateRow(idx, "phone", e.target.value)} className="col-span-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
                     <input type="number" min="0" placeholder="Ksh" value={row.amount} onChange={e => updateRow(idx, "amount", e.target.value)} className="col-span-1 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-mono" />
-                    <button type="button" onClick={() => removeRow(idx)} className="col-span-1 text-neutral-400 hover:text-red-600 cursor-pointer flex justify-center">
+                    <button type="button" onClick={() => removeRow(idx)} className="col-span-1 text-neutral-500 hover:text-red-600 cursor-pointer flex justify-center">
                       <Trash2 size={14} />
                     </button>
                   </div>
                   {gross > 0 && rateNum > 0 && row.userId && (
-                    <p className="text-[9px] text-neutral-400 pl-1">
+                    <p className="text-[9px] text-neutral-500 pl-1">
                       {lang === "en" ? "Gross" : "Jumla"} Ksh {gross.toLocaleString()} − {lang === "en" ? "deduction" : "makato"} Ksh {rowDeduction.toLocaleString()} = <strong className="text-neutral-600">{lang === "en" ? "net" : "halisi"} Ksh {rowNet.toLocaleString()}</strong>
                     </p>
                   )}
@@ -327,9 +327,9 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
       )}
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading payment lists..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "Loading payment lists..." : "Inapakia..."}</p>
       ) : sortedLists.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en" ? "No payment lists recorded yet." : "Hakuna orodha za malipo bado."}
         </div>
       ) : (
@@ -344,7 +344,7 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                       <h4 className="text-sm font-bold text-neutral-900">{list.title}</h4>
                       <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[list.status]}`}>{list.status.replace("_", " ")}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-400 flex-wrap">
+                    <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-500 flex-wrap">
                       <span>{list.eventName}</span>
                       <span>{list.date}</span>
                       <span>{list.payments.length} {lang === "en" ? "payees" : "waliolipwa"}</span>
@@ -407,10 +407,10 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
           >
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-xs border-b border-neutral-200 pb-3">
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Event" : "Tukio"}</span><span className="font-bold text-neutral-900">{printingList.eventName}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Submitted By" : "Iliwasilishwa Na"}</span><span className="font-bold text-neutral-900">{printingList.submittedBy}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Reviewed By" : "Ilikaguliwa Na"}</span><span className="font-bold text-neutral-900">{printingList.reviewedBy} ({printingList.reviewedDate})</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Total Net Paid" : "Jumla Halisi"}</span><span className="font-bold text-neutral-900">Ksh {printingList.payments.reduce((s, p) => s + p.netAmount, 0).toLocaleString()}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Event" : "Tukio"}</span><span className="font-bold text-neutral-900">{printingList.eventName}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Submitted By" : "Iliwasilishwa Na"}</span><span className="font-bold text-neutral-900">{printingList.submittedBy}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Reviewed By" : "Ilikaguliwa Na"}</span><span className="font-bold text-neutral-900">{printingList.reviewedBy} ({printingList.reviewedDate})</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Total Net Paid" : "Jumla Halisi"}</span><span className="font-bold text-neutral-900">Ksh {printingList.payments.reduce((s, p) => s + p.netAmount, 0).toLocaleString()}</span></div>
               </div>
               <table className="w-full text-xs font-sans text-left border-collapse">
                 <thead>

@@ -150,7 +150,7 @@ export default function SignatureUploadPanel({ lang }: SignatureUploadPanelProps
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center text-neutral-400">
+      <div className="p-6 flex items-center justify-center text-neutral-500">
         <Loader2 size={20} className="animate-spin" />
       </div>
     );
@@ -169,14 +169,14 @@ export default function SignatureUploadPanel({ lang }: SignatureUploadPanelProps
       </div>
 
       <div className="mt-4">
-        <p className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 mb-2">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mb-2">
           {signatureUrl ? tt.current : tt.none}
         </p>
         <div className="border border-dashed border-neutral-300 rounded-lg bg-[repeating-conic-gradient(#f5f5f5_0%_25%,white_0%_50%)] bg-[length:16px_16px] h-28 flex items-center justify-center overflow-hidden">
           {signatureUrl ? (
             <img src={signatureUrl} alt="Your signature" className="max-h-24 max-w-[90%] object-contain" />
           ) : (
-            <span className="text-xs text-neutral-400 font-mono">—</span>
+            <span className="text-xs text-neutral-500 font-mono">—</span>
           )}
         </div>
       </div>

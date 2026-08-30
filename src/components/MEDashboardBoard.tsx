@@ -170,7 +170,7 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
             <Activity className="text-[#E31E24]" size={20} />
             {lang === "en" ? "M&E Dashboard" : "Dashibodi ya M&E"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1 max-w-xl">
+          <p className="text-xs text-neutral-500 mt-1 max-w-xl">
             {lang === "en"
               ? "Built entirely from what's logged in Program Outcomes — nothing here is estimated. Log sessions there to improve this picture."
               : "Imejengwa kutoka kwa yale yaliyorekodiwa katika Matokeo ya Mipango — hakuna makadirio hapa."}
@@ -183,7 +183,7 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
                 key={p}
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide cursor-pointer transition-colors ${
-                  period === p ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-400 hover:text-neutral-600"
+                  period === p ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-600"
                 }`}
               >
                 {PERIOD_LABELS[p][lang]}
@@ -201,9 +201,9 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
       </div>
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-10 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-10 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
       ) : totalSessions === 0 ? (
-        <div className="bg-white border border-dashed border-neutral-300 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-dashed border-neutral-300 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en"
             ? "No program sessions logged for this period yet — data will appear here once Program Outcomes has entries."
             : "Hakuna vikao vya mipango vilivyorekodiwa kwa kipindi hiki bado."}
@@ -213,21 +213,21 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
           {/* KPI tiles */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white border border-neutral-200 rounded-xl p-4">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wide"><Users size={12} /> {lang === "en" ? "Participants Reached" : "Waliofikiwa"}</div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wide"><Users size={12} /> {lang === "en" ? "Participants Reached" : "Waliofikiwa"}</div>
               <p className="text-2xl font-black text-neutral-900 font-mono mt-1">{totalParticipants.toLocaleString()}</p>
             </div>
             <div className="bg-white border border-neutral-200 rounded-xl p-4">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wide"><Activity size={12} /> {lang === "en" ? "Sessions Logged" : "Vikao"}</div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wide"><Activity size={12} /> {lang === "en" ? "Sessions Logged" : "Vikao"}</div>
               <p className="text-2xl font-black text-neutral-900 font-mono mt-1">{totalSessions.toLocaleString()}</p>
             </div>
             <div className="bg-white border border-neutral-200 rounded-xl p-4">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wide"><Baby size={12} /> {lang === "en" ? "Children Reached" : "Watoto"}</div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wide"><Baby size={12} /> {lang === "en" ? "Children Reached" : "Watoto"}</div>
               <p className="text-2xl font-black text-neutral-900 font-mono mt-1">{totalChildren.toLocaleString()}</p>
             </div>
             <div className="bg-white border border-neutral-200 rounded-xl p-4">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wide"><MapPin size={12} /> {lang === "en" ? "Locations Covered" : "Maeneo"}</div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wide"><MapPin size={12} /> {lang === "en" ? "Locations Covered" : "Maeneo"}</div>
               <p className="text-2xl font-black text-neutral-900 font-mono mt-1">{uniqueLocations.size}</p>
-              <p className="text-[9px] text-neutral-400 mt-0.5">{uniqueFacilitators.size} {lang === "en" ? "facilitators active" : "wawezeshaji"}</p>
+              <p className="text-[9px] text-neutral-500 mt-0.5">{uniqueFacilitators.size} {lang === "en" ? "facilitators active" : "wawezeshaji"}</p>
             </div>
           </div>
 
@@ -258,7 +258,7 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
                 {lang === "en" ? "Gender Breakdown" : "Mgawanyo wa Jinsia"}
               </h3>
               {genderData.length === 0 ? (
-                <p className="text-[10px] text-neutral-400 text-center py-10">{lang === "en" ? "No gender data logged yet." : "Hakuna data ya jinsia bado."}</p>
+                <p className="text-[10px] text-neutral-500 text-center py-10">{lang === "en" ? "No gender data logged yet." : "Hakuna data ya jinsia bado."}</p>
               ) : (
                 <div style={{ width: "100%", height: 200 }}>
                   <ResponsiveContainer>
@@ -299,7 +299,7 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
               <MapPin size={14} className="text-[#E31E24]" /> {lang === "en" ? "Geographic Distribution" : "Mgawanyo wa Kijiografia"}
             </h3>
             {byLocation.length === 0 ? (
-              <p className="text-[10px] text-neutral-400 text-center py-6">{lang === "en" ? "No locations logged yet." : "Hakuna maeneo yaliyorekodiwa bado."}</p>
+              <p className="text-[10px] text-neutral-500 text-center py-6">{lang === "en" ? "No locations logged yet." : "Hakuna maeneo yaliyorekodiwa bado."}</p>
             ) : (
               <div className="space-y-2">
                 {byLocation.map(loc => (

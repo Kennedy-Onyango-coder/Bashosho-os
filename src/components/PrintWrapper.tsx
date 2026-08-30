@@ -109,7 +109,7 @@ export default function PrintWrapper({
 
             {/* Org Details */}
             <div className="text-right flex-grow pl-6">
-              <p className="text-neutral-400 font-mono text-[9px] font-bold uppercase tracking-[0.2em] mb-1">
+              <p className="text-neutral-500 font-mono text-[9px] font-bold uppercase tracking-[0.2em] mb-1">
                 Official Community Record
               </p>
               <h1 className="text-red-600 text-3xl font-bold tracking-tight uppercase leading-tight font-sans">
@@ -179,7 +179,7 @@ export default function PrintWrapper({
                   className="max-h-10 max-w-[9rem] object-contain object-left-bottom"
                 />
               ) : (
-                <span className="text-[9px] font-mono text-neutral-400 italic pb-1">
+                <span className="text-[9px] font-mono text-neutral-500 italic pb-1">
                   Awaiting uploaded signature
                 </span>
               )}
@@ -193,7 +193,7 @@ export default function PrintWrapper({
         </div>
 
         {/* Bottom Small Print Notice */}
-        <div className="mt-12 text-center text-[10px] font-mono text-neutral-400">
+        <div className="mt-12 text-center text-[10px] font-mono text-neutral-500">
           <p>This is an officially generated Bashosho OS record. Verified secure by community guidelines.</p>
           <p className="mt-0.5">Kiambiu Youth Mental Health, Gender-Based Violence & SRHR Advocacy Campaign.</p>
         </div>
@@ -204,7 +204,7 @@ export default function PrintWrapper({
             <div className="w-20 h-20 bg-neutral-50 border border-neutral-200 p-1 rounded flex items-center justify-center">
               <img src={qrDataUrl} alt="Verification QR code" className="w-full h-full object-contain" />
             </div>
-            <span className="text-[8px] font-mono font-semibold text-neutral-400 mt-1 uppercase tracking-wider">
+            <span className="text-[8px] font-mono font-semibold text-neutral-500 mt-1 uppercase tracking-wider">
               SCAN TO VERIFY
             </span>
           </div>

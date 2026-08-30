@@ -43,7 +43,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
               <h3 className="text-sm font-black text-neutral-900 uppercase tracking-tight">
                 {this.props.fallbackTitle || "An unexpected error occurred"}
               </h3>
-              <p className="text-[10px] text-neutral-400 font-mono">BASHOSHO OS SHIELD INTERPOLATED</p>
+              <p className="text-[10px] text-neutral-500 font-mono">BASHOSHO OS SHIELD INTERPOLATED</p>
             </div>
           </div>
           <p className="text-xs text-neutral-600 leading-relaxed font-sans">

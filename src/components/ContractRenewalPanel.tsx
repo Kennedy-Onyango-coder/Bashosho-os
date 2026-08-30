@@ -393,7 +393,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                   <div key={p.id} className="bg-white border border-red-100 rounded-lg p-2.5 flex items-center justify-between gap-2">
                     <div>
                       <p className="text-xs font-bold text-neutral-800">{p.name}</p>
-                      <p className="text-[9px] font-mono text-neutral-400">{lang === "en" ? "expired" : "imeisha"} {p.validUntil}</p>
+                      <p className="text-[9px] font-mono text-neutral-500">{lang === "en" ? "expired" : "imeisha"} {p.validUntil}</p>
                     </div>
                     {userRoleKey === "chairperson" && (
                       <button
@@ -498,7 +498,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                           <span className="font-mono text-emerald-700">Ksh {paid.toLocaleString()} / {fee.toLocaleString()}</span>
                         </div>
                         {settings.invoiceMpesaTill && (
-                          <p className="text-[10px] font-mono text-neutral-400">
+                          <p className="text-[10px] font-mono text-neutral-500">
                             {lang === "en" ? "Till No." : "Namba ya Till"} <strong className="text-neutral-700">{settings.invoiceMpesaTill}</strong> — {settings.name}
                           </p>
                         )}
@@ -577,7 +577,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                         {(myPendingRenewal.payments || []).length > 0 && (
                           <div className="pt-2 border-t border-neutral-100 space-y-1">
                             {myPendingRenewal.payments.map(p => (
-                              <p key={p.id} className="text-[9px] font-mono text-neutral-400 flex justify-between">
+                              <p key={p.id} className="text-[9px] font-mono text-neutral-500 flex justify-between">
                                 <span>{p.date} · {p.method}{p.transactionCode ? ` · ${p.transactionCode}` : ""}</span>
                                 <span className="font-bold text-neutral-600">Ksh {p.amount.toLocaleString()}</span>
                               </p>
@@ -586,7 +586,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                         )}
                         {(myPendingRenewal.pendingManualClaims || []).filter(c => c.status !== "confirmed").length > 0 && (
                           <div className="pt-2 border-t border-neutral-100 space-y-1.5">
-                            <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Reported Payments Awaiting Verification" : "Malipo Yaliyoripotiwa"}</p>
+                            <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Reported Payments Awaiting Verification" : "Malipo Yaliyoripotiwa"}</p>
                             {myPendingRenewal.pendingManualClaims.filter(c => c.status !== "confirmed").map(c => (
                               <div key={c.id} className={`text-[10px] rounded-lg px-2.5 py-1.5 flex justify-between items-center ${c.status === "rejected" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"}`}>
                                 <span>{c.claimedDate} · {c.transactionCode} {c.status === "rejected" && c.rejectionReason ? `— ${c.rejectionReason}` : ""}</span>
@@ -612,7 +612,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                   <p className="text-xs text-neutral-700 font-sans">
                     <strong>{lang === "en" ? "Feedback / Reason" : "Sababu ya Kukataliwa"}:</strong> {myRejectedRenewal.rejectionReason}
                   </p>
-                  <p className="text-[10px] text-neutral-400 font-sans">
+                  <p className="text-[10px] text-neutral-500 font-sans">
                     {lang === "en" ? "Please review the feedback and submit the form again below with correct details." : "Tafadhali kagua maoni na ujaze ombi jipya hapo chini."}
                   </p>
                 </div>
@@ -651,7 +651,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                           type="file" accept="image/*" onChange={handlePhotoUpload}
                           className="block w-full text-xs text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 file:cursor-pointer hover:file:bg-red-100"
                         />
-                        <p className="text-[10px] text-neutral-400">
+                        <p className="text-[10px] text-neutral-500">
                           {lang === "en" ? "Maximum size 1.5MB. This photo will update your official membership card." : "Uzito usiozidi 1.5MB. Itatumika kwenye kadi yako ya kikundi."}
                         </p>
                       </div>
@@ -689,7 +689,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                             value={signatureText} onChange={(e) => setSignatureText(e.target.value)}
                             className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-serif italic text-neutral-900"
                           />
-                          <p className="mt-1.5 text-[10px] text-neutral-400 leading-snug">
+                          <p className="mt-1.5 text-[10px] text-neutral-500 leading-snug">
                             {lang === "en" ? "Tip: upload a real signature image under Security & 2FA in your dashboard menu to sign with an actual signature next time." : "Kidokezo: pakia picha halisi ya sahihi yako chini ya Usalama na 2FA."}
                           </p>
                         </>
@@ -745,7 +745,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                             </div>
                           </div>
                           <div className={`px-3 py-1.5 rounded-lg border text-right shrink-0 ${fullyPaid ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
-                            <span className="text-[9px] text-neutral-400 block font-mono font-bold tracking-wider">PAYMENT</span>
+                            <span className="text-[9px] text-neutral-500 block font-mono font-bold tracking-wider">PAYMENT</span>
                             <span className={`font-mono font-bold text-[11px] ${fullyPaid ? "text-emerald-700" : "text-amber-700"}`}>Ksh {paid.toLocaleString()} / {fee.toLocaleString()}</span>
                           </div>
                         </div>
@@ -757,7 +757,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
 
                         {(item.payments || []).length > 0 && (
                           <div className="bg-white border border-neutral-200 rounded-lg p-2.5 space-y-1">
-                            <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Payment Log" : "Kumbukumbu za Malipo"}</p>
+                            <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Payment Log" : "Kumbukumbu za Malipo"}</p>
                             {[...item.payments].sort((a, b) => b.date.localeCompare(a.date)).map(p => (
                               <div key={p.id} className="flex justify-between items-center text-[10px] font-mono">
                                 <span className="text-neutral-500">{p.date} · <span className={p.method === "mpesa" ? "text-emerald-600 font-bold" : "text-blue-600 font-bold"}>{p.method === "mpesa" ? "M-PESA" : "MANUAL"}</span>{p.transactionCode ? ` · ${p.transactionCode}` : ""}{p.recordedBy ? ` · ${lang === "en" ? "by" : "na"} ${p.recordedBy}` : ""}</span>
@@ -847,7 +847,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                             </button>
                           </div>
                         ) : (
-                          <p className="text-[10px] text-neutral-400 italic border-t pt-3">
+                          <p className="text-[10px] text-neutral-500 italic border-t pt-3">
                             {lang === "en"
                               ? "You can verify payments above — final contract approval is done by the Chairperson or Vice Chairperson."
                               : "Unaweza kuthibitisha malipo hapo juu — idhini ya mwisho ya mkataba inafanywa na Mwenyekiti au Makamu."}
@@ -876,7 +876,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs text-neutral-600">
                         <thead>
-                          <tr className="border-b border-neutral-200 text-[10px] text-neutral-400 font-mono tracking-wider uppercase">
+                          <tr className="border-b border-neutral-200 text-[10px] text-neutral-500 font-mono tracking-wider uppercase">
                             <th className="py-2">{lang === "en" ? "Date" : "Tarehe"}</th>
                             <th className="py-2">{lang === "en" ? "Member" : "Mwanachama"}</th>
                             <th className="py-2">{lang === "en" ? "Method" : "Njia"}</th>
@@ -894,7 +894,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                                   {p.method === "mpesa" ? "M-Pesa" : "Manual"}
                                 </span>
                               </td>
-                              <td className="py-2 font-mono text-neutral-400">{p.transactionCode || p.recordedBy || "—"}</td>
+                              <td className="py-2 font-mono text-neutral-500">{p.transactionCode || p.recordedBy || "—"}</td>
                               <td className="py-2 text-right font-mono font-bold text-neutral-900">Ksh {p.amount.toLocaleString()}</td>
                             </tr>
                           ))}
@@ -912,7 +912,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs text-neutral-600">
                     <thead>
-                      <tr className="border-b border-neutral-200 text-[10px] text-neutral-400 font-mono tracking-wider uppercase">
+                      <tr className="border-b border-neutral-200 text-[10px] text-neutral-500 font-mono tracking-wider uppercase">
                         <th className="py-2">{lang === "en" ? "Member Name" : "Jina"}</th>
                         <th className="py-2">{lang === "en" ? "Role" : "Nafasi"}</th>
                         <th className="py-2">{lang === "en" ? "Approved Date" : "Kuidhinishwa"}</th>
@@ -923,7 +923,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                     </thead>
                     <tbody>
                       {approvedItems.length === 0 ? (
-                        <tr><td colSpan={6} className="py-4 text-center italic text-neutral-400">{lang === "en" ? "No approved renewals logged." : "Hakuna mikataba iliyoidhinishwa bado."}</td></tr>
+                        <tr><td colSpan={6} className="py-4 text-center italic text-neutral-500">{lang === "en" ? "No approved renewals logged." : "Hakuna mikataba iliyoidhinishwa bado."}</td></tr>
                       ) : (
                         approvedItems.map(item => (
                           <tr key={item.id} className="border-b border-neutral-100 hover:bg-neutral-50">
@@ -936,7 +936,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                             <td className="py-2.5 font-mono text-emerald-600 font-bold">{item.expiryDate || "N/A"}</td>
                             <td className="py-2.5 font-mono text-neutral-950 font-bold text-right">{item.paymentStatus === "exempt" ? "Exempt" : `Ksh ${item.feeRequired || settings.renewalFee}`}</td>
                             <td className="py-2.5 text-right">
-                              <button onClick={() => setPrintingItem(item)} className="text-neutral-400 hover:text-neutral-900 cursor-pointer"><Printer size={13} /></button>
+                              <button onClick={() => setPrintingItem(item)} className="text-neutral-500 hover:text-neutral-900 cursor-pointer"><Printer size={13} /></button>
                             </td>
                           </tr>
                         ))
@@ -955,7 +955,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-neutral-900">{lang === "en" ? "Record Manual Payment" : "Rekodi Malipo ya Mkono"}</h3>
           <p className="text-xs text-neutral-500">{manualPaymentTarget?.userName}</p>
-          <p className="text-[10px] text-neutral-400">
+          <p className="text-[10px] text-neutral-500">
             {lang === "en" ? "Use this after confirming the payment against the" : "Tumia hii baada ya kuthibitisha malipo na"} {settings.name} Till {settings.invoiceMpesaTill} {lang === "en" ? "statement." : "taarifa."}
           </p>
           <input type="number" min="1" value={manualAmount} onChange={e => setManualAmount(e.target.value)} placeholder={lang === "en" ? "Amount (Ksh)" : "Kiasi (Ksh)"} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs font-mono" />
@@ -1013,8 +1013,8 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
                   : `Hii inathibitisha kwamba ${printingItem.userName} ameingia kwenye mkataba wa mwaka wa uanachama na Bashosho Talents CBO.`}</p>
               </div>
               <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-neutral-200">
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Renewal Fee" : "Ada"}</span><span className="font-bold text-neutral-900">{printingItem.paymentStatus === "exempt" ? (lang === "en" ? "Exempted" : "Imesamehewa") : `Ksh ${printingItem.feeRequired}`}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Reviewed By" : "Ilikaguliwa Na"}</span><span className="font-bold text-neutral-900">{printingItem.reviewedBy}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Renewal Fee" : "Ada"}</span><span className="font-bold text-neutral-900">{printingItem.paymentStatus === "exempt" ? (lang === "en" ? "Exempted" : "Imesamehewa") : `Ksh ${printingItem.feeRequired}`}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Reviewed By" : "Ilikaguliwa Na"}</span><span className="font-bold text-neutral-900">{printingItem.reviewedBy}</span></div>
               </div>
             </div>
           </PrintWrapper>

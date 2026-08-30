@@ -150,7 +150,7 @@ export default function ActivityLogPanel({ lang }: ActivityLogPanelProps) {
         <>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
               <input
                 type="text"
                 value={search}
@@ -172,11 +172,11 @@ export default function ActivityLogPanel({ lang }: ActivityLogPanelProps) {
           {error && <p className="text-xs text-red-600">{error}</p>}
 
           {loading ? (
-            <div className="flex items-center justify-center py-10 text-neutral-400">
+            <div className="flex items-center justify-center py-10 text-neutral-500">
               <Loader2 size={20} className="animate-spin" />
             </div>
           ) : items.length === 0 ? (
-            <p className="text-xs text-neutral-400 py-10 text-center">{tt.empty}</p>
+            <p className="text-xs text-neutral-500 py-10 text-center">{tt.empty}</p>
           ) : (
             <div className="border border-neutral-100 rounded-xl overflow-hidden divide-y divide-neutral-100">
               {items.map(item => (
@@ -185,11 +185,11 @@ export default function ActivityLogPanel({ lang }: ActivityLogPanelProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-neutral-800">
                       <span className="font-bold">{item.actorName}</span>
-                      <span className="text-neutral-400"> ({item.actorRole}) </span>
+                      <span className="text-neutral-500"> ({item.actorRole}) </span>
                       <span className="font-mono text-neutral-500">{item.action}</span>
                       {item.targetLabel && <span className="text-neutral-600"> — {item.targetLabel}</span>}
                     </p>
-                    <p className="text-[10px] text-neutral-400 font-mono mt-0.5">
+                    <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
                       {item.module} · {new Date(item.timestamp).toLocaleString()}
                     </p>
                   </div>
@@ -214,7 +214,7 @@ export default function ActivityLogPanel({ lang }: ActivityLogPanelProps) {
       ) : (
         <>
           <div className="relative flex-1">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
               type="text"
               value={loginSearch}
@@ -227,11 +227,11 @@ export default function ActivityLogPanel({ lang }: ActivityLogPanelProps) {
           {loginError && <p className="text-xs text-red-600">{loginError}</p>}
 
           {loginLoading ? (
-            <div className="flex items-center justify-center py-10 text-neutral-400">
+            <div className="flex items-center justify-center py-10 text-neutral-500">
               <Loader2 size={20} className="animate-spin" />
             </div>
           ) : loginItems.length === 0 ? (
-            <p className="text-xs text-neutral-400 py-10 text-center">{tt.loginEmpty}</p>
+            <p className="text-xs text-neutral-500 py-10 text-center">{tt.loginEmpty}</p>
           ) : (
             <div className="border border-neutral-100 rounded-xl overflow-hidden divide-y divide-neutral-100">
               {loginItems.map(item => (
@@ -240,10 +240,10 @@ export default function ActivityLogPanel({ lang }: ActivityLogPanelProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-neutral-800">
                       <span className="font-bold">{item.userName}</span>
-                      <span className="text-neutral-400"> ({item.userRole}) </span>
+                      <span className="text-neutral-500"> ({item.userRole}) </span>
                       {item.method === "2fa" && <span className="text-[9px] font-mono bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded">2FA</span>}
                     </p>
-                    <p className="text-[10px] text-neutral-400 font-mono mt-0.5 flex items-center gap-3 flex-wrap">
+                    <p className="text-[10px] text-neutral-500 font-mono mt-0.5 flex items-center gap-3 flex-wrap">
                       <span>{new Date(item.timestamp).toLocaleString()}</span>
                       <span className="flex items-center gap-1"><Monitor size={10} /> {item.device}</span>
                       <span className="flex items-center gap-1"><MapPin size={10} /> {item.location || `${lang === "en" ? "IP" : "IP"}: ${item.ipAddress}`}</span>

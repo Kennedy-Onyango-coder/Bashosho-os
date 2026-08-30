@@ -551,7 +551,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                   onChange={(e) => handleChange("performanceOrgCutPercent", parseInt(e.target.value) || 0)}
                   className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold"
                 />
-                <p className="text-[9px] text-neutral-400">{lang === "en" ? "Taken automatically when a performance invoice is marked paid." : "Inatolewa kiotomatiki ankara inapolipwa."}</p>
+                <p className="text-[9px] text-neutral-500">{lang === "en" ? "Taken automatically when a performance invoice is marked paid." : "Inatolewa kiotomatiki ankara inapolipwa."}</p>
               </div>
               <div className="space-y-1">
                 <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
@@ -563,7 +563,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                   onChange={(e) => handleChange("performanceMembershipDeductionPercent", parseInt(e.target.value) || 0)}
                   className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold"
                 />
-                <p className="text-[9px] text-neutral-400">{lang === "en" ? "Default rate suggested on each Cast Payment List." : "Kiwango cha kawaida kinachopendekezwa."}</p>
+                <p className="text-[9px] text-neutral-500">{lang === "en" ? "Default rate suggested on each Cast Payment List." : "Kiwango cha kawaida kinachopendekezwa."}</p>
               </div>
               <div className="space-y-1">
                 <label className="block text-[10px] font-bold uppercase text-neutral-500 tracking-wider">
@@ -575,7 +575,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                   onChange={(e) => handleChange("pettyCashThreshold", parseInt(e.target.value) || 0)}
                   className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono font-bold"
                 />
-                <p className="text-[9px] text-neutral-400">{lang === "en" ? "Spends at or below this can use the fast Petty Cash log." : "Matumizi chini ya kiwango hiki yanaweza kutumia Fedha Ndogo."}</p>
+                <p className="text-[9px] text-neutral-500">{lang === "en" ? "Spends at or below this can use the fast Petty Cash log." : "Matumizi chini ya kiwango hiki yanaweza kutumia Fedha Ndogo."}</p>
               </div>
             </div>
           </div>
@@ -636,7 +636,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                       <button
                         type="button"
                         onClick={() => toggleSection(sec.id)}
-                        className="p-1 text-neutral-400 hover:text-neutral-700 cursor-pointer ml-1"
+                        className="p-1 text-neutral-500 hover:text-neutral-700 cursor-pointer ml-1"
                       >
                         {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </button>
@@ -787,7 +787,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                     onChange={handleAdminPhotoChange}
                   />
                 </label>
-                <span className="text-[10px] text-neutral-400 font-mono">
+                <span className="text-[10px] text-neutral-500 font-mono">
                   {lang === "en" ? "Max 1.5MB (Passport style)" : "Isizidi 1.5MB (Mtindo wa Pasipoti)"}
                 </span>
               </div>
@@ -800,7 +800,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                 {lang === "en" ? "Full Name" : "Jina Kamili"}
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-400">
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-500">
                   <User size={12} />
                 </span>
                 <input
@@ -818,7 +818,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                 {lang === "en" ? "Login Email" : "Barua Pepe"}
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-400">
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-500">
                   <Mail size={12} />
                 </span>
                 <input
@@ -836,7 +836,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                 {lang === "en" ? "Phone Number" : "Nambari ya Simu"}
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-400">
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-500">
                   <Phone size={12} />
                 </span>
                 <input
@@ -855,7 +855,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
               {lang === "en" ? "Change PIN / Password (At least 6 characters if currently using default 1234)" : "Badilisha PIN / Nenosiri (Angalau herufi 6 ikiwa kwa sasa unatumia chaguo-msingi 1234)"}
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-400">
+              <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-500">
                 <Key size={12} />
               </span>
               <input
@@ -897,7 +897,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                   </div>
                   <button
                     onClick={() => handleDeleteOtherAdmin(p.id)}
-                    className="p-2 text-neutral-400 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
+                    className="p-2 text-neutral-500 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
                     title={lang === "en" ? "Delete administrative profile" : "Futa akaunti"}
                   >
                     <Trash2 size={14} />
@@ -964,7 +964,7 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                 {lang === "en" ? "New PIN / Password" : "PIN / Nenosiri Jipya"}
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-400">
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-neutral-500">
                   <Lock size={12} />
                 </span>
                 <input
@@ -1178,7 +1178,7 @@ function AdminExportPanel({ lang }: { lang: "en" | "sw" }) {
         <h3 className="text-sm font-black text-neutral-100 mt-2 uppercase font-sans">
           {lang === "en" ? "Export Full Encrypted Database" : "Pakua Nakala Kamili ya Data"}
         </h3>
-        <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+        <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
           {lang === "en"
             ? "Download a completely consolidated, cryptographically signed JSON file containing all CBO data, members, financial ledgers, and append-only audit trails for offline backup and recovery."
             : "Pakua nakala kamili ya maelezo yote ya kikundi ikiwemo orodha ya wanachama, ripoti za fedha na kumbukumbu zote za usalama kwa uhifadhi wa nje."}

@@ -326,7 +326,7 @@ Initial Intake Context: ${notes || "Participating in youth theatre & creative me
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full text-xs bg-neutral-50 focus:bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 outline-none font-sans"
                 />
-                <Search size={14} className="absolute left-2.5 top-2.5 text-neutral-400" />
+                <Search size={14} className="absolute left-2.5 top-2.5 text-neutral-500" />
               </div>
             </div>
 
@@ -334,17 +334,17 @@ Initial Intake Context: ${notes || "Participating in youth theatre & creative me
               {loadingList ? (
                 <div className="h-full flex flex-col items-center justify-center py-12">
                   <div className="w-8 h-8 rounded-full border-2 border-[#E31E24] border-t-transparent animate-spin mb-3"></div>
-                  <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider font-mono">
+                  <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider font-mono">
                     {lang === "en" ? "Loading Directory..." : "Inapakia Katalogi..."}
                   </p>
                 </div>
               ) : filteredBeneficiaries.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center py-12 border-2 border-dashed border-neutral-100 rounded-xl">
-                  <FolderOpen size={28} className="text-neutral-400 mb-2" />
-                  <p className="text-xs font-bold text-neutral-400">
+                  <FolderOpen size={28} className="text-neutral-500 mb-2" />
+                  <p className="text-xs font-bold text-neutral-500">
                     {lang === "en" ? "No beneficiaries found." : "Hakuna wafaidika waliopatikana."}
                   </p>
-                  <p className="text-[10px] text-neutral-400 mt-1">
+                  <p className="text-[10px] text-neutral-500 mt-1">
                     {lang === "en" ? "Try adjusting your search criteria." : "Jaribu kubadilisha neno la utafutaji."}
                   </p>
                 </div>
@@ -366,19 +366,19 @@ Initial Intake Context: ${notes || "Participating in youth theatre & creative me
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-neutral-600 font-sans text-[11px]">
                           <p>
-                            <span className="text-neutral-400 font-bold uppercase text-[9px] mr-1 font-mono">DOB:</span>{" "}
+                            <span className="text-neutral-500 font-bold uppercase text-[9px] mr-1 font-mono">DOB:</span>{" "}
                             {new Date(b.dateOfBirth).toLocaleDateString(lang === "en" ? "en-KE" : "sw-KE")}
                           </p>
                           <p>
-                            <span className="text-neutral-400 font-bold uppercase text-[9px] mr-1 font-mono">Location:</span>{" "}
+                            <span className="text-neutral-500 font-bold uppercase text-[9px] mr-1 font-mono">Location:</span>{" "}
                             {b.location}
                           </p>
                           <p>
-                            <span className="text-neutral-400 font-bold uppercase text-[9px] mr-1 font-mono">Guardian:</span>{" "}
+                            <span className="text-neutral-500 font-bold uppercase text-[9px] mr-1 font-mono">Guardian:</span>{" "}
                             {b.guardianName}
                           </p>
                           <p>
-                            <span className="text-neutral-400 font-bold uppercase text-[9px] mr-1 font-mono">Phone:</span>{" "}
+                            <span className="text-neutral-500 font-bold uppercase text-[9px] mr-1 font-mono">Phone:</span>{" "}
                             {b.guardianPhone}
                           </p>
                         </div>
@@ -388,7 +388,7 @@ Initial Intake Context: ${notes || "Participating in youth theatre & creative me
                           </div>
                         )}
                       </div>
-                      <div className="sm:text-right flex flex-col justify-between h-full text-[10px] text-neutral-400 font-mono">
+                      <div className="sm:text-right flex flex-col justify-between h-full text-[10px] text-neutral-500 font-mono">
                         <p className="font-bold">
                           {lang === "en" ? "REGISTERED BY" : "ALISAJILIWA NA"}
                         </p>

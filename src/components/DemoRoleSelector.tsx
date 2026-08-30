@@ -45,7 +45,7 @@ export default function DemoRoleSelector({
             </div>
             <button
               onClick={onLogout}
-              className="bg-neutral-800 hover:bg-red-950 hover:text-red-400 border border-neutral-700 hover:border-red-900 text-neutral-400 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+              className="bg-neutral-800 hover:bg-red-950 hover:text-red-400 border border-neutral-700 hover:border-red-900 text-neutral-500 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
             >
               {lang === "en" ? "Sign Out" : "Ondoka"}
             </button>

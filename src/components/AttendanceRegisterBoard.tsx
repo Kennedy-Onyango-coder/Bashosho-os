@@ -149,7 +149,7 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
             <ClipboardList className="text-[#E31E24]" size={20} />
             {lang === "en" ? "Attendance Registers" : "Rejista za Mahudhurio"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {lang === "en"
               ? "Transcribe a paper sign-in sheet from a training, performance, or office day — Programs Director then Chairperson approve before it's official."
               : "Andika rejista ya karatasi kutoka mafunzo au onyesho — Programs Director kisha Mwenyekiti wanaithibitisha kabla haijawa rasmi."}
@@ -207,7 +207,7 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
                     <option value="excused">{lang === "en" ? "Exc." : "Ruhusa"}</option>
                     <option value="absent">{lang === "en" ? "Out" : "Hayupo"}</option>
                   </select>
-                  <button type="button" onClick={() => removeRow(idx)} className="col-span-1 text-neutral-400 hover:text-red-600 cursor-pointer flex justify-center">
+                  <button type="button" onClick={() => removeRow(idx)} className="col-span-1 text-neutral-500 hover:text-red-600 cursor-pointer flex justify-center">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -222,9 +222,9 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
       )}
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading registers..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "Loading registers..." : "Inapakia..."}</p>
       ) : sortedRegisters.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en" ? "No attendance registers transcribed yet." : "Hakuna rejista zilizoandikwa bado."}
         </div>
       ) : (
@@ -238,11 +238,11 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
                     <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[sheet.approvalStatus || ""] || "bg-neutral-100 text-neutral-500 border-neutral-200"}`}>
                       {STATUS_LABELS[sheet.approvalStatus || ""]?.[lang] || sheet.approvalStatus}
                     </span>
-                    <span className="text-[9px] font-mono text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-full">
+                    <span className="text-[9px] font-mono text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
                       {EVENT_TYPE_LABELS[sheet.type]?.[lang] || sheet.type}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-400 flex-wrap">
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-500 flex-wrap">
                     <span>{sheet.venue}</span>
                     <span className="flex items-center gap-1"><Clock size={11} /> {sheet.date}</span>
                     <span>{sheet.records.length} {lang === "en" ? "attendees" : "waliohudhuria"}</span>
@@ -299,10 +299,10 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
           >
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-xs border-b border-neutral-200 pb-3">
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Venue" : "Mahali"}</span><span className="font-bold text-neutral-900">{printingSheet.venue}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Type" : "Aina"}</span><span className="font-bold text-neutral-900">{EVENT_TYPE_LABELS[printingSheet.type]?.[lang] || printingSheet.type}</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Programs Approved By" : "Programs Director"}</span><span className="font-bold text-neutral-900">{printingSheet.programsApprovedBy} ({printingSheet.programsApprovedDate})</span></div>
-                <div><span className="text-neutral-400 font-bold uppercase text-[10px] block">{lang === "en" ? "Chairperson Approved By" : "Mwenyekiti"}</span><span className="font-bold text-neutral-900">{printingSheet.chairpersonApprovedBy} ({printingSheet.chairpersonApprovedDate})</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Venue" : "Mahali"}</span><span className="font-bold text-neutral-900">{printingSheet.venue}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Type" : "Aina"}</span><span className="font-bold text-neutral-900">{EVENT_TYPE_LABELS[printingSheet.type]?.[lang] || printingSheet.type}</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Programs Approved By" : "Programs Director"}</span><span className="font-bold text-neutral-900">{printingSheet.programsApprovedBy} ({printingSheet.programsApprovedDate})</span></div>
+                <div><span className="text-neutral-500 font-bold uppercase text-[10px] block">{lang === "en" ? "Chairperson Approved By" : "Mwenyekiti"}</span><span className="font-bold text-neutral-900">{printingSheet.chairpersonApprovedBy} ({printingSheet.chairpersonApprovedDate})</span></div>
               </div>
               <table className="w-full text-xs font-sans text-left border-collapse">
                 <thead>

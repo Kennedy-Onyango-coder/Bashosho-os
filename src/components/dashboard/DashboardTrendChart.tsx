@@ -57,7 +57,7 @@ export default function DashboardTrendChart({ incomes, expenditures, referenceDa
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-2 text-xs text-neutral-400">
+      <div className="flex items-center gap-4 mb-2 text-xs text-neutral-500">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
           {lang === "en" ? "Income" : "Mapato"}

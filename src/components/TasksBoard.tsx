@@ -123,7 +123,7 @@ export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardP
             <CheckSquare className="text-[#E31E24]" size={20} />
             {lang === "en" ? "Tasks & Action Items" : "Majukumu na Vitendo"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {canAssign
               ? (lang === "en" ? "Assign follow-ups to members and volunteers and track them to done." : "Gawa majukumu kwa wanachama na wanaojitolea na ufuatilie hadi kukamilika.")
               : (lang === "en" ? "Tasks assigned to you by leadership, and tasks you've assigned." : "Majukumu uliyopewa na uongozi, na majukumu uliyogawa.")}
@@ -200,9 +200,9 @@ export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardP
       </div>
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading tasks..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "Loading tasks..." : "Inapakia..."}</p>
       ) : sortedTasks.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en" ? "No tasks found." : "Hakuna majukumu yaliyopatikana."}
         </div>
       ) : (
@@ -216,7 +216,7 @@ export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardP
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h4 className="text-sm font-bold text-neutral-900">{task.title}</h4>
                       <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${PRIORITY_STYLES[task.priority]}`}>{task.priority}</span>
-                      <span className="text-[9px] font-mono text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-full">{PROGRAM_AREA_LABELS[task.programArea]?.[lang] || task.programArea}</span>
+                      <span className="text-[9px] font-mono text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">{PROGRAM_AREA_LABELS[task.programArea]?.[lang] || task.programArea}</span>
                       {overdue && (
                         <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-600 text-white flex items-center gap-1">
                           <AlertCircle size={10} /> {lang === "en" ? "Overdue" : "Imechelewa"}
@@ -224,7 +224,7 @@ export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardP
                       )}
                     </div>
                     {task.description && <p className="text-xs text-neutral-600 mb-2">{task.description}</p>}
-                    <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-400">
+                    <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-500">
                       <span className="flex items-center gap-1"><UserIcon size={11} /> {task.assignedToName}</span>
                       {task.dueDate && <span className="flex items-center gap-1"><Clock size={11} /> {task.dueDate}</span>}
                       <span>{lang === "en" ? "by" : "na"} {task.assignedByName}</span>

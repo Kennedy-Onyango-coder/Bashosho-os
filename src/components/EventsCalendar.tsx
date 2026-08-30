@@ -127,7 +127,7 @@ export default function EventsCalendar({ lang, currentUser, canCreate }: EventsC
             <CalendarDays className="text-[#E31E24]" size={20} />
             {lang === "en" ? "Events & Calendar" : "Matukio na Kalenda"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {lang === "en" ? "See what's scheduled and RSVP ahead of time." : "Ona yaliyopangwa na uthibitishe mapema."}
           </p>
         </div>
@@ -183,7 +183,7 @@ export default function EventsCalendar({ lang, currentUser, canCreate }: EventsC
             <h3 className="text-sm font-black text-neutral-900">{viewDate.toLocaleDateString(lang === "en" ? "en-US" : "sw-KE", { month: "long", year: "numeric" })}</h3>
             <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="p-1.5 rounded-lg hover:bg-neutral-100 cursor-pointer"><ChevronRight size={16} /></button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-neutral-400 uppercase mb-1">
+          <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-neutral-500 uppercase mb-1">
             {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => <div key={d}>{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -214,11 +214,11 @@ export default function EventsCalendar({ lang, currentUser, canCreate }: EventsC
 
         {/* Side panel: selected day or upcoming */}
         <div className="space-y-3">
-          <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+          <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
             {selectedDay ? selectedDay : (lang === "en" ? "Upcoming" : "Yajayo")}
           </h4>
           {(selectedDay ? selectedDayEvents : upcomingEvents).length === 0 ? (
-            <p className="text-xs text-neutral-400 italic">{lang === "en" ? "No events." : "Hakuna matukio."}</p>
+            <p className="text-xs text-neutral-500 italic">{lang === "en" ? "No events." : "Hakuna matukio."}</p>
           ) : (
             (selectedDay ? selectedDayEvents : upcomingEvents).map(ev => {
               const myRsvp = ev.rsvps?.find(r => r.userId === currentUser.id);
@@ -228,7 +228,7 @@ export default function EventsCalendar({ lang, currentUser, canCreate }: EventsC
                     <span className={`w-2 h-2 rounded-full mt-1 shrink-0 ${EVENT_TYPE_COLORS[ev.type] || "bg-neutral-400"}`} />
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-neutral-900">{ev.title}</p>
-                      <p className="text-[10px] text-neutral-400 flex items-center gap-2 flex-wrap mt-0.5">
+                      <p className="text-[10px] text-neutral-500 flex items-center gap-2 flex-wrap mt-0.5">
                         <span className="flex items-center gap-0.5"><Clock size={9} /> {ev.date}{ev.startTime ? ` · ${ev.startTime}` : ""}</span>
                         <span className="flex items-center gap-0.5"><MapPin size={9} /> {ev.location}</span>
                       </p>
@@ -245,7 +245,7 @@ export default function EventsCalendar({ lang, currentUser, canCreate }: EventsC
                       <X size={10} /> {lang === "en" ? "Can't" : "Sitaweza"}
                     </button>
                   </div>
-                  <p className="text-[9px] text-neutral-400">{(ev.rsvps || []).filter(r => r.response === "yes").length} {lang === "en" ? "going" : "wanakuja"} · {(ev.rsvps || []).filter(r => r.response === "maybe").length} {lang === "en" ? "maybe" : "labda"}</p>
+                  <p className="text-[9px] text-neutral-500">{(ev.rsvps || []).filter(r => r.response === "yes").length} {lang === "en" ? "going" : "wanakuja"} · {(ev.rsvps || []).filter(r => r.response === "maybe").length} {lang === "en" ? "maybe" : "labda"}</p>
                 </div>
               );
             })

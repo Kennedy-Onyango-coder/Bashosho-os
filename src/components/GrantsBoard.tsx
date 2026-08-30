@@ -284,11 +284,11 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
 
                       <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-neutral-500 bg-neutral-50 p-2 rounded-lg">
                         <div>
-                          <span className="block text-[8px] text-neutral-400 font-bold uppercase tracking-wider">Amount</span>
+                          <span className="block text-[8px] text-neutral-500 font-bold uppercase tracking-wider">Amount</span>
                           <span className="text-neutral-800 font-mono font-bold">Ksh {(grant?.amount || 0).toLocaleString()}</span>
                         </div>
                         <div>
-                          <span className="block text-[8px] text-neutral-400 font-bold uppercase tracking-wider">Deadline</span>
+                          <span className="block text-[8px] text-neutral-500 font-bold uppercase tracking-wider">Deadline</span>
                           <span className="text-neutral-800 font-mono font-bold">{grant.deadline}</span>
                         </div>
                       </div>
@@ -373,7 +373,7 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
                 })}
 
                 {colGrants.length === 0 && (
-                  <p className="text-[10px] text-neutral-400 text-center py-10 font-medium">
+                  <p className="text-[10px] text-neutral-500 text-center py-10 font-medium">
                     {lang === "en" ? "No proposals here" : "Hakuna maombi hapa"}
                   </p>
                 )}

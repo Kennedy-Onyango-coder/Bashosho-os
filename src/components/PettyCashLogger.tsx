@@ -107,7 +107,7 @@ export default function PettyCashLogger({ lang }: PettyCashLoggerProps) {
           <Wallet className="text-[#E31E24]" size={20} />
           {lang === "en" ? "Petty Cash Log" : "Kumbukumbu za Fedha Ndogo"}
         </h2>
-        <p className="text-xs text-neutral-400 mt-1">
+        <p className="text-xs text-neutral-500 mt-1">
           {lang === "en"
             ? `For small day-to-day spends of Ksh ${threshold.toLocaleString()} or less — log it the moment you spend it, receipt photo required. Anything larger needs a full Expenditure Request.`
             : `Kwa matumizi madogo ya kila siku ya Ksh ${threshold.toLocaleString()} au chini — rekodi mara tu unapotumia, picha ya risiti inahitajika.`}
@@ -155,9 +155,9 @@ export default function PettyCashLogger({ lang }: PettyCashLoggerProps) {
       </form>
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
       ) : entries.length === 0 ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "No petty cash entries yet." : "Hakuna kumbukumbu bado."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "No petty cash entries yet." : "Hakuna kumbukumbu bado."}</p>
       ) : (
         <div className="space-y-2">
           <h3 className="text-xs font-black text-neutral-900 uppercase tracking-wide">{lang === "en" ? "Recent Entries" : "Kumbukumbu za Hivi Karibuni"}</h3>
@@ -166,7 +166,7 @@ export default function PettyCashLogger({ lang }: PettyCashLoggerProps) {
               {e.receiptUrl && <img src={e.receiptUrl} alt="" className="w-10 h-10 object-cover rounded-lg border shrink-0" />}
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-neutral-800 truncate">{e.description}</p>
-                <p className="text-[9px] font-mono text-neutral-400">{e.requestDate} · {e.category} · {lang === "en" ? "by" : "na"} {e.requestedBy}</p>
+                <p className="text-[9px] font-mono text-neutral-500">{e.requestDate} · {e.category} · {lang === "en" ? "by" : "na"} {e.requestedBy}</p>
               </div>
               <span className="text-xs font-bold font-mono text-neutral-900 shrink-0">Ksh {e.amount.toLocaleString()}</span>
             </div>

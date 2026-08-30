@@ -34,7 +34,7 @@ export default function GrowthTrackerPanel({ lang, currentUser, classes }: Growt
 
       {skills.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5 flex items-center gap-1"><Tag size={11} /> {lang === "en" ? "Skills" : "Ujuzi"}</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><Tag size={11} /> {lang === "en" ? "Skills" : "Ujuzi"}</p>
           <div className="flex flex-wrap gap-1.5">
             {skills.map((s, i) => (
               <span key={i} className="text-[10px] font-bold bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full">{s}</span>
@@ -45,12 +45,12 @@ export default function GrowthTrackerPanel({ lang, currentUser, classes }: Growt
 
       {myClasses.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5 flex items-center gap-1"><GraduationCap size={11} /> {lang === "en" ? "Trainings & Classes" : "Mafunzo na Madarasa"} ({myClasses.length})</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><GraduationCap size={11} /> {lang === "en" ? "Trainings & Classes" : "Mafunzo na Madarasa"} ({myClasses.length})</p>
           <div className="space-y-1.5">
             {myClasses.map(c => (
               <div key={c.id} className="bg-neutral-50 rounded-lg px-2.5 py-1.5">
                 <p className="text-xs font-bold text-neutral-800">{c.name}</p>
-                <p className="text-[9px] font-mono text-neutral-400">{c.trainer} · {c.startDate}{c.endDate ? ` → ${c.endDate}` : ""}</p>
+                <p className="text-[9px] font-mono text-neutral-500">{c.trainer} · {c.startDate}{c.endDate ? ` → ${c.endDate}` : ""}</p>
               </div>
             ))}
           </div>
@@ -59,7 +59,7 @@ export default function GrowthTrackerPanel({ lang, currentUser, classes }: Growt
 
       {certificates.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5 flex items-center gap-1"><Award size={11} /> {lang === "en" ? "Certificates Earned" : "Vyeti Vilivyopatikana"} ({certificates.length})</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><Award size={11} /> {lang === "en" ? "Certificates Earned" : "Vyeti Vilivyopatikana"} ({certificates.length})</p>
           <div className="space-y-1.5">
             {certificates.map(c => (
               <div key={c.id} className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">

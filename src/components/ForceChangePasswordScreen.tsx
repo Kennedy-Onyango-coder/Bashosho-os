@@ -180,7 +180,7 @@ export default function ForceChangePasswordScreen({
         </motion.div>
       </div>
 
-      <div className="text-center text-[10px] font-mono text-neutral-400 mt-6">
+      <div className="text-center text-[10px] font-mono text-neutral-500 mt-6">
         {lang === "en"
           ? "Logged in as "
           : "Umeingia kama "}

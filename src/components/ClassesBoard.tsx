@@ -196,7 +196,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
           <h2 className="text-2xl font-black text-neutral-950 underline decoration-red-600 decoration-2 underline-offset-4">
             {student.name}
           </h2>
-          <p className="text-xs font-mono font-bold text-neutral-400">MEMBER NO: {student.memberNumber}</p>
+          <p className="text-xs font-mono font-bold text-neutral-500">MEMBER NO: {student.memberNumber}</p>
         </div>
 
         <div className="space-y-4 max-w-xl mx-auto">
@@ -223,7 +223,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
         </div>
 
         {/* Clean verification note */}
-        <p className="text-[10px] text-neutral-400 font-mono italic max-w-md mx-auto pt-4 leading-normal">
+        <p className="text-[10px] text-neutral-500 font-mono italic max-w-md mx-auto pt-4 leading-normal">
           This official credential has been registered securely on the Bashosho OS system registry. Scan the document QR code or visit the verification portal to confirm legitimacy.
         </p>
       </div>,
@@ -400,7 +400,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-600 text-xs"
               >
                 
               </button>
@@ -476,7 +476,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
 
                       {/* Dynamic Progress Slider */}
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[9px] font-bold text-neutral-400">
+                        <div className="flex justify-between text-[9px] font-bold text-neutral-500">
                           <span>{lang === "en" ? "Curriculum Progress" : "Maendeleo ya Masomo"}</span>
                           <span>{progress}%</span>
                         </div>
@@ -496,14 +496,14 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                           {item.trainer.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-wider">{lang === "en" ? "Lead Instructor" : "Mkufunzi Mkuu"}</p>
+                          <p className="text-[9px] text-neutral-500 font-mono uppercase tracking-wider">{lang === "en" ? "Lead Instructor" : "Mkufunzi Mkuu"}</p>
                           <p className="text-xs font-bold text-neutral-800">{item.trainer}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="pt-4 mt-4 border-t border-neutral-100 flex items-center justify-between">
-                      <div className="text-[10px] font-mono text-neutral-400 space-y-0.5">
+                      <div className="text-[10px] font-mono text-neutral-500 space-y-0.5">
                         <span className="block"> {item.startDate} {lang === "en" ? "to" : "hadi"} {item.endDate}</span>
                         <span className="block text-neutral-500"> {item.enrolledUserIds.length} {lang === "en" ? "registered students" : "washiriki waliosajiliwa"}</span>
                       </div>
@@ -520,7 +520,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                            {lang === "en" ? "Active Class" : "Darasa Linaloendelea"}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-neutral-400 italic">
+                        <span className="text-[10px] text-neutral-500 italic">
                           {lang === "en" ? "Contact Director to enroll" : "Wasiliana na mkurugenzi kujiunga"}
                         </span>
                       )}
@@ -555,7 +555,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                   ? "You are not currently enrolled in any workshops."
                   : "Bado haujasajiliwa kwenye mafunzo yoyote kwa sasa."}
               </p>
-              <p className="text-[10px] text-neutral-400 max-w-sm mx-auto">
+              <p className="text-[10px] text-neutral-500 max-w-sm mx-auto">
                 {lang === "en"
                   ? "Please coordinate with the Programs Director to register your profile for upcoming theatrical, SGBV advocacy, or digital skill courses."
                   : "Tafadhali wasiliana na Mkurugenzi wa Programu ili kusajiliwa kwenye mafunzo ya michezo ya kuigizaji na stadi za kimaisha."}
@@ -579,10 +579,10 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                         </span>
                       </div>
                       <p className="text-[10px] text-neutral-500 leading-relaxed font-serif line-clamp-2">{item.description}</p>
-                      <p className="text-[10px] text-neutral-400">Trainer: <strong className="text-neutral-700">{item.trainer}</strong></p>
+                      <p className="text-[10px] text-neutral-500">Trainer: <strong className="text-neutral-700">{item.trainer}</strong></p>
                       
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[8px] font-bold text-neutral-400">
+                        <div className="flex justify-between text-[8px] font-bold text-neutral-500">
                           <span>{lang === "en" ? "Completion Progress" : "Kiwango cha Kukamilisha"}</span>
                           <span>{progress}%</span>
                         </div>
@@ -596,7 +596,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                     </div>
 
                     <div className="pt-3 border-t border-neutral-150 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-neutral-400">{item.startDate} to {item.endDate}</span>
+                      <span className="text-[10px] font-mono text-neutral-500">{item.startDate} to {item.endDate}</span>
                       {finished ? (
                         <button
                           onClick={() => printCertificate(item, currentUser)}
@@ -605,7 +605,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                            {lang === "en" ? "Print Certificate" : "Chapa Cheti"}
                         </button>
                       ) : (
-                        <span className="text-[10px] font-medium text-neutral-400 italic">
+                        <span className="text-[10px] font-medium text-neutral-500 italic">
                           {lang === "en" ? "Awaiting final completion" : "Inasubiri kukamilika kikamilifu"}
                         </span>
                       )}
@@ -625,7 +625,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
             <h3 className="text-sm font-black uppercase tracking-wider text-red-500">
                {lang === "en" ? "Bashosho OS Official Credential Verification" : "Thibitisha Uhakiki wa Vyeti Rasmi"}
             </h3>
-            <p className="text-[11px] text-neutral-400 mt-1 leading-relaxed">
+            <p className="text-[11px] text-neutral-500 mt-1 leading-relaxed">
               {lang === "en"
                 ? "Verify the authenticity of any completion certificate issued by Bashosho Talents. Enter the alphanumeric verification ID found on the printed document."
                 : "Thibitisha kama cheti chochote kilichotolewa na kikundi cha Bashosho ni halali au cha kughushi. Ingiza nambari ya cheti hapa."}
@@ -655,12 +655,12 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                 <span>VALID CREDENTIAL REGISTERED</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                <p className="text-neutral-400">Recipient Name: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.studentName}</strong></p>
-                <p className="text-neutral-400">Member Number: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.studentNumber}</strong></p>
-                <p className="text-neutral-400">Course / Workshop Title: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.className}</strong></p>
-                <p className="text-neutral-400">Lead Trainer / Instructor: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.trainerName}</strong></p>
-                <p className="text-neutral-400">Date of Attainment: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.completionDate}</strong></p>
-                <p className="text-neutral-400">Certificate Reference: <strong className="text-emerald-400 block font-mono font-bold mt-0.5 text-sm">{verifiedCert.certificateId}</strong></p>
+                <p className="text-neutral-500">Recipient Name: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.studentName}</strong></p>
+                <p className="text-neutral-500">Member Number: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.studentNumber}</strong></p>
+                <p className="text-neutral-500">Course / Workshop Title: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.className}</strong></p>
+                <p className="text-neutral-500">Lead Trainer / Instructor: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.trainerName}</strong></p>
+                <p className="text-neutral-500">Date of Attainment: <strong className="text-neutral-100 block text-sm mt-0.5">{verifiedCert.completionDate}</strong></p>
+                <p className="text-neutral-500">Certificate Reference: <strong className="text-emerald-400 block font-mono font-bold mt-0.5 text-sm">{verifiedCert.certificateId}</strong></p>
               </div>
             </div>
           )}
@@ -726,15 +726,15 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-neutral-200 text-xs text-neutral-600 font-sans">
                       <div>
-                        <p className="text-[10px] text-neutral-400 uppercase font-mono">{lang === "en" ? "Instructor / Trainer" : "Mkufunzi"}</p>
+                        <p className="text-[10px] text-neutral-500 uppercase font-mono">{lang === "en" ? "Instructor / Trainer" : "Mkufunzi"}</p>
                         <p className="font-bold text-neutral-800">{item.trainer}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-neutral-400 uppercase font-mono">{lang === "en" ? "Active Schedule" : "Ratiba ya Mafunzo"}</p>
+                        <p className="text-[10px] text-neutral-500 uppercase font-mono">{lang === "en" ? "Active Schedule" : "Ratiba ya Mafunzo"}</p>
                         <p className="font-medium text-neutral-800">{item.startDate} to {item.endDate}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-neutral-400 uppercase font-mono">{lang === "en" ? "Status & Hours" : "Hali ya Masomo"}</p>
+                        <p className="text-[10px] text-neutral-500 uppercase font-mono">{lang === "en" ? "Status & Hours" : "Hali ya Masomo"}</p>
                         <span className={`text-[10px] font-bold inline-block px-2 py-0.5 rounded ${
                           finished ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
                         }`}>
@@ -749,7 +749,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                         <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                           {lang === "en" ? "Registered Roll Members" : "Wanafunzi Waliosajiliwa"} ({item.enrolledUserIds.length})
                         </p>
-                        <span className="text-[10px] text-neutral-400 italic">
+                        <span className="text-[10px] text-neutral-500 italic">
                           {lang === "en" ? "Graduated students can generate certs" : "Wahitimu wanaweza kutoa vyeti"}
                         </span>
                       </div>
@@ -777,7 +777,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                           );
                         })}
                         {item.enrolledUserIds.length === 0 && (
-                          <span className="text-[10px] font-medium text-neutral-400 italic">No members enrolled yet. Click 'Enroll / Roll' above to register members.</span>
+                          <span className="text-[10px] font-medium text-neutral-500 italic">No members enrolled yet. Click 'Enroll / Roll' above to register members.</span>
                         )}
                       </div>
                     </div>
@@ -910,7 +910,7 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
         {showEnrollModal && (
           <div>
             <div className="max-h-[350px] overflow-y-auto space-y-2 mb-4">
-              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider mb-2">Toggle checkmarks to enroll/remove</p>
+              <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-2">Toggle checkmarks to enroll/remove</p>
               {profiles.map(student => {
                 const enrolled = showEnrollModal.enrolledUserIds.includes(student.id);
                 return (
@@ -925,9 +925,9 @@ Syllabus Context: ${description || "Interactive community workshops in Kiambiu"}
                   >
                     <div>
                       <p>{student.name}</p>
-                      <span className="text-[9px] text-neutral-400 font-mono font-normal block">{student.memberNumber} • {student.role}</span>
+                      <span className="text-[9px] text-neutral-500 font-mono font-normal block">{student.memberNumber} • {student.role}</span>
                     </div>
-                    {enrolled ? <Check size={16} className="text-red-700 font-bold" /> : <Circle size={16} className="text-neutral-400" />}
+                    {enrolled ? <Check size={16} className="text-red-700 font-bold" /> : <Circle size={16} className="text-neutral-500" />}
                   </button>
                 );
               })}

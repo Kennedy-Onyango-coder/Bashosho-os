@@ -345,15 +345,15 @@ export default function SignupReviews({ lang }: SignupReviewsProps) {
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                       <div>
-                        <span className="text-[9px] text-neutral-400 uppercase block">Name</span>
+                        <span className="text-[9px] text-neutral-500 uppercase block">Name</span>
                         <span className="font-bold">{selectedApp.emergencyContactName}</span>
                       </div>
                       <div>
-                        <span className="text-[9px] text-neutral-400 uppercase block">Relationship</span>
+                        <span className="text-[9px] text-neutral-500 uppercase block">Relationship</span>
                         <span className="font-bold">{selectedApp.emergencyContactRelationship}</span>
                       </div>
                       <div>
-                        <span className="text-[9px] text-neutral-400 uppercase block">Phone</span>
+                        <span className="text-[9px] text-neutral-500 uppercase block">Phone</span>
                         <span className="font-bold font-mono text-emerald-400">{selectedApp.emergencyContactPhone}</span>
                       </div>
                     </div>
@@ -494,11 +494,11 @@ export default function SignupReviews({ lang }: SignupReviewsProps) {
               </div>
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="text-[9px] text-neutral-400 uppercase block">Member Number</span>
+                  <span className="text-[9px] text-neutral-500 uppercase block">Member Number</span>
                   <strong className="text-white font-mono text-sm">{successCredentials.memberNumber}</strong>
                 </div>
                 <div>
-                  <span className="text-[9px] text-neutral-400 uppercase block">Temporary login PIN</span>
+                  <span className="text-[9px] text-neutral-500 uppercase block">Temporary login PIN</span>
                   <strong className="text-yellow-400 font-mono text-sm tracking-wider">{successCredentials.cleartextPin}</strong>
                 </div>
               </div>

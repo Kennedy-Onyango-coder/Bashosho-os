@@ -133,7 +133,7 @@ export const Modal: React.FC<ModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-full transition-colors cursor-pointer"
+                className="p-1.5 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-full transition-colors cursor-pointer"
                 aria-label="Close modal"
               >
                 <X size={18} />
@@ -146,7 +146,7 @@ export const Modal: React.FC<ModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="absolute top-4 right-4 z-20 p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-full bg-white/90 backdrop-blur-xs shadow-xs transition-colors cursor-pointer border border-neutral-200"
+              className="absolute top-4 right-4 z-20 p-1.5 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-full bg-white/90 backdrop-blur-xs shadow-xs transition-colors cursor-pointer border border-neutral-200"
               aria-label="Close modal"
             >
               <X size={18} />

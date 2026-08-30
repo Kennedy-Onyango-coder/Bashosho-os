@@ -100,7 +100,7 @@ export default function DocumentEditor({
         </h3>
         <button
           onClick={onCancel}
-          className="text-neutral-400 hover:text-neutral-600 text-sm font-medium border border-gray-200 rounded-lg px-3 py-1 cursor-pointer transition-colors"
+          className="text-neutral-500 hover:text-neutral-600 text-sm font-medium border border-gray-200 rounded-lg px-3 py-1 cursor-pointer transition-colors"
         >
           {lang === "en" ? "Cancel" : "Ghairi"}
         </button>
@@ -175,7 +175,7 @@ export default function DocumentEditor({
               {lang === "en" ? "Save & Approve Document" : "Hifadhi na Thibitisha"}
             </button>
           </div>
-          <p className="text-[10px] text-neutral-400 text-right -mt-2">
+          <p className="text-[10px] text-neutral-500 text-right -mt-2">
             {lang === "en"
               ? "Save first, then print the official letterhead copy with a real verification QR from the records list."
               : "Hifadhi kwanza, kisha uchapishe nakala rasmi yenye QR halisi ya uthibitisho kutoka orodha ya kumbukumbu."}
@@ -266,7 +266,7 @@ export default function DocumentEditor({
                 </>
               )}
             </button>
-            <p className="text-[10px] text-center text-neutral-400 mt-2">
+            <p className="text-[10px] text-center text-neutral-500 mt-2">
               Official CBO template engine. All suggestions require human review.
             </p>
           </div>

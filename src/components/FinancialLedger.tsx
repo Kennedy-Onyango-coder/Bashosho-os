@@ -407,15 +407,15 @@ export default function FinancialLedger({
         {/* Metric block */}
         <div className="grid grid-cols-3 gap-4 border border-neutral-200 rounded-lg p-4 font-sans bg-neutral-50">
           <div>
-            <span className="text-[10px] text-neutral-400 block font-semibold uppercase">TOTAL REVENUE / INCOME</span>
+            <span className="text-[10px] text-neutral-500 block font-semibold uppercase">TOTAL REVENUE / INCOME</span>
             <span className="text-lg font-bold text-neutral-900">Ksh {totalIncome.toLocaleString()}</span>
           </div>
           <div>
-            <span className="text-[10px] text-neutral-400 block font-semibold uppercase">DISBURSED OPERATIONAL COSTS</span>
+            <span className="text-[10px] text-neutral-500 block font-semibold uppercase">DISBURSED OPERATIONAL COSTS</span>
             <span className="text-lg font-bold text-red-600">Ksh {totalApprovedExpense.toLocaleString()}</span>
           </div>
           <div>
-            <span className="text-[10px] text-neutral-400 block font-semibold uppercase">NET RETAINED RESERVES</span>
+            <span className="text-[10px] text-neutral-500 block font-semibold uppercase">NET RETAINED RESERVES</span>
             <span className="text-lg font-bold text-emerald-600">Ksh {cashReserves.toLocaleString()}</span>
           </div>
         </div>
@@ -581,7 +581,7 @@ export default function FinancialLedger({
           <h2 className="text-2xl font-black font-sans text-neutral-100 tracking-tight mt-1">
             {lang === "en" ? "Financial Management" : "Usimamizi wa Kifedha"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+          <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
             {selectedYear === "all"
               ? (lang === "en"
                   ? "All expenditures are audited and tied directly to project engagement budgets."
@@ -594,7 +594,7 @@ export default function FinancialLedger({
 
         <div className="flex flex-wrap items-center gap-3">
           <div>
-            <label className="block text-[9px] text-neutral-400 font-mono font-bold uppercase tracking-wider mb-1">
+            <label className="block text-[9px] text-neutral-500 font-mono font-bold uppercase tracking-wider mb-1">
               {lang === "en" ? "Financial Year" : "Mwaka wa Fedha"}
             </label>
             <select
@@ -921,7 +921,7 @@ export default function FinancialLedger({
               <tbody className="divide-y divide-neutral-100 text-xs">
                 {yearExpenditures.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-neutral-400 italic">
+                    <td colSpan={6} className="py-8 text-center text-neutral-500 italic">
                       {selectedYear === "all"
                         ? (lang === "en" ? "No expenditure records found." : "Hakuna rekodi za matumizi zilizopatikana.")
                         : (lang === "en" ? `No expenditure records for ${selectedYear} yet.` : `Hakuna rekodi za matumizi za mwaka ${selectedYear} bado.`)}
@@ -1017,14 +1017,14 @@ export default function FinancialLedger({
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-neutral-400 italic mr-1">
+                                <span className="text-[10px] text-neutral-500 italic mr-1">
                                   {req.status === "pending_chairperson" 
                                     ? (lang === "en" ? "Admin Auth" : "Inahitaji Mwenyekiti")
                                     : (lang === "en" ? "Treasurer Auth" : "Inahitaji Mhazini")}
                                 </span>
                               )
                             ) : (
-                              <span className="text-[10px] text-neutral-400 font-medium mr-1">
+                              <span className="text-[10px] text-neutral-500 font-medium mr-1">
                                 {req.status === "approved"
                                   ? `${lang === "en" ? "By" : "Na"} ${req.approvedBy || "Admin"}`
                                   : (lang === "en" ? "Rejected" : "Imekataliwa")}
@@ -1087,7 +1087,7 @@ export default function FinancialLedger({
               <tbody className="divide-y divide-neutral-100 text-xs">
                 {yearIncomes.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-neutral-400 italic">
+                    <td colSpan={6} className="py-8 text-center text-neutral-500 italic">
                       {selectedYear === "all"
                         ? (lang === "en" ? "No income records found." : "Hakuna rekodi za mapato zilizopatikana.")
                         : (lang === "en" ? `No income records for ${selectedYear} yet.` : `Hakuna rekodi za mapato za mwaka ${selectedYear} bado.`)}
@@ -1233,7 +1233,7 @@ export default function FinancialLedger({
                   onChange={(e) => setExpenseDate(e.target.value)}
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-medium"
                 />
-                <p className="text-[10px] text-neutral-400 mt-1">
+                <p className="text-[10px] text-neutral-500 mt-1">
                   {lang === "en"
                     ? "Set this to the real date of the expense — including past years — to transfer old book records accurately."
                     : "Weka tarehe halisi ya matumizi — hata ya miaka iliyopita — ili kuhamisha rekodi za zamani kwa usahihi."}
@@ -1367,7 +1367,7 @@ export default function FinancialLedger({
                     onChange={(e) => setIncomeDate(e.target.value)}
                     className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
                   />
-                  <p className="text-[10px] text-neutral-400 mt-1">
+                  <p className="text-[10px] text-neutral-500 mt-1">
                     {lang === "en"
                       ? "Can be set to a past year to transfer old book records."
                       : "Inaweza kuwekwa mwaka uliopita kuhamisha rekodi za zamani."}
@@ -1448,15 +1448,15 @@ export default function FinancialLedger({
               {/* Live metrics indicator */}
               <div className="grid grid-cols-3 gap-3 bg-neutral-50 border border-neutral-200 rounded-lg p-3 text-xs">
                 <div>
-                  <span className="text-[10px] text-neutral-400 block font-bold uppercase">TOTAL REVENUES</span>
+                  <span className="text-[10px] text-neutral-500 block font-bold uppercase">TOTAL REVENUES</span>
                   <span className="font-bold text-neutral-900">Ksh {totalIncome.toLocaleString()}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-neutral-400 block font-bold uppercase">APPROVED SPEND</span>
+                  <span className="text-[10px] text-neutral-500 block font-bold uppercase">APPROVED SPEND</span>
                   <span className="font-bold text-red-600">Ksh {totalApprovedExpense.toLocaleString()}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-neutral-400 block font-bold uppercase">NET RESERVES</span>
+                  <span className="text-[10px] text-neutral-500 block font-bold uppercase">NET RESERVES</span>
                   <span className="font-bold text-emerald-600">Ksh {cashReserves.toLocaleString()}</span>
                 </div>
               </div>
@@ -1605,11 +1605,11 @@ export default function FinancialLedger({
 
               <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 text-xs space-y-1.5 font-sans">
                 <div>
-                  <span className="text-[10px] text-neutral-400 block font-bold uppercase">{lang === "en" ? "Description" : "Maelezo"}</span>
+                  <span className="text-[10px] text-neutral-500 block font-bold uppercase">{lang === "en" ? "Description" : "Maelezo"}</span>
                   <span className="font-semibold text-neutral-800">{deleteConfirmItem.desc}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-neutral-400 block font-bold uppercase">{lang === "en" ? "Amount" : "Kiasi"}</span>
+                  <span className="text-[10px] text-neutral-500 block font-bold uppercase">{lang === "en" ? "Amount" : "Kiasi"}</span>
                   <span className="font-bold text-neutral-900 font-mono">Ksh {(deleteConfirmItem?.amount || 0).toLocaleString()}</span>
                 </div>
               </div>

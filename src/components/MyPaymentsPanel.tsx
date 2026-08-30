@@ -63,21 +63,21 @@ export default function MyPaymentsPanel({ lang }: MyPaymentsPanelProps) {
       </div>
 
       {loading ? (
-        <p className="text-xs text-neutral-400 text-center py-3">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 text-center py-3">{lang === "en" ? "Loading..." : "Inapakia..."}</p>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-neutral-50 rounded-xl p-3 text-center">
               <p className="text-lg font-black font-mono text-neutral-900">{stats.activitiesPaidFor}</p>
-              <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Activities Paid For" : "Shughuli"}</p>
+              <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Activities Paid For" : "Shughuli"}</p>
             </div>
             <div className="bg-emerald-50 rounded-xl p-3 text-center">
               <p className="text-lg font-black font-mono text-emerald-700">Ksh {stats.totalNet.toLocaleString()}</p>
-              <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Total Received" : "Jumla Uliopokea"}</p>
+              <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Total Received" : "Jumla Uliopokea"}</p>
             </div>
             <div className="bg-purple-50 rounded-xl p-3 text-center">
               <p className="text-lg font-black font-mono text-purple-700">Ksh {stats.totalDeducted.toLocaleString()}</p>
-              <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">{lang === "en" ? "Membership Fund" : "Mfuko wa Uanachama"}</p>
+              <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Membership Fund" : "Mfuko wa Uanachama"}</p>
             </div>
           </div>
 
@@ -86,7 +86,7 @@ export default function MyPaymentsPanel({ lang }: MyPaymentsPanelProps) {
               <div key={`${p.listId}-${idx}`} className="flex items-center justify-between bg-neutral-50 border border-neutral-150 rounded-lg px-3 py-2">
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-neutral-800 truncate">{p.eventName}</p>
-                  <p className="text-[10px] font-mono text-neutral-400 flex items-center gap-1">
+                  <p className="text-[10px] font-mono text-neutral-500 flex items-center gap-1">
                     <Calendar size={10} /> {p.date} {p.role && `· ${p.role}`}
                   </p>
                 </div>
@@ -112,7 +112,7 @@ export default function MyPaymentsPanel({ lang }: MyPaymentsPanelProps) {
           )}
 
           {stats.totalDeducted > 0 && (
-            <p className="text-[9px] text-neutral-400 border-t border-neutral-100 pt-2 flex items-center gap-1">
+            <p className="text-[9px] text-neutral-500 border-t border-neutral-100 pt-2 flex items-center gap-1">
               <Award size={10} className="text-purple-400" />
               {lang === "en"
                 ? "Membership fund deductions go toward Bashosho Talents CBO's own development and are recorded in the Financial Ledger."

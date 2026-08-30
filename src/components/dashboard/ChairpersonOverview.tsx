@@ -169,19 +169,19 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           <div>
             <p className="text-lg font-black font-mono text-white">{newMembersThisWeek}</p>
-            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "New Members" : "Wanachama Wapya"}</p>
+            <p className="text-[9px] text-neutral-500 uppercase font-bold tracking-wider">{lang === "en" ? "New Members" : "Wanachama Wapya"}</p>
           </div>
           <div>
             <p className="text-lg font-black font-mono text-emerald-400">{fmt(incomeThisWeek)}</p>
-            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "Income Received" : "Mapato"}</p>
+            <p className="text-[9px] text-neutral-500 uppercase font-bold tracking-wider">{lang === "en" ? "Income Received" : "Mapato"}</p>
           </div>
           <div>
             <p className="text-lg font-black font-mono text-white">{expenditureCountThisWeek}</p>
-            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "Expenses Approved" : "Matumizi Yaliyoidhinishwa"}</p>
+            <p className="text-[9px] text-neutral-500 uppercase font-bold tracking-wider">{lang === "en" ? "Expenses Approved" : "Matumizi Yaliyoidhinishwa"}</p>
           </div>
           <div>
             <p className="text-lg font-black font-mono text-white">{renewalsApprovedThisWeek}</p>
-            <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">{lang === "en" ? "Contracts Renewed" : "Mikataba Iliyorejeshwa"}</p>
+            <p className="text-[9px] text-neutral-500 uppercase font-bold tracking-wider">{lang === "en" ? "Contracts Renewed" : "Mikataba Iliyorejeshwa"}</p>
           </div>
         </div>
       </div>
@@ -246,7 +246,7 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
             </div>
             <form onSubmit={handleSendBroadcast} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1">{lang === "en" ? "Channel" : "Njia"}</label>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">{lang === "en" ? "Channel" : "Njia"}</label>
                 <select
                   value={broadcastChannel}
                   onChange={(e) => setBroadcastChannel(e.target.value as any)}
@@ -259,7 +259,7 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1">{lang === "en" ? "Message" : "Ujumbe"}</label>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">{lang === "en" ? "Message" : "Ujumbe"}</label>
                 <textarea
                   value={broadcastMessage}
                   onChange={(e) => setBroadcastMessage(e.target.value)}

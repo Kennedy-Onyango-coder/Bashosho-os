@@ -216,13 +216,13 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
 
         <div className="grid grid-cols-2 gap-8 border-b pb-6 text-xs font-sans">
           <div>
-            <h3 className="font-bold text-neutral-400 uppercase tracking-wider text-[9px] mb-2">Invoice Prepared For:</h3>
+            <h3 className="font-bold text-neutral-500 uppercase tracking-wider text-[9px] mb-2">Invoice Prepared For:</h3>
             <p className="text-sm font-bold text-neutral-900">{partner?.name || "Official Partner"}</p>
             <p className="text-neutral-600 mt-1">Attn: {partner?.contactPerson}</p>
             <p className="text-neutral-500 mt-0.5">{partner?.email} | {partner?.phone}</p>
           </div>
           <div className="text-right space-y-1">
-            <h3 className="font-bold text-neutral-400 uppercase tracking-wider text-[9px] mb-1.5">Invoice Meta:</h3>
+            <h3 className="font-bold text-neutral-500 uppercase tracking-wider text-[9px] mb-1.5">Invoice Meta:</h3>
             <p><strong>Invoice Number:</strong> <span className="font-mono text-neutral-950 font-bold">{invoice.invoiceNumber}</span></p>
             <p><strong>Issue Date:</strong> <span className="font-mono">{invoice.issueDate}</span></p>
             <p><strong>Payment Due Date:</strong> <span className="font-mono text-red-600 font-bold">{invoice.dueDate}</span></p>
@@ -475,7 +475,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
                       </td>
                       <td className="py-3.5 px-4 font-bold text-neutral-900">
                         {partner?.name || "Unknown Partner"}
-                        <span className="block text-[10px] text-neutral-400 font-medium">{partner?.contactPerson}</span>
+                        <span className="block text-[10px] text-neutral-500 font-medium">{partner?.contactPerson}</span>
                       </td>
                       <td className="py-3.5 px-4 text-neutral-500 max-w-xs truncate font-serif italic">
                         "{inv.engagementDescription}"
@@ -521,7 +521,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
                           </button>
                           <button
                             onClick={() => handleDeleteInvoice(inv.id)}
-                            className="hover:bg-neutral-100 text-neutral-400 hover:text-red-600 p-1.5 rounded cursor-pointer transition-colors"
+                            className="hover:bg-neutral-100 text-neutral-500 hover:text-red-600 p-1.5 rounded cursor-pointer transition-colors"
                             title="Delete"
                             aria-label="Delete invoice"
                           >
@@ -535,7 +535,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
 
                 {invoices.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-xs text-neutral-400 font-medium">
+                    <td colSpan={7} className="py-10 text-center text-xs text-neutral-500 font-medium">
                       No partner invoices recorded in the database.
                     </td>
                   </tr>
@@ -578,7 +578,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
                     </td>
                     <td className="py-3.5 px-4 text-neutral-600 font-mono text-[11px] space-y-0.5">
                       <p>{partner.email}</p>
-                      <p className="text-neutral-400">{partner.phone}</p>
+                      <p className="text-neutral-500">{partner.phone}</p>
                     </td>
                     <td className="py-3.5 px-4">
                       <select
@@ -599,7 +599,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
                     <td className="py-3.5 px-4 text-right">
                       <button
                         onClick={() => handleDeletePartner(partner.id)}
-                        className="hover:bg-neutral-100 text-neutral-400 hover:text-red-600 p-1.5 rounded cursor-pointer transition-colors"
+                        className="hover:bg-neutral-100 text-neutral-500 hover:text-red-600 p-1.5 rounded cursor-pointer transition-colors"
                         title={lang === "en" ? "Delete Partner" : "Futa Mshirika"}
                       >
                         
@@ -609,7 +609,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
                 ))}
                 {partners.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-xs text-neutral-400 font-medium">
+                    <td colSpan={7} className="py-10 text-center text-xs text-neutral-500 font-medium">
                       {lang === "en" ? "No partners registered in CRM." : "Hakuna washiriki waliosajiliwa kwenye CRM."}
                     </td>
                   </tr>
@@ -834,7 +834,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
               <option value="other">{lang === "en" ? "Other (grant, service, misc.)" : "Nyingine"}</option>
               <option value="performance">{lang === "en" ? "Performance / Theatre Engagement" : "Onyesho la Tamthilia"}</option>
             </select>
-            <p className="text-[10px] text-neutral-400 mt-1">
+            <p className="text-[10px] text-neutral-500 mt-1">
               {lang === "en"
                 ? "Performance invoices automatically split 30% to the organization and the rest to a cast payment pool once marked paid."
                 : "Ankara za maonyesho zinagawanya 30% kwa shirika kiotomatiki, iliyobaki kwa wasanii, mara inapolipwa."}
@@ -1040,7 +1040,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
                 placeholder="Leave empty for dynamic Invoice No."
                 className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-500 font-mono"
               />
-              <p className="text-[9px] text-neutral-400 mt-0.5">
+              <p className="text-[9px] text-neutral-500 mt-0.5">
                 {lang === "en" ? "Defaults to the current invoice number if left empty." : "Inatumia nambari ya ankara kama hutaingiza."}
               </p>
             </div>

@@ -466,21 +466,21 @@ Generate formal CBO membership citation and endorsement bio for official profile
 
               <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 text-[8.5px]">
                 <div>
-                  <span className="block text-neutral-400 font-medium text-[7.5px]">MEMBER ID</span>
+                  <span className="block text-neutral-500 font-medium text-[7.5px]">MEMBER ID</span>
                   <span className="font-bold text-neutral-700 font-mono text-[8.5px]">{member.memberNumber}</span>
                 </div>
                 <div>
-                  <span className="block text-neutral-400 font-medium text-[7.5px]">VALID UNTIL</span>
+                  <span className="block text-neutral-500 font-medium text-[7.5px]">VALID UNTIL</span>
                   <span className={`font-bold font-mono text-[8.5px] ${isExpired ? "text-amber-600" : "text-[#00A651]"}`}>
                     {validUntil}
                   </span>
                 </div>
                 <div>
-                  <span className="block text-neutral-400 font-medium text-[7.5px]">STATUS</span>
+                  <span className="block text-neutral-500 font-medium text-[7.5px]">STATUS</span>
                   <span className={`font-bold uppercase font-mono text-[8.5px] ${isExpired ? "text-red-600" : "text-[#00A651]"}`}>{isExpired ? "Expired" : member.status}</span>
                 </div>
                 <div>
-                  <span className="block text-neutral-400 font-medium text-[7.5px]">EMERGENCY</span>
+                  <span className="block text-neutral-500 font-medium text-[7.5px]">EMERGENCY</span>
                   <span className="font-semibold text-neutral-700 truncate block max-w-[85px]" title={member.emergencyContact?.name || "N/A"}>
                     {member.emergencyContact?.name || "N/A"}
                   </span>
@@ -500,7 +500,7 @@ Generate formal CBO membership citation and endorsement bio for official profile
                 <div className="w-11 h-11 bg-white border border-gray-200 p-0.5 rounded flex items-center justify-center z-10 shadow-xs">
                   <img src={qrDataUrl} alt="QR Code" className="w-full h-full object-contain" />
                 </div>
-                <span className="text-[5.5px] font-mono font-bold text-neutral-400 mt-0.5 tracking-wider uppercase">
+                <span className="text-[5.5px] font-mono font-bold text-neutral-500 mt-0.5 tracking-wider uppercase">
                   VERIFY QR
                 </span>
               </>
@@ -549,7 +549,7 @@ Generate formal CBO membership citation and endorsement bio for official profile
             <p>
               <strong className="text-neutral-700">Return If Found:</strong> {orgSettings.physicalAddress || "Community Center Hall, Kiambiu"} ({orgSettings.emailAndPhone})
             </p>
-            <p className="text-[6.5px] text-neutral-400 italic">
+            <p className="text-[6.5px] text-neutral-500 italic">
               This card remains property of Bashosho Talents CBO and must be surrendered on membership exit.
             </p>
           </div>

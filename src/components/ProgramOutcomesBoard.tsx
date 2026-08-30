@@ -118,7 +118,7 @@ export default function ProgramOutcomesBoard({ lang, currentUser, canEditAll }: 
             <BarChart3 className="text-[#E31E24]" size={20} />
             {lang === "en" ? "Program Outcomes" : "Matokeo ya Mipango"}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {lang === "en" ? "Log sessions and see real reach numbers across all five programs — the data your donor reports need." : "Rekodi vikao na uone idadi halisi ya watu waliofikiwa katika mipango yote mitano."}
           </p>
         </div>
@@ -144,7 +144,7 @@ export default function ProgramOutcomesBoard({ lang, currentUser, canEditAll }: 
           </button>
         ))}
       </div>
-      <p className="text-[10px] text-neutral-400 font-mono">
+      <p className="text-[10px] text-neutral-500 font-mono">
         {lang === "en" ? "Total lifetime reach across all programs:" : "Jumla ya watu waliofikiwa:"} <strong className="text-neutral-700">{grandTotalReached.toLocaleString()}</strong>
       </p>
 
@@ -210,9 +210,9 @@ export default function ProgramOutcomesBoard({ lang, currentUser, canEditAll }: 
       )}
 
       {loading ? (
-        <p className="text-xs text-neutral-400 py-6 text-center">{lang === "en" ? "Loading sessions..." : "Inapakia..."}</p>
+        <p className="text-xs text-neutral-500 py-6 text-center">{lang === "en" ? "Loading sessions..." : "Inapakia..."}</p>
       ) : sortedSessions.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-400 text-xs">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center text-neutral-500 text-xs">
           {lang === "en" ? "No sessions logged yet." : "Hakuna vikao vilivyorekodiwa bado."}
         </div>
       ) : (
@@ -231,7 +231,7 @@ export default function ProgramOutcomesBoard({ lang, currentUser, canEditAll }: 
                   {session.outcomeNotes && (
                     <p className="text-xs text-neutral-500 italic mb-2 border-l-2 border-neutral-200 pl-2">{session.outcomeNotes}</p>
                   )}
-                  <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-400 flex-wrap">
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-neutral-500 flex-wrap">
                     <span className="flex items-center gap-1"><Calendar size={11} /> {session.date}</span>
                     {session.location && <span className="flex items-center gap-1"><MapPin size={11} /> {session.location}</span>}
                     <span>{lang === "en" ? "by" : "na"} {session.facilitators}</span>
@@ -239,10 +239,10 @@ export default function ProgramOutcomesBoard({ lang, currentUser, canEditAll }: 
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-lg font-black font-mono text-neutral-800 flex items-center gap-1 justify-end">
-                    <Users size={14} className="text-neutral-400" /> {session.participantsReached}
+                    <Users size={14} className="text-neutral-500" /> {session.participantsReached}
                   </p>
                   {(session.maleCount || session.femaleCount || session.childrenCount) ? (
-                    <p className="text-[9px] font-mono text-neutral-400">
+                    <p className="text-[9px] font-mono text-neutral-500">
                       {session.maleCount}M / {session.femaleCount}F / {session.childrenCount}{lang === "en" ? "u18" : "chini18"}
                     </p>
                   ) : null}

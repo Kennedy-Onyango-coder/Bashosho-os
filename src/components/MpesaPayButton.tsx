@@ -198,7 +198,7 @@ export default function MpesaPayButton({ lang, linkType, linkId, amount, default
   if (state === "not_configured") {
     return (
       <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 flex items-start gap-2">
-        <AlertCircle size={14} className="text-neutral-400 shrink-0 mt-0.5" />
+        <AlertCircle size={14} className="text-neutral-500 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="text-[11px] text-neutral-500">{tt.notConfigured}</p>
           {tillNumber && (

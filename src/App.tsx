@@ -549,12 +549,12 @@ export default function App() {
       <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center py-8 px-4">
         <div className="max-w-3xl w-full">
           <div className="bg-[#1B1B1B] text-white rounded-t-2xl px-6 py-4">
-            <p className="text-xs uppercase tracking-wider text-neutral-400 font-bold">Required before you continue</p>
+            <p className="text-xs uppercase tracking-wider text-neutral-500 font-bold">Required before you continue</p>
             <h1 className="text-lg font-bold">Please review and agree to the Member Handbook</h1>
           </div>
           <div className="bg-white border border-neutral-200 rounded-b-2xl shadow-sm">
             <ErrorBoundary fallbackTitle="Member Handbook Failure">
-              <React.Suspense fallback={<div className="p-8 text-center text-xs text-neutral-400">Loading...</div>}>
+              <React.Suspense fallback={<div className="p-8 text-center text-xs text-neutral-500">Loading...</div>}>
               <MemberHandbookPanel
                 currentUser={currentUser}
                 lang={lang}
@@ -996,7 +996,7 @@ export default function App() {
           {/* Quick Connection Status Info Panel */}
           <div className="bg-[#1B1B1B] text-white border border-neutral-800 rounded-2xl p-4 shadow-sm text-left font-mono text-[10px] space-y-1">
             <div className="flex items-center justify-between border-b border-neutral-800 pb-1.5 mb-1.5">
-              <span className="text-neutral-400 font-bold tracking-wider">SYSTEM TELEMETRY</span>
+              <span className="text-neutral-500 font-bold tracking-wider">SYSTEM TELEMETRY</span>
               <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-[#00A651]" : "bg-amber-500"}`}></span>
             </div>
             <p><span className="text-neutral-500">Node State:</span> <strong className={isOnline ? "text-[#00A651]" : "text-amber-400"}>{isOnline ? "SYNC_ACTIVE" : "OFFLINE_LOCAL"}</strong></p>
@@ -1137,7 +1137,7 @@ export default function App() {
                                   {doc.type}
                                 </span>
                                 <h3 className="text-sm font-bold text-neutral-950 mt-2 line-clamp-1">{doc.title}</h3>
-                                <p className="text-[10px] text-neutral-400 font-medium mt-0.5">{doc.date} • {doc.author}</p>
+                                <p className="text-[10px] text-neutral-500 font-medium mt-0.5">{doc.date} • {doc.author}</p>
                               </div>
                             </div>
 

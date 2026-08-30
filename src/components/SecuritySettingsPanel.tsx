@@ -146,7 +146,7 @@ export default function SecuritySettingsPanel({ lang }: SecuritySettingsPanelPro
 
   if (loadingStatus) {
     return (
-      <div className="flex items-center justify-center py-16 text-neutral-400">
+      <div className="flex items-center justify-center py-16 text-neutral-500">
         <Loader2 size={20} className="animate-spin mr-2" /> {t("Loading security settings...", "Inapakia mipangilio ya usalama...")}
       </div>
     );
@@ -178,7 +178,7 @@ export default function SecuritySettingsPanel({ lang }: SecuritySettingsPanelPro
               {totpEnabled ? (
                 <ShieldCheck size={22} className="text-[#00A651]" />
               ) : (
-                <ShieldAlert size={22} className="text-neutral-400" />
+                <ShieldAlert size={22} className="text-neutral-500" />
               )}
               <div>
                 <div className="text-sm font-bold text-neutral-800">
@@ -331,7 +331,7 @@ export default function SecuritySettingsPanel({ lang }: SecuritySettingsPanelPro
         </div>
       )}
 
-      <div className="text-xs text-neutral-400 flex items-start gap-1.5">
+      <div className="text-xs text-neutral-500 flex items-start gap-1.5">
         <KeyRound size={13} className="shrink-0 mt-0.5" />
         {t(
           "Two-factor authentication is optional but recommended, especially for Chairperson, Treasurer, and other leadership accounts with access to financial and member data.",

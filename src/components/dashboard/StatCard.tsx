@@ -34,7 +34,7 @@ export default function StatCard({ label, value, icon, accent = "neutral", delta
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-neutral-400 truncate">{label}</p>
+          <p className="text-xs font-medium text-neutral-500 truncate">{label}</p>
           <p className={`text-2xl font-bold mt-1 ${styles.value} font-mono tabular-nums`}>{value}</p>
           {delta && (
             <p

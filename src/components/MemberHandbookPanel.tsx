@@ -318,7 +318,7 @@ export default function MemberHandbookPanel({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-neutral-800/80 p-3.5 rounded-xl border border-neutral-700/60">
-              <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider block">
+              <span className="text-[10px] text-neutral-500 uppercase font-bold tracking-wider block">
                 Total Compliance Rate
               </span>
               <div className="flex items-baseline gap-2 mt-1">
@@ -328,14 +328,14 @@ export default function MemberHandbookPanel({
                     : 0}
                   %
                 </span>
-                <span className="text-xs text-neutral-400">
+                <span className="text-xs text-neutral-500">
                   ({ackedMembers.length} of {activeMembers.length} active members)
                 </span>
               </div>
             </div>
 
             <div className="bg-neutral-800/80 p-3.5 rounded-xl border border-neutral-700/60">
-              <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider block">
+              <span className="text-[10px] text-neutral-500 uppercase font-bold tracking-wider block">
                 Handbook Revision Date
               </span>
               <span className="text-lg font-bold text-neutral-200 font-mono mt-1 block">
@@ -358,7 +358,7 @@ export default function MemberHandbookPanel({
                   >
                     <div>
                       <p className="font-bold text-neutral-200">{m.name}</p>
-                      <p className="text-[10px] text-neutral-400 font-mono">
+                      <p className="text-[10px] text-neutral-500 font-mono">
                         {m.memberNumber} • {m.phone || "No phone"}
                       </p>
                     </div>
@@ -375,7 +375,7 @@ export default function MemberHandbookPanel({
 
       {/* Search & Filter Bar */}
       <div className="bg-white border border-neutral-200 rounded-2xl p-4 shadow-xs flex items-center gap-3">
-        <Search size={18} className="text-neutral-400 shrink-0" />
+        <Search size={18} className="text-neutral-500 shrink-0" />
         <input
           type="text"
           value={searchQuery}
@@ -385,12 +385,12 @@ export default function MemberHandbookPanel({
               ? "Search handbook bylaws, policies, or rules..."
               : "Tafuta kanuni, sheria au maadili katika mwongozo..."
           }
-          className="w-full text-xs text-neutral-900 bg-transparent focus:outline-none placeholder:text-neutral-400 font-medium"
+          className="w-full text-xs text-neutral-900 bg-transparent focus:outline-none placeholder:text-neutral-500 font-medium"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery("")}
-            className="text-neutral-400 hover:text-neutral-700 font-bold text-xs px-2 cursor-pointer"
+            className="text-neutral-500 hover:text-neutral-700 font-bold text-xs px-2 cursor-pointer"
           >
             <X size={14} />
           </button>
@@ -421,7 +421,7 @@ export default function MemberHandbookPanel({
                     </span>
                     {title}
                   </h3>
-                  <span className="text-[10px] font-mono text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded border border-neutral-200">
+                  <span className="text-[10px] font-mono text-neutral-500 bg-neutral-50 px-2 py-0.5 rounded border border-neutral-200">
                     Section {sec.order}
                   </span>
                 </div>
