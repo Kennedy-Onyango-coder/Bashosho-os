@@ -482,6 +482,7 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
               disabled={loadingRoles}
               className="text-neutral-400 hover:text-neutral-600 disabled:opacity-50 p-1 cursor-pointer transition-colors"
               title="Refresh Roles"
+              aria-label="Refresh roles"
             >
               <RefreshCw size={12} className={loadingRoles ? "animate-spin" : ""} />
             </button>

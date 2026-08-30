@@ -523,6 +523,7 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
                             onClick={() => handleDeleteInvoice(inv.id)}
                             className="hover:bg-neutral-100 text-neutral-400 hover:text-red-600 p-1.5 rounded cursor-pointer transition-colors"
                             title="Delete"
+                            aria-label="Delete invoice"
                           >
                             
                           </button>

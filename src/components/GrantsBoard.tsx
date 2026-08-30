@@ -339,6 +339,7 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
                             onClick={() => handleOpenEdit(grant)}
                             className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-neutral-800 cursor-pointer"
                             title="Edit"
+                            aria-label="Edit grant"
                           >
                             
                           </button>
@@ -346,6 +347,7 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
                             onClick={() => handleDelete(grant.id)}
                             className="p-1 hover:bg-neutral-100 rounded text-red-500 hover:text-red-700 cursor-pointer"
                             title="Delete"
+                            aria-label="Delete grant"
                           >
                             
                           </button>
