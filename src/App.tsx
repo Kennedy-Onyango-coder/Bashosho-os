@@ -1098,6 +1098,14 @@ export default function App() {
                           >
                             {lang === "en" ? "Outreach Reports" : "Ripoti ya Outreaches"}
                           </button>
+                          <button
+                            onClick={() => setTypeFilter("proposal")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              typeFilter === "proposal" ? "bg-neutral-900 text-white" : "bg-white border border-neutral-200 text-neutral-500 hover:text-neutral-800"
+                            }`}
+                          >
+                            {lang === "en" ? "Grant Proposals" : "Mapendekezo ya Ruzuku"}
+                          </button>
                         </div>
                       </div>
 

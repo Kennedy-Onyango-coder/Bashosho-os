@@ -159,7 +159,7 @@ export interface UserProfile {
   contractDueDate?: string;
 }
 
-export type DocumentType = "minutes" | "budget" | "activity" | "statement";
+export type DocumentType = "minutes" | "budget" | "activity" | "statement" | "proposal";
 
 export interface Document {
   id: string;

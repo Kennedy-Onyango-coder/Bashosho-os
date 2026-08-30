@@ -3364,6 +3364,147 @@ app.post("/api/incomes", requireAuth, requirePermission("finance", "create"), (r
 app.get("/api/grants", requireAuth, requirePermission("grants", "view"), (req, res) => fetchCollection("grants", req, res));
 app.post("/api/grants", requireAuth, requirePermission("grants", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("grants", "grants", "name", req, res));
 
+// AI-assisted grant proposal drafting (spec section 25). Note: gated on grants:view
+// rather than grants:edit — generating a draft creates a separate Document and does
+// not modify the grant record itself, so it should be available to anyone who can see
+// the grant (which currently includes Chairperson, who only has view on this module —
+// requiring edit here would silently 403 the Chairperson from a button the UI shows
+// them). Produces a structured draft built ONLY from: (a) the grant record itself, (b)
+// org_settings — Bashosho's own verified registration/contact/mission data, and (c)
+// real aggregate figures computed here from actual logged records (program sessions,
+// past awarded grants, active members). The model is explicitly instructed never to
+// invent statistics, partners, certifications, or achievements beyond this data, and
+// to mark anything it doesn't have as [REVIEW REQUIRED] rather than filling the gap
+// itself. The result is always saved as a Document with status "draft" — never
+// auto-published or auto-submitted — so a human reviews and edits it before it
+// represents Bashosho to anyone.
+app.post("/api/grants/:id/generate_proposal", requireAuth, requirePermission("grants", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const grantSnap = await db.collection("grants").doc(req.params.id).get();
+    if (!grantSnap.exists) return res.status(404).json({ error: "Grant not found" });
+    const grant = grantSnap.data() as any;
+
+    if (!grant.name || !grant.funder) {
+      return res.status(400).json({ error: "This grant needs a real name and funder recorded before a proposal can be drafted." });
+    }
+
+    const orgSettingsSnap = await db.collection("org_settings").doc("global").get();
+    const org = orgSettingsSnap.exists ? orgSettingsSnap.data()! : {};
+
+    const [sessionsSnap, awardedGrantsSnap, membersSnap] = await Promise.all([
+      db.collection("program_sessions").get(),
+      db.collection("grants").where("status", "==", "awarded").get(),
+      db.collection("profiles").get()
+    ]);
+    const totalParticipantsReached = sessionsSnap.docs.reduce((sum, d) => sum + (Number(d.data().participantsReached) || 0), 0);
+    const totalSessionsLogged = sessionsSnap.size;
+    const pastAwardedGrants = awardedGrantsSnap.docs
+      .filter(d => d.id !== req.params.id)
+      .map(d => ({ funder: d.data().funder, amount: d.data().amount }));
+    const activeMemberCount = membersSnap.size;
+
+    const verifiedDataBlock = `VERIFIED ORGANIZATIONAL DATA (use ONLY these facts — do not add, estimate, or embellish any statistic, partner, certification, or achievement beyond what is listed here):
+- Organization legal/registered name: ${org.name || "[REVIEW REQUIRED — not set in Org Settings]"}
+- Registration number: ${org.registrationNumber || "[REVIEW REQUIRED — not set in Org Settings]"}
+- Physical address: ${org.physicalAddress || "[REVIEW REQUIRED — not set in Org Settings]"}
+- Contact: ${org.emailAndPhone || org.contactDetails || "[REVIEW REQUIRED — not set in Org Settings]"}
+- Mission statement: ${org.missionText || "[REVIEW REQUIRED — not set in Org Settings]"}
+- Total community members/volunteers/staff recorded in the system: ${activeMemberCount}
+- Total program sessions logged to date (all program areas): ${totalSessionsLogged}
+- Total participants reached across all logged sessions to date: ${totalParticipantsReached}
+- Prior grants awarded on record: ${pastAwardedGrants.length > 0 ? pastAwardedGrants.map(g => `${g.funder} (Ksh ${Number(g.amount || 0).toLocaleString()})`).join("; ") : "None recorded yet — do not claim prior donor funding history."}
+
+THIS OPPORTUNITY (as entered by Bashosho staff — treat notes as the only source for project-specific detail; do not invent activities, timelines, partners, or beneficiary numbers not stated here):
+- Grant/opportunity name: ${grant.name}
+- Funder: ${grant.funder}
+- Requested amount: Ksh ${Number(grant.amount || 0).toLocaleString()}
+- Deadline: ${grant.deadline || "[REVIEW REQUIRED — no deadline recorded]"}
+- Staff notes on this opportunity: ${grant.notes || "[REVIEW REQUIRED — no notes recorded; objectives/activities/beneficiaries for THIS specific proposal are unknown]"}`;
+
+    const systemInstruction = `You are a professional grant-proposal writer for Bashosho Talents CBO, a community-based organization in Kiambiu, Nairobi, Kenya, working in forum theatre, film, and participatory arts on GBV awareness, SRHR, and mental health.
+
+CRITICAL RULE — ANTI-FABRICATION: You must NEVER invent statistics, donor relationships, project achievements, financial figures, partners, registrations, certifications, beneficiary counts, or geographic reach. Use ONLY the verified data block provided. Wherever the proposal genuinely needs information that was not provided (a specific timeline, a specific named partner, a detailed budget line, a specific beneficiary target for THIS project), write the literal text "[REVIEW REQUIRED: <what is missing>]" instead of inventing plausible-sounding content. It is far better to leave a visible gap than to write something that sounds real but isn't.
+
+Write a complete, professional, donor-ready proposal draft in Markdown with these sections, using headings: Cover Letter, Executive Summary, Organizational Background, Problem Statement & Needs Assessment, Goals & Objectives, Proposed Activities & Methodology, Monitoring & Evaluation Plan, Sustainability, Budget Narrative, Conclusion. Begin the document with the exact line: "> ⚠️ AI-ASSISTED DRAFT — requires human review, fact-checking, and editing before submission." Tone: professional, credible, humble about limitations, never exaggerated.`;
+
+    let draftText: string;
+    let simulated = false;
+    if (ai) {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: verifiedDataBlock,
+        config: { systemInstruction, temperature: 0.2 }
+      });
+      if (!response.text) throw new Error("Empty response from Gemini API");
+      draftText = response.text;
+    } else {
+      // No Gemini API key configured — produce a clearly-labeled skeleton rather than
+      // pretending to generate real prose, so staff aren't misled into thinking this is
+      // an AI-written draft when it isn't.
+      simulated = true;
+      draftText = `> ⚠️ AI-ASSISTED DRAFT — requires human review, fact-checking, and editing before submission.
+> Gemini API key is not configured, so this is a structural skeleton only — every section below needs to be written by a human.
+
+## Cover Letter
+[REVIEW REQUIRED: write a cover letter addressed to ${grant.funder}]
+
+## Executive Summary
+[REVIEW REQUIRED]
+
+## Organizational Background
+${org.missionText || "[REVIEW REQUIRED — Org Settings mission text not set]"}
+Registered as: ${org.name || "[REVIEW REQUIRED]"}${org.registrationNumber ? ` (${org.registrationNumber})` : ""}
+${activeMemberCount} members/volunteers/staff on record. ${totalSessionsLogged} program sessions logged, reaching ${totalParticipantsReached} participants to date.
+
+## Problem Statement & Needs Assessment
+[REVIEW REQUIRED]
+
+## Goals & Objectives
+[REVIEW REQUIRED]
+
+## Proposed Activities & Methodology
+[REVIEW REQUIRED]
+
+## Monitoring & Evaluation Plan
+[REVIEW REQUIRED]
+
+## Sustainability
+[REVIEW REQUIRED]
+
+## Budget Narrative
+Requested amount: Ksh ${Number(grant.amount || 0).toLocaleString()}. [REVIEW REQUIRED: full budget breakdown]
+
+## Conclusion
+[REVIEW REQUIRED]`;
+    }
+
+    const docId = `doc-proposal-${Date.now()}`;
+    const document = {
+      id: docId,
+      title: `Draft Proposal: ${grant.name} (${grant.funder})`,
+      type: "proposal",
+      date: new Date().toISOString().split("T")[0],
+      author: req.user!.name,
+      content: draftText,
+      status: "draft",
+      auditTrail: [{
+        action: "ai_generate",
+        user: req.user!.name,
+        timestamp: new Date().toISOString(),
+        notes: simulated
+          ? "Structural skeleton generated (no AI configured) from grant record and verified organizational data — not yet written."
+          : "AI-assisted draft generated from grant record and verified organizational data — requires human review before use."
+      }]
+    };
+    await db.collection("documents").doc(docId).set(document);
+    logActivity(req, "documents", "create", docId, `AI-assisted proposal draft: ${grant.name}`);
+    return res.json({ success: true, document, simulated });
+  } catch (err: any) {
+    console.error("Grant proposal generation failed:", err);
+    return res.status(500).json({ error: "Failed to generate proposal draft", details: err?.message });
+  }
+});
+
 // 11. CLASSES
 // GET stays view-gated for consistency/defense-in-depth even though every default role
 // already includes classes:view — this matters for custom roles created via the Role

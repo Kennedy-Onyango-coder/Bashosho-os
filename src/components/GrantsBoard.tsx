@@ -31,21 +31,56 @@ export default function GrantsBoard({ currentUser, lang }: GrantsBoardProps) {
   const [link, setLink] = React.useState("");
   const [status, setStatus] = React.useState<Grant["status"]>("identified");
   const [isAiDrafting, setIsAiDrafting] = React.useState(false);
+  const [generatingProposalId, setGeneratingProposalId] = React.useState<string | null>(null);
+  const [proposalMessage, setProposalMessage] = React.useState<{ grantId: string; text: string; isError: boolean } | null>(null);
+
+  const handleGenerateFullProposal = async (grant: Grant) => {
+    setGeneratingProposalId(grant.id);
+    setProposalMessage(null);
+    try {
+      const res = await fetch(`/api/grants/${grant.id}/generate_proposal`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate proposal");
+      setProposalMessage({
+        grantId: grant.id,
+        isError: false,
+        text: lang === "en"
+          ? `Draft saved to Documents → Grant Proposals as "${data.document.title}". Review and edit before submitting anywhere.`
+          : `Rasimu imehifadhiwa kwenye Nyaraka → Mapendekezo ya Ruzuku. Kagua na uhariri kabla ya kuwasilisha.`
+      });
+    } catch (err: any) {
+      setProposalMessage({ grantId: grant.id, isError: true, text: err.message });
+    } finally {
+      setGeneratingProposalId(null);
+    }
+  };
 
   const handleGenerateGrantPitchAiDraft = async () => {
+    // SECURITY/INTEGRITY FIX: this previously fell back to fabricated example content
+    // — a fictional project name, a fictional funder, a fictional Ksh 500,000 budget,
+    // and specific invented objectives — whenever the form's real fields were still
+    // empty. That fabricated content was indistinguishable from real input once it
+    // came back in the "notes" field, exactly the failure mode Bashosho's AI policy
+    // exists to prevent: never invent project specifics, funders, or figures. Now it
+    // requires the real name, funder, and amount before drafting anything.
+    if (!name.trim() || !funder.trim() || !amount) {
+      alert(lang === "en"
+        ? "Enter the real grant name, funder, and target amount first — AI drafting only works from real information you've provided, never placeholders."
+        : "Weka jina halisi la ruzuku, mfadhili, na kiasi kwanza.");
+      return;
+    }
     setIsAiDrafting(true);
     try {
       const res = await fetch("/api/document_templates/generate_draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          notes: `Project/Grant Title: ${name || "Kiambiu Youth Empowerment Initiative"}
-Target Funder: ${funder || "International Donor Agency"}
-Target Budget: Ksh ${amount || "500,000"}
-Key Objectives: Forum Theatre for SGBV prevention, Youth Mental Health Hub, Cinema Workshops in Kiambiu.
-Notes context: ${notes || "None provided"}`,
+          notes: `Project/Grant Title: ${name}
+Target Funder: ${funder}
+Target Budget: Ksh ${amount}
+Notes context: ${notes || "None provided — do not invent specific objectives or activities; keep this section general and mark specifics as [REVIEW REQUIRED]."}`,
           docType: "grants",
-          title: `Grant Concept Note - ${name || "Project"}`
+          title: `Grant Concept Note - ${name}`
         })
       });
       const data = await res.json();
@@ -261,6 +296,24 @@ Notes context: ${notes || "None provided"}`,
                       {grant.notes && (
                         <p className="text-[10px] text-neutral-500 line-clamp-2 font-serif italic">
                           "{grant.notes}"
+                        </p>
+                      )}
+
+                      {(grant.status === "identified" || grant.status === "preparing") && (
+                        <button
+                          onClick={() => handleGenerateFullProposal(grant)}
+                          disabled={generatingProposalId === grant.id}
+                          className="w-full flex items-center justify-center gap-1.5 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 text-purple-700 border border-purple-200 text-[10px] font-bold px-2 py-1.5 rounded-lg cursor-pointer"
+                        >
+                          <Sparkles size={11} />
+                          {generatingProposalId === grant.id
+                            ? (lang === "en" ? "Generating..." : "Inatengeneza...")
+                            : (lang === "en" ? "Generate Draft Proposal" : "Tengeneza Rasimu ya Pendekezo")}
+                        </button>
+                      )}
+                      {proposalMessage?.grantId === grant.id && (
+                        <p className={`text-[10px] font-medium ${proposalMessage.isError ? "text-red-600" : "text-emerald-700"}`}>
+                          {proposalMessage.text}
                         </p>
                       )}
 

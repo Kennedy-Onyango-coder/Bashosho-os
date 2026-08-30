@@ -137,6 +137,7 @@ export default function DocumentEditor({
               <option value="minutes">{lang === "en" ? "Meeting Minutes" : "Kumbukumbu za Kikao"}</option>
               <option value="activity">{lang === "en" ? "Activity/Outreach Report" : "Ripoti ya Miradi"}</option>
               <option value="budget">{lang === "en" ? "Budget Explanatory Settlement" : "Ufafanuzi wa Bajeti"}</option>
+              <option value="proposal">{lang === "en" ? "Grant Proposal (AI-assisted draft)" : "Pendekezo la Ruzuku"}</option>
             </select>
           </div>
 
