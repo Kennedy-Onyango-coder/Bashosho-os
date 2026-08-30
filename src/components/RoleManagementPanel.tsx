@@ -880,7 +880,7 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
                       id="select-reassign-target-role"
                     >
                       <option value="">{t[lang].placeholderSelectRole}</option>
-                      {roles.map(r => (
+                      {roles.filter(r => (r as any).roleKey !== "safeguarding_officer").map(r => (
                         <option key={r.id} value={r.name}>{r.name}</option>
                       ))}
                     </select>

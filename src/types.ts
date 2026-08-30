@@ -402,6 +402,10 @@ export interface CastPaymentList {
   /** Percentage of each payee's gross amount withheld toward the CBO's membership
    *  development fund, e.g. 5 for 5%. 0 if no deduction applies to this list. */
   deductionRate: number;
+  /** Present only when deductionRate deviated from the org's configured
+   *  performanceMembershipDeductionPercent policy — required at submission time. */
+  deductionOverrideReason?: string;
+  deductionOverriddenBy?: string;
   submittedBy: string;
   submittedDate: string;
   /** Reviewed by Chairperson or Vice Chairperson only — never the Treasurer who

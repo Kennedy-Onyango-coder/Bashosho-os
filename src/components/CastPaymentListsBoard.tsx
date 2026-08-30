@@ -35,6 +35,8 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
   // Defaults to the org-wide 10% membership fund policy on every performance-fee
   // payout — still adjustable per list for exceptions.
   const [deductionRate, setDeductionRate] = React.useState("10");
+  const [policyRate, setPolicyRate] = React.useState(10);
+  const [deductionOverrideReason, setDeductionOverrideReason] = React.useState("");
   const [profiles, setProfiles] = React.useState<{ id: string; name: string }[]>([]);
   const [rows, setRows] = React.useState<{ name: string; role: string; phone: string; amount: string; userId: string }[]>([
     { name: "", role: "", phone: "", amount: "", userId: "" }
@@ -52,9 +54,10 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
         // Seed the default from the org's configured policy (Settings → Financial
         // Policies) rather than a hardcoded literal. Still adjustable per list below
         // for genuine exceptions — see the note on that field.
-        const policyRate = Number(settings?.performanceMembershipDeductionPercent);
-        if (Number.isFinite(policyRate) && policyRate >= 0) {
-          setDeductionRate(String(policyRate));
+        const rate = Number(settings?.performanceMembershipDeductionPercent);
+        if (Number.isFinite(rate) && rate >= 0) {
+          setPolicyRate(rate);
+          setDeductionRate(String(rate));
         }
       }
     } catch (err) {
@@ -71,6 +74,10 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
   const rowsTotal = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const amountMismatch = linkedExpenditure ? Math.abs(rowsTotal - linkedExpenditure.amount) > 0.01 : false;
   const rateNum = Math.max(0, Math.min(100, Number(deductionRate) || 0));
+  // Same governance principle already applied to performance settlements' org-cut %:
+  // the 10% membership deduction is an organizational policy, not a free-text field —
+  // deviating from it requires a stated reason, and that reason travels with the record.
+  const isDeductionOverride = rateNum !== policyRate;
   // Mirrors the server: the membership fund deduction only applies to rows linked to a
   // registered member (userId set) — external/outsourced cast rows contribute 0 here,
   // so this preview matches what will actually be saved.
@@ -98,6 +105,12 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
       setErrorMsg(lang === "en" ? "Title, event, linked expenditure, and at least one payment row are required." : "Kichwa, tukio, matumizi yaliyounganishwa, na malipo angalau yanahitajika.");
       return;
     }
+    if (isDeductionOverride && !deductionOverrideReason.trim()) {
+      setErrorMsg(lang === "en"
+        ? `This deducts ${rateNum}% instead of the standard ${policyRate}% membership fund policy. Enter a reason for this exception before saving.`
+        : `Hii inakata ${rateNum}% badala ya sera ya kawaida ya ${policyRate}%. Andika sababu ya tofauti hii kabla ya kuhifadhi.`);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/cast_payment_lists", {
@@ -105,12 +118,13 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title, eventName, date, expenditureRequestId, deductionRate: rateNum,
+          ...(isDeductionOverride ? { deductionOverrideReason: deductionOverrideReason.trim() } : {}),
           payments: validRows.map(r => ({ name: r.name, role: r.role, phone: r.phone, grossAmount: Number(r.amount), userId: r.userId || undefined }))
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save payment list");
-      setTitle(""); setEventName(""); setExpenditureRequestId(""); setDate(new Date().toISOString().split("T")[0]); setDeductionRate("10");
+      setTitle(""); setEventName(""); setExpenditureRequestId(""); setDate(new Date().toISOString().split("T")[0]); setDeductionRate(String(policyRate)); setDeductionOverrideReason("");
       setRows([{ name: "", role: "", phone: "", amount: "", userId: "" }]);
       setShowForm(false);
       fetchAll();
@@ -238,6 +252,24 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
             )}
           </div>
 
+          {isDeductionOverride && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+              <p className="text-[10px] font-bold text-amber-700 flex items-center gap-1.5">
+                <AlertTriangle size={12} />
+                {lang === "en"
+                  ? `This is ${rateNum}% instead of the standard ${policyRate}% policy rate — the Chairperson/Vice Chairperson reviewing this list will see this exception.`
+                  : `Hii ni ${rateNum}% badala ya sera ya kawaida ya ${policyRate}% — Mwenyekiti/Makamu atayaona tofauti hii wakati wa ukaguzi.`}
+              </p>
+              <input
+                type="text"
+                value={deductionOverrideReason}
+                onChange={e => setDeductionOverrideReason(e.target.value)}
+                placeholder={lang === "en" ? "Reason for this exception (required)" : "Sababu ya tofauti hii (inahitajika)"}
+                className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-xs"
+              />
+            </div>
+          )}
+
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">{lang === "en" ? "Payees (from the paper list)" : "Waliolipwa"}</label>
@@ -319,6 +351,12 @@ export default function CastPaymentListsBoard({ lang, currentUser, canSubmit, ca
                       <span className="font-bold text-neutral-700">Ksh {total.toLocaleString()}</span>
                       <span>{lang === "en" ? "by" : "na"} {list.submittedBy}</span>
                     </div>
+                    {list.deductionOverrideReason && (
+                      <p className="text-[10px] text-amber-700 italic mt-1 flex items-center gap-1">
+                        <AlertTriangle size={11} />
+                        {lang === "en" ? `Deduction set to ${list.deductionRate}% (policy exception)` : `Makato ${list.deductionRate}% (tofauti na sera)`}: {list.deductionOverrideReason}
+                      </p>
+                    )}
                     {list.rejectionReason && (
                       <p className="text-[10px] text-red-600 italic mt-1">{lang === "en" ? "Rejected" : "Imekataliwa"}: {list.rejectionReason}</p>
                     )}

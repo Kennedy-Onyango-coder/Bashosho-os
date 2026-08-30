@@ -308,7 +308,11 @@ async function getRoles(): Promise<any[]> {
         { id: "programs_director", roleKey: "programs_director", name: "Programs Director", originalName: "Programs Director", isSystem: true, description: "Operations & Programs Lead" },
         { id: "secretary", roleKey: "secretary", name: "Secretary", originalName: "Secretary", isSystem: true, description: "Minutes & Beneficiary Registrar" },
         { id: "treasurer", roleKey: "treasurer", name: "Treasurer", originalName: "Treasurer", isSystem: true, description: "Financial Custodian & Approver" },
-        { id: "safeguarding_officer", roleKey: "safeguarding_officer", name: "Safeguarding & MEL Officer", originalName: "Safeguarding & MEL Officer", isSystem: true, description: "Safeguarding officer" },
+        // "safeguarding_officer" intentionally not seeded here — Bashosho retired the
+        // dedicated Safeguarding & MEL Officer as an org role (confidential reporting
+        // duties now sit with Programs Director). This only affects a brand-new
+        // deployment; it does not touch or remove any existing role document already
+        // sitting in a live "roles" collection.
         { id: "program_member", roleKey: "program_member", name: "Program Member", originalName: "Program Member", isSystem: true, description: "Regular program member" },
         { id: "volunteer", roleKey: "volunteer", name: "Volunteer Staff", originalName: "Volunteer Staff", isSystem: true, description: "Volunteer worker" }
       ];
@@ -458,7 +462,12 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       full("documents"); p.documents.delete = false;
       full("assets"); p.assets.delete = false;
       view("beneficiaries"); p.beneficiaries.create = true; p.beneficiaries.edit = true;
-      view("safeguarding");
+      // Bashosho has decided to retire the dedicated Safeguarding & MEL Officer role
+      // (see "safeguarding_officer" case below, kept only for any account still on it).
+      // Programs Director — whose role always included MEL — is the org's chosen
+      // successor for the confidential safeguarding workflow, so gets the same level
+      // the officer had (everything except delete) rather than read-only.
+      full("safeguarding"); p.safeguarding.delete = false;
       view("grants");
       view("finance"); // budgets creation allowed per old requireRole(["chairperson","treasurer","programs_director","vice_chairperson"])
       p.finance.create = true;
@@ -491,6 +500,14 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
       p.tasks.create = true; p.tasks.edit = true;
       break;
 
+    // LEGACY ROLE — Bashosho Talents has decided to retire the dedicated Safeguarding
+    // & MEL Officer as an organizational position (its duties now sit with Programs
+    // Director, above). This case is kept, not deleted, purely so that if any existing
+    // account in production still carries this roleKey, their permissions don't
+    // silently break. It is no longer offered when assigning/reassigning a role in
+    // Role Management (see RoleManagementPanel.tsx) — new appointments cannot be made
+    // to it. Reassign any current holder to Programs Director (or another fitting
+    // role) via Role Management when convenient; this case can then be deleted.
     case "safeguarding_officer":
       full("documents"); p.documents.delete = false;
       full("safeguarding"); p.safeguarding.delete = false;
@@ -4665,9 +4682,24 @@ app.get("/api/cast_payment_lists", requireAuth, requirePermission("finance", "vi
 
 app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
-    const { title, eventName, date, expenditureRequestId, payments, deductionRate } = req.body;
+    const { title, eventName, date, expenditureRequestId, payments, deductionRate, deductionOverrideReason } = req.body;
     if (!title || !eventName || !expenditureRequestId || !Array.isArray(payments) || payments.length === 0) {
       return res.status(400).json({ error: "title, eventName, expenditureRequestId, and at least one payment row are required" });
+    }
+
+    // The 10% membership-fund deduction is an organizational policy (Settings →
+    // Financial Policies), not a free-text field a submitter can silently change —
+    // same governance already applied to the 30% performance org-cut. Falls back to
+    // the policy rate if the client omits deductionRate entirely (rather than 0, which
+    // would previously have silently waived every member's deduction).
+    const orgSettingsSnap = await db.collection("org_settings").doc("global").get();
+    const policyDeductionRate = Number(orgSettingsSnap.data()?.performanceMembershipDeductionPercent);
+    const policyRate = Number.isFinite(policyDeductionRate) && policyDeductionRate >= 0 ? policyDeductionRate : 10;
+    const requestedRate = deductionRate !== undefined ? Math.max(0, Math.min(100, Number(deductionRate))) : policyRate;
+    if (requestedRate !== policyRate && !(deductionOverrideReason || "").trim()) {
+      return res.status(400).json({
+        error: `This payment list withholds ${requestedRate}% instead of the standard ${policyRate}% membership fund policy rate. A reason is required for this exception.`
+      });
     }
     const expSnap = await db.collection("expenditures").doc(expenditureRequestId).get();
     if (!expSnap.exists) {
@@ -4691,7 +4723,7 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
         existingListId: activePriorList.id
       });
     }
-    const rate = Math.max(0, Math.min(100, Number(deductionRate) || 0));
+    const rate = requestedRate;
     const totalGross = payments.reduce((sum: number, p: any) => sum + (Number(p.grossAmount) || 0), 0);
     // The whole point of this feature — the paid-out total is checked against what was
     // actually authorized, so a payment list can never silently drift from the
@@ -4743,6 +4775,7 @@ app.post("/api/cast_payment_lists", requireAuth, requirePermission("finance", "c
       expenditureRequestId,
       payments: resolvedPayments,
       deductionRate: rate,
+      ...(rate !== policyRate ? { deductionOverrideReason: (deductionOverrideReason || "").trim(), deductionOverriddenBy: req.user!.name } : {}),
       submittedBy: req.user!.name,
       submittedDate: new Date().toISOString().split("T")[0],
       status: "pending_review"
@@ -5105,7 +5138,7 @@ app.post("/api/sync", requireAuth, async (req: AuthenticatedRequest, res: expres
     if (action === "profiles" || action === "org_settings") {
       allowed = userRoleKey === "chairperson";
     } else if (action === "safeguarding_reports") {
-      allowed = ["safeguarding_officer", "chairperson"].includes(userRoleKey);
+      allowed = ["safeguarding_officer", "chairperson", "programs_director"].includes(userRoleKey);
     }
 
     if (!allowed) {
