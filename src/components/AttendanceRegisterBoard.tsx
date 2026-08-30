@@ -1,6 +1,6 @@
 import React from "react";
-import { ClipboardList, Plus, UserPlus, Trash2, CheckCircle2, XCircle, Printer, Clock } from "lucide-react";
-import { AttendanceSheet, UserProfile } from "../types";
+import { ClipboardList, Plus, UserPlus, Trash2, CheckCircle2, XCircle, Printer, Clock, Link2 } from "lucide-react";
+import { AttendanceSheet, UserProfile, ProgramSession } from "../types";
 import Modal from "./Modal";
 import PrintWrapper from "./PrintWrapper";
 
@@ -51,6 +51,8 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
   const [eventType, setEventType] = React.useState("training");
   const [venue, setVenue] = React.useState("");
   const [date, setDate] = React.useState(new Date().toISOString().split("T")[0]);
+  const [programSessions, setProgramSessions] = React.useState<ProgramSession[]>([]);
+  const [linkedSessionId, setLinkedSessionId] = React.useState("");
   const [rows, setRows] = React.useState<{ userName: string; phone: string; role: string; status: "present" | "absent" | "excused" }[]>([
     { userName: "", phone: "", role: "", status: "present" }
   ]);
@@ -67,7 +69,17 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
     }
   };
 
-  React.useEffect(() => { fetchRegisters(); }, []);
+  React.useEffect(() => {
+    fetchRegisters();
+    (async () => {
+      try {
+        const res = await fetch("/api/program_sessions");
+        if (res.ok) setProgramSessions(await res.json());
+      } catch (err) {
+        console.error("Failed to load program sessions for attendance linking:", err);
+      }
+    })();
+  }, []);
 
   const addRow = () => setRows([...rows, { userName: "", phone: "", role: "", status: "present" }]);
   const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx));
@@ -90,12 +102,14 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title, venue, date, type: eventType,
+          programSessionId: linkedSessionId || undefined,
+          programSessionTitle: linkedSessionId ? programSessions.find(s => s.id === linkedSessionId)?.title : undefined,
           records: validRows.map(r => ({ userId: "", userName: r.userName, phone: r.phone, role: r.role, status: r.status }))
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit register");
-      setTitle(""); setVenue(""); setEventType("training"); setDate(new Date().toISOString().split("T")[0]);
+      setTitle(""); setVenue(""); setEventType("training"); setDate(new Date().toISOString().split("T")[0]); setLinkedSessionId("");
       setRows([{ userName: "", phone: "", role: "", status: "present" }]);
       setShowForm(false);
       fetchRegisters();
@@ -187,6 +201,24 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
               <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Date" : "Tarehe"}</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />
             </div>
+            <div className="col-span-2">
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Link2 size={11} /> {lang === "en" ? "Link to a Program Outcomes entry (optional)" : "Unganisha na Matokeo ya Mipango (si lazima)"}
+              </label>
+              <select value={linkedSessionId} onChange={e => setLinkedSessionId(e.target.value)} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs">
+                <option value="">{lang === "en" ? "— Not linked to a specific session —" : "— Haijaunganishwa —"}</option>
+                {programSessions
+                  .slice()
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .slice(0, 30)
+                  .map(s => (
+                    <option key={s.id} value={s.id}>{s.date} — {s.title}</option>
+                  ))}
+              </select>
+              <p className="text-[9px] text-neutral-400 mt-1">
+                {lang === "en" ? "So this attendance, the session's outcomes, and any related expenditure trace back to the same activity." : "Ili mahudhurio haya, matokeo, na matumizi husika yaunganishwe na shughuli hiyo hiyo."}
+              </p>
+            </div>
           </div>
 
           <div>
@@ -248,6 +280,12 @@ export default function AttendanceRegisterBoard({ lang, currentUser, canSubmit, 
                     <span>{sheet.records.length} {lang === "en" ? "attendees" : "waliohudhuria"}</span>
                     <span>{lang === "en" ? "by" : "na"} {sheet.submittedBy}</span>
                   </div>
+                  {sheet.programSessionTitle && (
+                    <p className="text-[10px] text-neutral-500 flex items-center gap-1 mt-1">
+                      <Link2 size={10} className="text-[#00A651]" />
+                      {lang === "en" ? "Linked to session:" : "Imeunganishwa na:"} <span className="font-semibold">{sheet.programSessionTitle}</span>
+                    </p>
+                  )}
                   {sheet.rejectionReason && (
                     <p className="text-[10px] text-red-600 italic mt-1">{lang === "en" ? "Rejected" : "Imekataliwa"}: {sheet.rejectionReason}</p>
                   )}

@@ -352,6 +352,15 @@ export interface AttendanceSheet {
     phone?: string;
     role?: string;
   }[];
+  /** Optional link to the ProgramSession (Program Outcomes entry) this attendance
+   *  register belongs to — e.g. the training or performance this sign-in sheet was
+   *  taken at. Lets staff trace a single activity's attendance, outcomes, and
+   *  expenditure together instead of three disconnected records that happen to share
+   *  a date. Optional and denormalized (title cached alongside the id) since older
+   *  registers were recorded before this link existed and shouldn't be treated as
+   *  broken for lacking it. */
+  programSessionId?: string;
+  programSessionTitle?: string;
   isTranscribed: boolean;
   /** Approval chain for a paper attendance register transcribed into the system by the
    *  Secretary: Secretary submits → Programs Director approves → Chairperson gives

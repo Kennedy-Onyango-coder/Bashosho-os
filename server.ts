@@ -4604,6 +4604,10 @@ app.post("/api/attendance_registers", requireAuth, requirePermission("attendance
       type: req.body.type || "training",
       venue: req.body.venue,
       records: req.body.records,
+      // Optional link back to the Program Outcomes entry this register belongs to —
+      // see the comment on AttendanceSheet in types.ts for why this matters.
+      programSessionId: req.body.programSessionId || undefined,
+      programSessionTitle: req.body.programSessionTitle || undefined,
       isTranscribed: true,
       approvalStatus: "pending_programs_approval",
       submittedBy: req.user!.name,
