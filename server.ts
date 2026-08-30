@@ -72,6 +72,26 @@ if (!process.env.VERIFICATION_SECRET) {
 app.use(express.json({ limit: "25mb" }));
 app.use(cookieParser());
 
+// Baseline security headers (section 33 of the production audit). Deliberately minimal
+// and dependency-free rather than pulling in a new package (e.g. helmet) for this —
+// these are the headers that matter most for an app that serves its own SPA and API
+// from one origin and never expects to be framed by another site.
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(self)");
+  // HSTS only makes sense once the connection is already HTTPS — setting it on a plain
+  // HTTP request (e.g. local dev, or a health check hitting the pod directly) would be
+  // meaningless and could be misleading. The Cookie configuration elsewhere in this file
+  // is already careful to inspect the request the same way when deciding sameSite, so
+  // this mirrors that instead of assuming a proxy header blindly.
+  if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+    res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  }
+  next();
+});
+
 // Cookie configuration helper supporting both custom domain (sameSite: "lax") and iframe preview (sameSite: "none")
 export function getCookieOptions(req?: express.Request): express.CookieOptions {
   const host = (req?.headers["x-forwarded-host"] || req?.headers?.host || "").toString().toLowerCase();
