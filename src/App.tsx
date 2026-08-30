@@ -13,33 +13,44 @@ import ForceChangePasswordScreen from "./components/ForceChangePasswordScreen";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PrintWrapper from "./components/PrintWrapper";
 import Dashboard from "./components/Dashboard";
-import ActivityLogPanel from "./components/ActivityLogPanel";
-import MemberSelfServicePanel from "./components/MemberSelfServicePanel";
-import DocumentEditor from "./components/DocumentEditor";
-import FinancialLedger from "./components/FinancialLedger";
 import BashoshoLogo from "./components/BashoshoLogo";
-import GrantsBoard from "./components/GrantsBoard";
-import ClassesBoard from "./components/ClassesBoard";
-import InvoicingBoard from "./components/InvoicingBoard";
-import OrgSettingsScreen from "./components/OrgSettingsScreen";
-import AssetHiringBoard from "./components/AssetHiringBoard";
-import MemberHandbookPanel from "./components/MemberHandbookPanel";
 import { motion, AnimatePresence } from "motion/react";
 import PublicVerificationScreen from "./components/PublicVerificationScreen";
 import HomePage from "./components/HomePage";
-import SignupReviews from "./components/SignupReviews";
-import CmsEditor from "./components/CmsEditor";
-import BeneficiaryRegistration from "./components/BeneficiaryRegistration";
-import SecuritySettingsPanel from "./components/SecuritySettingsPanel";
-import TasksBoard from "./components/TasksBoard";
-import ProgramOutcomesBoard from "./components/ProgramOutcomesBoard";
-import MEDashboardBoard from "./components/MEDashboardBoard";
-import AttendanceRegisterBoard from "./components/AttendanceRegisterBoard";
-import AdminMembersDirectory from "./components/AdminMembersDirectory";
-import EventsCalendar from "./components/EventsCalendar";
-import BoardMeetingsPanel from "./components/BoardMeetingsPanel";
-import OnboardingChecklistBoard from "./components/OnboardingChecklistBoard";
-import PeerDirectory from "./components/PeerDirectory";
+
+// Code-split (section 36/58 of the production audit): these are each only needed once
+// a logged-in user actually opens that specific tab, but were previously bundled
+// eagerly into the single main JS chunk — every visitor, including a public website
+// visitor who never logs in, was downloading the Grants Board, CMS editor, financial
+// ledger, and every other admin screen up front. On Bashosho's target audience (phones,
+// often on slower Kenyan mobile data), that's real load time wasted on code that may
+// never run in that session. React.lazy + the single <Suspense> boundary around the
+// tab-content area (below) defers each one to its own chunk, fetched only when its tab
+// is first opened. This is purely a loading-strategy change — every component's props,
+// behavior, and permission gating stay exactly as they were.
+const ActivityLogPanel = React.lazy(() => import("./components/ActivityLogPanel"));
+const MemberSelfServicePanel = React.lazy(() => import("./components/MemberSelfServicePanel"));
+const DocumentEditor = React.lazy(() => import("./components/DocumentEditor"));
+const FinancialLedger = React.lazy(() => import("./components/FinancialLedger"));
+const GrantsBoard = React.lazy(() => import("./components/GrantsBoard"));
+const ClassesBoard = React.lazy(() => import("./components/ClassesBoard"));
+const InvoicingBoard = React.lazy(() => import("./components/InvoicingBoard"));
+const OrgSettingsScreen = React.lazy(() => import("./components/OrgSettingsScreen"));
+const AssetHiringBoard = React.lazy(() => import("./components/AssetHiringBoard"));
+const MemberHandbookPanel = React.lazy(() => import("./components/MemberHandbookPanel"));
+const SignupReviews = React.lazy(() => import("./components/SignupReviews"));
+const CmsEditor = React.lazy(() => import("./components/CmsEditor"));
+const BeneficiaryRegistration = React.lazy(() => import("./components/BeneficiaryRegistration"));
+const SecuritySettingsPanel = React.lazy(() => import("./components/SecuritySettingsPanel"));
+const TasksBoard = React.lazy(() => import("./components/TasksBoard"));
+const ProgramOutcomesBoard = React.lazy(() => import("./components/ProgramOutcomesBoard"));
+const MEDashboardBoard = React.lazy(() => import("./components/MEDashboardBoard"));
+const AttendanceRegisterBoard = React.lazy(() => import("./components/AttendanceRegisterBoard"));
+const AdminMembersDirectory = React.lazy(() => import("./components/AdminMembersDirectory"));
+const EventsCalendar = React.lazy(() => import("./components/EventsCalendar"));
+const BoardMeetingsPanel = React.lazy(() => import("./components/BoardMeetingsPanel"));
+const OnboardingChecklistBoard = React.lazy(() => import("./components/OnboardingChecklistBoard"));
+const PeerDirectory = React.lazy(() => import("./components/PeerDirectory"));
 import { 
   LayoutDashboard, 
   FileText, 
@@ -543,6 +554,7 @@ export default function App() {
           </div>
           <div className="bg-white border border-neutral-200 rounded-b-2xl shadow-sm">
             <ErrorBoundary fallbackTitle="Member Handbook Failure">
+              <React.Suspense fallback={<div className="p-8 text-center text-xs text-neutral-400">Loading...</div>}>
               <MemberHandbookPanel
                 currentUser={currentUser}
                 lang={lang}
@@ -556,6 +568,7 @@ export default function App() {
                   StorageService.setActiveUser(updated);
                 }}
               />
+            </React.Suspense>
             </ErrorBoundary>
           </div>
         </div>
@@ -1005,6 +1018,11 @@ export default function App() {
               className="flex-grow"
             >
               {/* TABS CONTROLLER */}
+              <React.Suspense fallback={
+                <div className="flex items-center justify-center py-24">
+                  <div className="w-6 h-6 border-2 border-neutral-300 border-t-[#E31E24] rounded-full animate-spin" />
+                </div>
+              }>
 
               {/* TAB 1: DASHBOARD */}
               {activeTab === "dashboard" && (
@@ -1377,6 +1395,7 @@ export default function App() {
                   />
                 </ErrorBoundary>
               )}
+              </React.Suspense>
             </motion.div>
           </AnimatePresence>
         </main>
