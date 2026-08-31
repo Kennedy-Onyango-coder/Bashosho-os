@@ -81,12 +81,30 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
     setRenewals(StorageService.getContractRenewals());
     setProfiles(StorageService.getProfiles());
     fetchMyStatus();
+    // Pull fresh contract_renewals/profiles from the server on first mount too — see
+    // the comment on refreshData below for why this matters.
+    StorageService.pullFromServer().then(() => {
+      setRenewals(StorageService.getContractRenewals());
+      setProfiles(StorageService.getProfiles());
+    });
   }, []);
 
-  const refreshData = () => {
+  const refreshData = async () => {
+    // BUG FIX: this previously only re-read whatever was already sitting in
+    // localStorage (StorageService.getContractRenewals() is a pure local cache read —
+    // see storage.ts) without ever re-fetching from the server. That meant every
+    // action in this panel — submitting a payment claim, a Treasurer/Chairperson
+    // confirming or rejecting one, approving a renewal — appeared to succeed (the
+    // server really did save it) but the screen kept showing whatever was cached
+    // from the last full sync, sometimes from a previous session entirely. A member
+    // could report a payment and see nothing change; a Chairperson could open the
+    // review screen and see no pending claims at all, even though one was sitting in
+    // the database waiting on them. Now this actually re-pulls from the server before
+    // re-reading local state, so every action's result is visible immediately.
+    await StorageService.pullFromServer();
     setRenewals(StorageService.getContractRenewals());
     setProfiles(StorageService.getProfiles());
-    fetchMyStatus();
+    await fetchMyStatus();
   };
 
   const handleGenerateAiContractEvaluation = async (item: ContractRenewal) => {

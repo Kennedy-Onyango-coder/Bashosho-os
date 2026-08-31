@@ -157,6 +157,11 @@ export default function InvoicingBoard({ currentUser, lang, onTriggerPrint }: In
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to mark invoice paid");
         setInvoices(invoices.map(inv => inv.id === invoiceId ? { ...inv, status: "paid" } : inv));
+        // Marking paid creates a real Income record (or a pending Performance
+        // Settlement) server-side — pull fresh data so the Financial Ledger and
+        // dashboards reflect it immediately, rather than only after some unrelated
+        // action elsewhere happens to trigger a resync.
+        StorageService.pullFromServer();
         if (data.settlement) {
           alert(lang === "en"
             ? `Marked paid. A Performance Settlement was created — go to Financial Ledger → Performance Settlements to confirm the org cut / cast pool split.`
