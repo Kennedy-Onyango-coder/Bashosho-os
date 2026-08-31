@@ -993,6 +993,38 @@ app.post("/api/payments/stk-push", requireAuth, async (req: AuthenticatedRequest
     if (!linkedDoc.exists) {
       return res.status(404).json({ error: `Linked record not found: ${linkType}/${linkId}` });
     }
+    const linked = linkedDoc.data() as any;
+
+    if (linkType === "contract_renewal") {
+      // Only the renewal's own owner, or someone who can already review/edit contract
+      // renewals (Chairperson/Vice Chairperson, or another role granted
+      // contract_renewals edit — see the permission matrix), may initiate a payment
+      // against it. Without this, any authenticated member could push an M-Pesa
+      // prompt to their own phone but have the resulting payment silently recorded
+      // against a DIFFERENT member's renewal — not a theft of Bashosho's money, since
+      // Safaricom still requires the payer to approve the exact amount on their own
+      // phone, but a real integrity gap in whose renewal actually gets credited.
+      const rolePerms = await getRolePermissionsForRoleKey(req.user!.roleKey || getCanonicalRoleKey(req.user!.role));
+      const canPayOnBehalf = rolePerms?.permissions?.contract_renewals?.edit === true;
+      if (linked.userId !== req.user!.id && !canPayOnBehalf) {
+        return res.status(403).json({ error: "You can only initiate payment for your own contract renewal." });
+      }
+      // The amount requested must actually correspond to what's still owed — a
+      // massively larger or smaller figure than the real remaining balance almost
+      // always means a client-side bug (stale form state, wrong record selected)
+      // rather than a deliberate voluntary overpayment, so it's rejected rather than
+      // silently forwarded to Safaricom.
+      const amountPaidSoFar = (linked.payments || []).reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+      const remainingBalance = Math.max(0, (Number(linked.feeRequired) || 500) - amountPaidSoFar);
+      if (remainingBalance <= 0) {
+        return res.status(400).json({ error: "This contract renewal is already fully paid." });
+      }
+      if (Number(amount) > remainingBalance + 1) { // +1 tolerance for rounding
+        return res.status(400).json({
+          error: `Only Ksh ${remainingBalance.toLocaleString()} is still owed on this renewal — cannot initiate a payment for Ksh ${Number(amount).toLocaleString()}.`
+        });
+      }
+    }
 
     const transactionId = `pay-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const stk = await initiateDarajaStkPush(config, {
