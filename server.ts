@@ -5193,9 +5193,15 @@ app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", 
     // (within a small tolerance) and closest date within a 5-day window, so entries
     // logged a day or two apart from when the bank actually cleared them still match.
     // Each system record can only be consumed by one statement line, preventing one
-    // real payment from being counted as matching several bank lines.
+    // real payment from being counted as matching several bank lines. Records already
+    // reconciled in a PAST bank_reconciliations run are excluded from matching here —
+    // without this, the same real transaction could get silently re-matched in an
+    // overlapping later reconciliation and appear "reconciled" in two different
+    // reports with no way to tell which one is authoritative.
     const usedIncomeIds = new Set<string>();
     const usedExpenseIds = new Set<string>();
+    const matchableIncomes = allIncomes.filter((i: any) => !i.reconciled);
+    const matchableExpenditures = allExpenditures.filter((e: any) => !e.reconciled);
     const DATE_WINDOW_DAYS = 5;
     const AMOUNT_TOLERANCE = 0.5;
 
@@ -5225,13 +5231,13 @@ app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", 
       const primaryIsIncome = rawAmount >= 0;
       let matchType: "income" | "expenditure" | null = null;
       let match = primaryIsIncome
-        ? findBestMatch(allIncomes, usedIncomeIds, absAmount, dateStr, "date")
-        : findBestMatch(allExpenditures, usedExpenseIds, absAmount, dateStr, "requestDate");
+        ? findBestMatch(matchableIncomes, usedIncomeIds, absAmount, dateStr, "date")
+        : findBestMatch(matchableExpenditures, usedExpenseIds, absAmount, dateStr, "requestDate");
       if (match) matchType = primaryIsIncome ? "income" : "expenditure";
       if (!match) {
         match = primaryIsIncome
-          ? findBestMatch(allExpenditures, usedExpenseIds, absAmount, dateStr, "requestDate")
-          : findBestMatch(allIncomes, usedIncomeIds, absAmount, dateStr, "date");
+          ? findBestMatch(matchableExpenditures, usedExpenseIds, absAmount, dateStr, "requestDate")
+          : findBestMatch(matchableIncomes, usedIncomeIds, absAmount, dateStr, "date");
         if (match) matchType = primaryIsIncome ? "expenditure" : "income";
       }
       if (match && matchType) {
@@ -5249,13 +5255,15 @@ app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", 
       };
     });
 
-    // The reverse direction: real records in-period that no statement line claimed.
+    // The reverse direction: real records in-period that no statement line claimed —
+    // excluding records already reconciled in a past run, since those aren't actually
+    // outstanding, they just weren't part of THIS statement.
     const periodStart = statementPeriodStart || "0000-01-01";
     const unmatchedSystemRecords = [
-      ...allIncomes
+      ...matchableIncomes
         .filter((i: any) => !usedIncomeIds.has(i.id) && i.date && i.date >= periodStart && i.date <= statementPeriodEnd)
         .map((i: any) => ({ id: i.id, type: "income" as const, date: i.date, description: i.description || i.source || "", amount: Number(i.amount) || 0 })),
-      ...allExpenditures
+      ...matchableExpenditures
         .filter((e: any) => !usedExpenseIds.has(e.id) && e.requestDate && e.requestDate >= periodStart && e.requestDate <= statementPeriodEnd)
         .map((e: any) => ({ id: e.id, type: "expenditure" as const, date: e.requestDate, description: e.description || "", amount: Number(e.amount) || 0 }))
     ].sort((a, b) => a.date.localeCompare(b.date));
@@ -5277,6 +5285,24 @@ app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", 
     };
     logActivity(req, "finance", "create", id, `Bank reconciliation: ${statementPeriodEnd}`);
     await db.collection("bank_reconciliations").doc(id).set({ ...record, updatedAt: new Date().toISOString() });
+
+    // Mark every matched record as reconciled on the record itself — not just inside
+    // this report — so (a) it's excluded from being matched again in a future
+    // overlapping reconciliation, and (b) the Financial Ledger can show a "Reconciled"
+    // badge on it without anyone having to cross-reference past reconciliation reports.
+    const writeBacks: Promise<any>[] = [];
+    for (const incomeId of usedIncomeIds) {
+      writeBacks.push(db.collection("incomes").doc(incomeId).update({
+        reconciled: true, reconciledInBankReconciliationId: id, reconciledDate: record.reconciledDate
+      }));
+    }
+    for (const expenseId of usedExpenseIds) {
+      writeBacks.push(db.collection("expenditures").doc(expenseId).update({
+        reconciled: true, reconciledInBankReconciliationId: id, reconciledDate: record.reconciledDate
+      }));
+    }
+    await Promise.all(writeBacks);
+
     return res.json({ success: true, id, ...record });
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to save bank reconciliation", details: err.message });

@@ -236,6 +236,11 @@ export interface ExpenditureRequest {
    *  Conflict of Interest Policy, Section 3 (segregation rule). Optional and additive:
    *  requests without this field behave exactly as before. */
   programOwnerRoleKey?: string;
+  /** Set once this entry has been matched to a real bank statement line in a Bank
+   *  Reconciliation run — see server.ts's /api/bank_reconciliations handler. */
+  reconciled?: boolean;
+  reconciledInBankReconciliationId?: string;
+  reconciledDate?: string;
 }
 
 export interface ExpenditureApproval {
@@ -592,6 +597,11 @@ export interface Income {
   /** Marks an income entered while digitizing an old paper cashbook, rather than
    *  recorded live as the money came in. */
   isHistoricalEntry?: boolean;
+  /** Set once this entry has been matched to a real bank statement line in a Bank
+   *  Reconciliation run — see server.ts's /api/bank_reconciliations handler. */
+  reconciled?: boolean;
+  reconciledInBankReconciliationId?: string;
+  reconciledDate?: string;
 }
 
 export interface BroadcastReply {

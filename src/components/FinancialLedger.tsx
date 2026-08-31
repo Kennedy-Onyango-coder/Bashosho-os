@@ -2,7 +2,7 @@ import React from "react";
 import Modal from "./Modal";
 import { BudgetEngagement, ExpenditureRequest, UserRole, UserProfile, Income, Partner, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
-import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X, Users, Landmark, Percent, Wallet, BookOpen } from "lucide-react";
+import { Sparkles, FileText, Check, AlertTriangle, Trash2, Printer, Plus, Eye, Coins, Ban, Clock, X, Users, Landmark, Percent, Wallet, BookOpen, CheckCircle2 } from "lucide-react";
 import CastPaymentListsBoard from "./CastPaymentListsBoard";
 import BankReconciliationBoard from "./BankReconciliationBoard";
 import PerformanceSettlementsBoard from "./PerformanceSettlementsBoard";
@@ -971,6 +971,11 @@ export default function FinancialLedger({
                                   }
                                 })()
                               )}
+                              {req.reconciled && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1" title={`Matched to a bank statement on ${req.reconciledDate}`}>
+                                  <CheckCircle2 className="w-3 h-3" /> Reconciled
+                                </span>
+                              )}
                             </div>
                             {req.budgetId && (
                               <span className="block text-[9px] text-red-500 font-mono font-bold mt-0.5">
@@ -1108,6 +1113,11 @@ export default function FinancialLedger({
                           {inc.linkedBudgetId && (
                             <span className="block text-[9px] text-emerald-600 font-mono font-bold mt-0.5">
                               LINKED TO: {budgets.find(b => b.id === inc.linkedBudgetId)?.title || "Project Budget"}
+                            </span>
+                          )}
+                          {inc.reconciled && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1" title={`Matched to a bank statement on ${inc.reconciledDate}`}>
+                              <CheckCircle2 className="w-3 h-3" /> Reconciled
                             </span>
                           )}
                         </div>
