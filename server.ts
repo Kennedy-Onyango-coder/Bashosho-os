@@ -3612,6 +3612,7 @@ app.post("/api/invoices/:id/mark_paid", requireAuth, requirePermission("invoices
     logActivity(req, "invoices", "mark_paid", req.params.id, invoice.invoiceNumber);
 
     let settlement = null;
+    let income = null;
     if (invoice.category === "performance") {
       const settingsSnap = await db.collection("org_settings").doc("global").get();
       const orgCutPercent = Number(settingsSnap.data()?.performanceOrgCutPercent) || 30;
@@ -3632,9 +3633,33 @@ app.post("/api/invoices/:id/mark_paid", requireAuth, requirePermission("invoices
       };
       await db.collection("performance_settlements").doc(settlementId).set(settlement);
       logActivity(req, "finance", "create", settlementId, `Performance settlement pending: ${invoice.engagementDescription}`);
+    } else {
+      // SECURITY/INTEGRITY FIX: a non-"performance" invoice (grants, Theatre-as-a-
+      // Service engagements, equipment hire — "other" is described in types.ts as the
+      // normal case for anything that shouldn't auto-split, not a rare edge case)
+      // previously flipped to "paid" and produced NO income record anywhere — the
+      // money received was invisible to the Financial Ledger, the cashbook, bank
+      // reconciliation, and every dashboard total. There's no cast-pool split to
+      // confirm here (it all goes straight to the organization), so the income is
+      // recorded directly rather than needing a separate confirmation step. The
+      // deterministic id (based on the invoice id, not a timestamp) means calling
+      // this twice for the same invoice — which the status check above already
+      // blocks — could never create two income records even under a race.
+      const incomeId = `income-invoice-${req.params.id}`;
+      income = {
+        id: incomeId,
+        source: "engagement_fee",
+        amount: Number(invoice.amount) || 0,
+        date: new Date().toISOString().split("T")[0],
+        description: `Invoice ${invoice.invoiceNumber} paid — ${invoice.engagementDescription}`,
+        linkedPartnerId: invoice.partnerId || undefined,
+        recordedBy: req.user!.name
+      };
+      await db.collection("incomes").doc(incomeId).set(income);
+      logActivity(req, "finance", "create", incomeId, `Income recorded from invoice ${invoice.invoiceNumber}`);
     }
 
-    return res.json({ success: true, settlement });
+    return res.json({ success: true, settlement, income });
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to mark invoice paid", details: err.message });
   }
