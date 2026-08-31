@@ -1,5 +1,5 @@
 import React from "react";
-import { Gavel, Plus, FileText, CheckCircle2, Trash2, UserPlus } from "lucide-react";
+import { Gavel, Plus, FileText, CheckCircle2, Trash2, UserPlus, ListChecks, ArrowRight } from "lucide-react";
 import { BoardMeeting, Document, UserProfile } from "../types";
 
 interface BoardMeetingsPanelProps {
@@ -11,6 +11,7 @@ interface BoardMeetingsPanelProps {
 
 export default function BoardMeetingsPanel({ lang, currentUser, documents, onCreateMinutesDoc }: BoardMeetingsPanelProps) {
   const [meetings, setMeetings] = React.useState<BoardMeeting[]>([]);
+  const [profiles, setProfiles] = React.useState<UserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [showForm, setShowForm] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
@@ -20,6 +21,14 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
   const [time, setTime] = React.useState("");
   const [location, setLocation] = React.useState("");
   const [agendaItems, setAgendaItems] = React.useState<string[]>([""]);
+
+  // Adding a decision/action point to a specific meeting — only one at a time, so a
+  // single small form (rather than per-meeting duplicated state) is enough.
+  const [addingActionPointTo, setAddingActionPointTo] = React.useState<string | null>(null);
+  const [newActionDesc, setNewActionDesc] = React.useState("");
+  const [newActionAssigneeId, setNewActionAssigneeId] = React.useState("");
+  const [newActionDeadline, setNewActionDeadline] = React.useState("");
+  const [creatingTaskFor, setCreatingTaskFor] = React.useState<string | null>(null);
 
   const fetchMeetings = async () => {
     try {
@@ -33,7 +42,17 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
     }
   };
 
-  React.useEffect(() => { fetchMeetings(); }, []);
+  React.useEffect(() => {
+    fetchMeetings();
+    (async () => {
+      try {
+        const res = await fetch("/api/profiles");
+        if (res.ok) setProfiles(await res.json());
+      } catch (err) {
+        console.error("Failed to load profiles for action point assignment:", err);
+      }
+    })();
+  }, []);
 
   const addAgendaItem = () => setAgendaItems([...agendaItems, ""]);
   const updateAgendaItem = (idx: number, value: string) => setAgendaItems(agendaItems.map((a, i) => i === idx ? value : a));
@@ -87,6 +106,47 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
       fetchMeetings();
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const submitActionPoint = async (meeting: BoardMeeting) => {
+    if (!newActionDesc.trim() || !newActionAssigneeId || !newActionDeadline) {
+      alert(lang === "en" ? "A description, assignee, and deadline are all required." : "Maelezo, mtu, na tarehe ya mwisho vinahitajika.");
+      return;
+    }
+    const assignee = profiles.find(p => p.id === newActionAssigneeId);
+    const point = {
+      id: `pt-${Date.now()}`,
+      description: newActionDesc.trim(),
+      assignedToId: newActionAssigneeId,
+      assignedToName: assignee?.name || "",
+      deadline: newActionDeadline
+    };
+    try {
+      const res = await fetch("/api/board_meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: meeting.id, actionPoints: [...(meeting.actionPoints || []), point] })
+      });
+      if (!res.ok) throw new Error("Failed to save the decision");
+      setNewActionDesc(""); setNewActionAssigneeId(""); setNewActionDeadline(""); setAddingActionPointTo(null);
+      fetchMeetings();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const createTaskFromActionPoint = async (meetingId: string, pointId: string) => {
+    setCreatingTaskFor(pointId);
+    try {
+      const res = await fetch(`/api/board_meetings/${meetingId}/action_points/${pointId}/create_task`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create task");
+      fetchMeetings();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setCreatingTaskFor(null);
     }
   };
 
@@ -185,6 +245,68 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
                   {m.agenda.map((a, idx) => <li key={idx}>{a}</li>)}
                 </ul>
               )}
+
+              <div className="border-t border-neutral-100 pt-2.5">
+                <div className="flex justify-between items-center mb-1.5">
+                  <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1">
+                    <ListChecks size={12} /> {lang === "en" ? "Decisions & Action Points" : "Maamuzi na Hatua"}
+                  </p>
+                  <button
+                    onClick={() => { setAddingActionPointTo(addingActionPointTo === m.id ? null : m.id); setNewActionDesc(""); setNewActionAssigneeId(""); setNewActionDeadline(""); }}
+                    className="text-[10px] font-bold text-[#E31E24] hover:underline cursor-pointer"
+                  >
+                    + {lang === "en" ? "Add Decision" : "Ongeza Uamuzi"}
+                  </button>
+                </div>
+
+                {(m.actionPoints || []).length > 0 && (
+                  <div className="space-y-1.5 mb-2">
+                    {m.actionPoints!.map(pt => (
+                      <div key={pt.id} className="flex items-center justify-between gap-2 bg-neutral-50 rounded-lg px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-xs text-neutral-800 truncate">{pt.description}</p>
+                          <p className="text-[10px] text-neutral-500 font-mono">{pt.assignedToName} — {lang === "en" ? "by" : "kabla ya"} {pt.deadline}</p>
+                        </div>
+                        {pt.taskId ? (
+                          <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 shrink-0">
+                            <CheckCircle2 size={12} /> {lang === "en" ? "Task created" : "Kazi imeundwa"}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => createTaskFromActionPoint(m.id, pt.id)}
+                            disabled={creatingTaskFor === pt.id}
+                            className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer disabled:opacity-50 flex items-center gap-1 shrink-0"
+                          >
+                            {creatingTaskFor === pt.id ? "..." : <>{lang === "en" ? "Create Task" : "Unda Kazi"} <ArrowRight size={11} /></>}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {addingActionPointTo === m.id && (
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 space-y-2">
+                    <input
+                      value={newActionDesc}
+                      onChange={e => setNewActionDesc(e.target.value)}
+                      placeholder={lang === "en" ? 'e.g. "Michael will prepare the project budget"' : "mfano: \"Michael ataandaa bajeti\""}
+                      className="w-full bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={newActionAssigneeId} onChange={e => setNewActionAssigneeId(e.target.value)} className="bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs">
+                        <option value="">{lang === "en" ? "Assign to..." : "Mpe..."}</option>
+                        {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <input type="date" value={newActionDeadline} onChange={e => setNewActionDeadline(e.target.value)} className="bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs" />
+                    </div>
+                    <button onClick={() => submitActionPoint(m)} className="bg-neutral-900 hover:bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded-lg cursor-pointer">
+                      {lang === "en" ? "Save Decision" : "Hifadhi Uamuzi"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {m.status === "completed" && (
                 <div className="border-t border-neutral-100 pt-2">
                   {m.minutesDocId ? (

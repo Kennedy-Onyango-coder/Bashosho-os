@@ -4784,7 +4784,7 @@ app.get("/api/board_meetings", requireAuth, requirePermission("board_meetings", 
 
 app.post("/api/board_meetings", requireAuth, requirePermission("board_meetings", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
-    const { title, date, time, location, agenda, attendeeIds } = req.body;
+    const { title, date, time, location, agenda, attendeeIds, actionPoints } = req.body;
     const id = req.body.id || `meeting-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const existing = req.body.id ? (await db.collection("board_meetings").doc(req.body.id).get()).data() : null;
     if (!existing && (!title || !date)) {
@@ -4798,6 +4798,7 @@ app.post("/api/board_meetings", requireAuth, requirePermission("board_meetings",
       location: location ?? existing?.location ?? "",
       agenda: agenda ?? existing?.agenda ?? [],
       attendeeIds: attendeeIds ?? existing?.attendeeIds ?? [],
+      actionPoints: actionPoints ?? existing?.actionPoints ?? [],
       status: req.body.status ?? existing?.status ?? "scheduled",
       minutesDocId: req.body.minutesDocId ?? existing?.minutesDocId,
       createdBy: existing?.createdBy || req.user!.name,
@@ -4807,6 +4808,63 @@ app.post("/api/board_meetings", requireAuth, requirePermission("board_meetings",
     return saveDocument("board_meetings", id, record, req, res);
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to save board meeting", details: err.message });
+  }
+});
+
+// Converts a single meeting action point into a real, assigned, deadline-tracked Task
+// — this is the concrete mechanism behind "a decision like 'Michael will prepare the
+// project budget by Friday' must become a task", not just prose in the minutes.
+// Runs server-side as one operation so a double-click (or a slow network retry)
+// can't create two tasks for the same action point: once actionPoint.taskId is set,
+// every subsequent call for that same point is a no-op that returns the existing task.
+app.post("/api/board_meetings/:id/action_points/:pointId/create_task", requireAuth, requirePermission("board_meetings", "edit"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const meetingRef = db.collection("board_meetings").doc(req.params.id);
+    const meetingSnap = await meetingRef.get();
+    if (!meetingSnap.exists) return res.status(404).json({ error: "Meeting not found" });
+    const meeting = meetingSnap.data()!;
+    const points: any[] = meeting.actionPoints || [];
+    const point = points.find((p: any) => p.id === req.params.pointId);
+    if (!point) return res.status(404).json({ error: "Action point not found on this meeting" });
+
+    if (point.taskId) {
+      const existingTaskSnap = await db.collection("tasks").doc(point.taskId).get();
+      return res.json({ success: true, task: existingTaskSnap.exists ? existingTaskSnap.data() : null, alreadyConverted: true });
+    }
+
+    if (!point.assignedToId || !point.deadline) {
+      return res.status(400).json({ error: "This action point needs an assignee and a deadline before it can become a task." });
+    }
+    const assigneeSnap = await db.collection("profiles").doc(point.assignedToId).get();
+    if (!assigneeSnap.exists) {
+      return res.status(400).json({ error: "The assignee on this action point no longer matches a real member profile." });
+    }
+    const assignee = assigneeSnap.data()!;
+
+    const taskId = `task-frommeeting-${req.params.id}-${req.params.pointId}`;
+    const task = {
+      id: taskId,
+      title: point.description,
+      description: `From meeting: ${meeting.title} (${meeting.date})`,
+      assignedToId: point.assignedToId,
+      assignedToName: assignee.name,
+      assignedById: req.user!.id,
+      assignedByName: req.user!.name,
+      programArea: "general",
+      priority: "medium",
+      dueDate: point.deadline,
+      status: "pending",
+      createdDate: new Date().toISOString().split("T")[0]
+    };
+    await db.collection("tasks").doc(taskId).set(task);
+
+    const updatedPoints = points.map((p: any) => p.id === req.params.pointId ? { ...p, taskId } : p);
+    await meetingRef.update({ actionPoints: updatedPoints });
+
+    logActivity(req, "tasks", "create", taskId, `Task created from meeting decision: ${meeting.title}`);
+    return res.json({ success: true, task, alreadyConverted: false });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to create task from action point", details: err.message });
   }
 });
 

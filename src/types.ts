@@ -534,6 +534,19 @@ export interface BoardMeeting {
   attendeeIds: string[];
   status: "scheduled" | "completed" | "cancelled";
   minutesDocId?: string;
+  /** Decisions/action points from the meeting, each independently convertible into a
+   *  real Task — e.g. "Michael will prepare the project budget by Friday" becomes an
+   *  assigned, deadline-tracked Task rather than staying as prose buried inside the
+   *  free-text minutes document with no connection to anything. `taskId` is set once
+   *  converted, so the same action point can't accidentally spawn two tasks. */
+  actionPoints?: {
+    id: string;
+    description: string;
+    assignedToId: string;
+    assignedToName: string;
+    deadline: string;
+    taskId?: string;
+  }[];
   createdBy: string;
   createdDate: string;
 }
