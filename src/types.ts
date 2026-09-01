@@ -599,7 +599,7 @@ export interface Grant {
   funder: string;
   deadline: string;
   amount: number;
-  status: "identified" | "preparing" | "submitted" | "awarded" | "declined";
+  status: "identified" | "preparing" | "submitted" | "under_review" | "awarded" | "declined" | "withdrawn";
   notes: string;
   link?: string;
   probability?: number;

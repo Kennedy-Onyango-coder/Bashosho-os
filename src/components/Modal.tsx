@@ -30,16 +30,6 @@ export const Modal: React.FC<ModalProps> = ({
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
-  // Hold the latest onClose in a ref so the effect below can depend solely on [isOpen].
-  // The parent of a controlled form passes onClose as an inline arrow, which gets a
-  // brand-new identity on every render. If the effect listed onClose as a dependency it
-  // would tear down and re-run on every keystroke — and its cleanup restores focus to the
-  // element that opened the dialog — yanking the user's cursor out of the field they're
-  // typing in after every single character. Reading onClose from a ref keeps the whole
-  // focus-management effect tied to open/close transitions only.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
   // Accessibility: this Modal is the single dialog primitive used across the whole
   // app (dozens of forms/edit screens), so fixing it once here fixes it everywhere.
   // Adds the three things a real dialog needs beyond Escape-to-close (already
@@ -64,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onCloseRef.current();
+        onClose();
         return;
       }
       if (e.key !== "Tab") return;
@@ -91,18 +81,12 @@ export const Modal: React.FC<ModalProps> = ({
       window.clearTimeout(focusTimer);
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
-      // Return focus to whatever opened this dialog, if it's still on the page. Because
-      // this effect only runs on open/close (dependency: [isOpen]) and NOT on every
-      // re-render, this restore fires once when the dialog truly closes — never while the
-      // user is mid-keystroke inside a field.
+      // Return focus to whatever opened this dialog, if it's still on the page.
       if (previouslyFocusedRef.current && document.contains(previouslyFocusedRef.current)) {
         previouslyFocusedRef.current.focus();
       }
     };
-    // Intentionally depend only on isOpen (not onClose): see the onCloseRef note above.
-    // The effect must not re-run on parent re-renders, or it would steal focus from the
-    // active input on every keystroke — the exact bug this file fixes.
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

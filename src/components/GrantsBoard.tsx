@@ -13,8 +13,10 @@ const COLUMNS = [
   { id: "identified", labelEn: "Identified", labelSw: "Zilizotambuliwa", color: "bg-blue-50 text-blue-700 border-blue-200" },
   { id: "preparing", labelEn: "Preparing", labelSw: "Zinaandaliwa", color: "bg-amber-50 text-amber-700 border-amber-200" },
   { id: "submitted", labelEn: "Submitted", labelSw: "Zilizowasilishwa", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  { id: "under_review", labelEn: "Under Review", labelSw: "Inakaguliwa na Mfadhili", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   { id: "awarded", labelEn: "Awarded", labelSw: "Zilizofadhiliwa", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   { id: "declined", labelEn: "Declined", labelSw: "Zilizokataliwa", color: "bg-neutral-50 text-neutral-600 border-neutral-200" },
+  { id: "withdrawn", labelEn: "Withdrawn", labelSw: "Zimeondolewa", color: "bg-neutral-50 text-neutral-500 border-neutral-200" },
 ];
 
 export default function GrantsBoard({ currentUser, lang }: GrantsBoardProps) {
@@ -176,7 +178,7 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
 
   // Check if a grant is close to deadline (<14 days) and not submitted
   const isUrgent = (grant: Grant) => {
-    if (grant.status === "submitted" || grant.status === "awarded" || grant.status === "declined") return false;
+    if (["submitted", "under_review", "awarded", "declined", "withdrawn"].includes(grant.status)) return false;
     const deadlineDate = new Date(grant.deadline);
     if (isNaN(deadlineDate.getTime())) return false;
     const systemDate = new Date(); // system default date
@@ -364,8 +366,10 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
                           <option value="identified">{lang === "en" ? "Stage: Identified" : "Hatua: Tambuliwa"}</option>
                           <option value="preparing">{lang === "en" ? "Stage: Preparing" : "Hatua: Maandalizi"}</option>
                           <option value="submitted">{lang === "en" ? "Stage: Submitted" : "Hatua: Wasilishwa"}</option>
+                          <option value="under_review">{lang === "en" ? "Stage: Under Review" : "Hatua: Inakaguliwa"}</option>
                           <option value="awarded">{lang === "en" ? "Stage: Awarded" : "Hatua: Kupata fedha"}</option>
                           <option value="declined">{lang === "en" ? "Stage: Declined" : "Hatua: Kataliwa"}</option>
+                          <option value="withdrawn">{lang === "en" ? "Stage: Withdrawn" : "Hatua: Imeondolewa"}</option>
                         </select>
                       </div>
                     </div>
@@ -465,8 +469,10 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
                     <option value="identified">Identified</option>
                     <option value="preparing">Preparing</option>
                     <option value="submitted">Submitted</option>
+                    <option value="under_review">Under Review</option>
                     <option value="awarded">Awarded</option>
                     <option value="declined">Declined</option>
+                    <option value="withdrawn">Withdrawn</option>
                   </select>
                 </div>
               </div>
