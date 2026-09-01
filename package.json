@@ -14,7 +14,9 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test:finance": "tsx scripts/test-financial-calculations.ts"
+    "test:finance": "tsx scripts/test-financial-calculations.ts",
+    "test:tasks": "tsx scripts/test-task-authorization.ts",
+    "test": "npm run test:finance && npm run test:tasks"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

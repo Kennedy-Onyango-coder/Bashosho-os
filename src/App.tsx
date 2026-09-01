@@ -414,6 +414,25 @@ export default function App() {
     setEditingDoc(undefined);
   };
 
+  // Version awareness (master doc: "Proposal v1, Proposal v2, Proposal v3 —
+  // Approved"). Nothing is overwritten — this opens the editor pre-filled with the
+  // previous version's content, as a genuinely NEW document linked back via
+  // supersedesId, so the old version stays exactly as it was for the record.
+  const handleCreateNewVersion = (doc: Document) => {
+    const newVersionDraft: Document = {
+      ...doc,
+      id: `doc-v${(doc.version || 1) + 1}-${Date.now()}`,
+      version: (doc.version || 1) + 1,
+      supersedesId: doc.id,
+      status: "draft",
+      date: new Date().toISOString().split("T")[0],
+      author: currentUser?.name || doc.author,
+      auditTrail: []
+    };
+    setEditingDoc(newVersionDraft);
+    setIsCreatingDoc(true);
+  };
+
   // Print Document Trigger
   const handleTriggerPrint = async (doc: Document) => {
     const printContent = (
@@ -1129,13 +1148,31 @@ export default function App() {
 
                       {/* Documents Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {filteredDocuments.map((doc) => (
+                        {filteredDocuments.map((doc) => {
+                          const successor = documents.find(d => d.supersedesId === doc.id);
+                          const isExpired = doc.expiryDate && doc.expiryDate < new Date().toISOString().split("T")[0];
+                          return (
                           <div key={doc.id} className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-xs text-left space-y-4 hover:border-red-500/20 transition-all">
                             <div className="flex justify-between items-start">
                               <div>
-                                <span className="bg-neutral-100 text-neutral-600 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase">
-                                  {doc.type}
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="bg-neutral-100 text-neutral-600 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase">
+                                    {doc.type}
+                                  </span>
+                                  <span className="bg-neutral-900 text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                    v{doc.version || 1}
+                                  </span>
+                                  {successor && (
+                                    <span className="bg-amber-50 text-amber-700 border border-amber-200 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">
+                                      {lang === "en" ? `Superseded by v${successor.version || "?"}` : `Imebadilishwa na v${successor.version || "?"}`}
+                                    </span>
+                                  )}
+                                  {isExpired && (
+                                    <span className="bg-red-50 text-red-600 border border-red-200 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">
+                                      {lang === "en" ? "Expired" : "Imepitwa na wakati"}
+                                    </span>
+                                  )}
+                                </div>
                                 <h3 className="text-sm font-bold text-neutral-950 mt-2 line-clamp-1">{doc.title}</h3>
                                 <p className="text-[10px] text-neutral-500 font-medium mt-0.5">{doc.date} • {doc.author}</p>
                               </div>
@@ -1158,6 +1195,16 @@ export default function App() {
                                 >
                                   {lang === "en" ? "Edit" : "Hariri"}
                                 </button>
+                                {!successor && (
+                                  <button
+                                    onClick={() => handleCreateNewVersion(doc)}
+                                    id={`new-version-btn-${doc.id}`}
+                                    className="text-blue-600 hover:text-blue-700 font-bold bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded px-2.5 py-1 cursor-pointer transition-colors"
+                                    title={lang === "en" ? "Start a new version, keeping this one intact" : "Anza toleo jipya, likibaki hili kama lilivyo"}
+                                  >
+                                    {lang === "en" ? "New Version" : "Toleo Jipya"}
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleTriggerPrint(doc)}
                                   id={`print-doc-btn-${doc.id}`}
@@ -1168,7 +1215,8 @@ export default function App() {
                               </div>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

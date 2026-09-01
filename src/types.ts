@@ -189,6 +189,17 @@ export interface Document {
   partnerId?: string; // Linked partner CRM if any
   /** Server-computed, cryptographically signed verification link (see /api/verify/document/:id) */
   verificationUrl?: string;
+  /** Version awareness (master doc: "Proposal v1, Proposal v2, Proposal v3 —
+   *  Approved") — additive and optional so every existing document, which predates
+   *  this, is simply treated as version 1 with no predecessor rather than "invalid". */
+  version?: number;
+  /** Set when this document was created as a revision of an earlier one — the
+   *  previous version stays in the system (nothing is overwritten or deleted), just
+   *  gets shown as superseded once a newer version exists. */
+  supersedesId?: string;
+  /** For documents with a validity window (e.g. a signed MoU, an insurance
+   *  certificate) — shown as an expiry warning, never auto-deletes or hides anything. */
+  expiryDate?: string;
 }
 
 export interface BudgetEngagement {

@@ -11,6 +11,7 @@ import { DocumentData, FieldValue } from "firebase-admin/firestore";
 import crypto from "crypto";
 import { generateTotpSecret, generateTotpUri, verifyTotpToken, generateBackupCodes } from "./totp";
 import { calculatePerformanceSettlement, calculateCastPayment } from "./financialCalculations";
+import { checkTaskStatusTransition } from "./taskAuthorization";
 
 // Safety net for local development: some Google Cloud client libraries fire background
 // credential/metadata-probing promises that reject OUTSIDE any of our own try/catch blocks
@@ -3394,6 +3395,40 @@ app.post("/api/public/inquiry", publicInquiryRateLimiter, async (req: express.Re
     };
 
     await db.collection("grants").doc(grantId).set(newGrant);
+
+    // "No submission may disappear" (master doc Phase 24) — without this, an inquiry
+    // just sits in the Grants list with no responsible person and no deadline, and
+    // could go unnoticed indefinitely. Auto-creates a real follow-up Task assigned to
+    // the Chairperson (the org's standing external-contact role) rather than leaving
+    // this purely to someone happening to check the Grants board. Never blocks the
+    // actual submission if it fails for any reason — the inquiry itself is already
+    // saved by this point regardless.
+    try {
+      const chairpersonSnap = await db.collection("profiles").where("roleKey", "==", "chairperson").limit(1).get();
+      if (!chairpersonSnap.empty) {
+        const chairperson = chairpersonSnap.docs[0].data();
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 3);
+        const taskId = `task-inquiry-${grantId}`;
+        await db.collection("tasks").doc(taskId).set({
+          id: taskId,
+          title: `Follow up: inquiry from ${newGrant.name}`,
+          description: `New website inquiry — Contact: ${contactPhone}${contactEmail ? " / " + contactEmail : ""}. ${newGrant.notes || ""}`.trim(),
+          assignedToId: chairpersonSnap.docs[0].id,
+          assignedToName: chairperson.name,
+          assignedById: "system",
+          assignedByName: "Bashosho OS (public website)",
+          programArea: "general",
+          priority: "high",
+          dueDate: dueDate.toISOString().split("T")[0],
+          status: "pending",
+          createdDate: new Date().toISOString().split("T")[0]
+        });
+      }
+    } catch (taskErr) {
+      console.error("Failed to auto-create follow-up task for public inquiry (inquiry itself was still saved):", taskErr);
+    }
+
     return res.status(201).json({ success: true, referenceId: grantId });
   } catch (err: any) {
     console.error("Public inquiry endpoint failed:", err);
@@ -4410,21 +4445,12 @@ app.post("/api/tasks", requireAuth, async (req: AuthenticatedRequest, res: expre
       const data = existing.data()!;
       const isOwnStatusUpdate = req.user!.id === data.assignedToId;
       const canFullEdit = await userHasPermission(req, "tasks", "edit");
-      if (!isOwnStatusUpdate && !canFullEdit) {
-        return res.status(403).json({ error: "Access denied: you can only update tasks assigned to you, or manage tasks you have edit rights to." });
-      }
-      // An assignee updating their own task may move it through the working states,
-      // but may NEVER self-mark it "completed" or "cancelled" directly — that's
-      // exactly the "a person should not be able to falsely mark a task completed
-      // where organizational review is required" gap this fixes. The furthest an
-      // assignee can push a task on their own is "submitted"; only someone with real
-      // tasks:edit authority (a reviewer) can approve it into "completed", return it
-      // to "in_progress", or cancel it.
-      const SELF_ALLOWED_STATUSES = new Set(["in_progress", "submitted", "blocked"]);
-      if (isOwnStatusUpdate && !canFullEdit && req.body.status && !SELF_ALLOWED_STATUSES.has(req.body.status)) {
-        return res.status(403).json({
-          error: `You can move this task to "in progress", "blocked", or "submitted for review" yourself — only a reviewer can mark it completed or cancel it.`
-        });
+      // See taskAuthorization.ts for the rule this enforces (and its regression
+      // tests) — an assignee can move their own task through the working states but
+      // can never self-approve it into "completed" or self-cancel it.
+      const statusCheck = checkTaskStatusTransition(isOwnStatusUpdate, canFullEdit, req.body.status);
+      if (!statusCheck.allowed) {
+        return res.status(403).json({ error: statusCheck.reason });
       }
       const updated: any = isOwnStatusUpdate && !canFullEdit
         ? { ...data, status: req.body.status || data.status, completedDate: req.body.status === "completed" ? new Date().toISOString() : data.completedDate }
