@@ -55,6 +55,28 @@ function getInspectionStatus(asset: Asset): { dueDate: string; overdue: boolean;
   return { dueDate: due.toISOString().split("T")[0], overdue: daysUntil < 0, daysUntil };
 }
 
+// Answers the master doc's exact questions — "who has it now, where, when should it
+// return" — from data that was already being recorded (checkoutHistory) but never
+// actually computed into a status anywhere. An asset is "checked out" if its most
+// recent checkout entry has no actualReturnDate yet; that same entry's
+// expectedReturnDate tells us whether it's overdue.
+function getCheckoutStatus(asset: Asset): { checkedOut: boolean; overdue: boolean; heldBy?: string; eventName?: string; expectedReturnDate?: string } {
+  const history = asset.checkoutHistory || [];
+  const openEntry = history.length > 0 && !history[history.length - 1].actualReturnDate
+    ? history[history.length - 1]
+    : undefined;
+  if (!openEntry) return { checkedOut: false, overdue: false };
+  const today = new Date(new Date().toDateString());
+  const overdue = !!openEntry.expectedReturnDate && new Date(openEntry.expectedReturnDate) < today;
+  return {
+    checkedOut: true,
+    overdue,
+    heldBy: openEntry.userName,
+    eventName: openEntry.eventName,
+    expectedReturnDate: openEntry.expectedReturnDate
+  };
+}
+
 export default function AssetHiringBoard({
   currentUser,
   lang,
@@ -599,6 +621,7 @@ export default function AssetHiringBoard({
               .map((item) => {
                 const isEditing = editingAssetId === item.id;
                 const inspectionStatus = getInspectionStatus(item);
+                const checkoutStatus = getCheckoutStatus(item);
                 return (
                   <div key={item.id} className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-red-500/20 transition-all">
                     
@@ -618,6 +641,18 @@ export default function AssetHiringBoard({
                         }`}>
                           {item.condition.toUpperCase()}
                         </span>
+                        {checkoutStatus.checkedOut ? (
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold ${checkoutStatus.overdue ? "bg-red-600 text-white" : "bg-blue-50 text-blue-700 border border-blue-100"}`}>
+                            <AlertTriangle size={9} />
+                            {checkoutStatus.overdue
+                              ? (lang === "en" ? "OVERDUE RETURN" : "KURUDI KUMECHELEWA")
+                              : (lang === "en" ? "CHECKED OUT" : "IMECHUKULIWA")}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                            {lang === "en" ? "AVAILABLE" : "INAPATIKANA"}
+                          </span>
+                        )}
                         {inspectionStatus.overdue && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-red-600 text-white">
                             <AlertTriangle size={9} />
@@ -626,6 +661,14 @@ export default function AssetHiringBoard({
                         )}
                       </div>
                     </div>
+
+                    {checkoutStatus.checkedOut && (
+                      <p className={`text-[10px] font-semibold mt-2 ${checkoutStatus.overdue ? "text-red-600" : "text-blue-700"}`}>
+                        {lang === "en" ? "With" : "Ipo kwa"} <span className="font-bold">{checkoutStatus.heldBy}</span>
+                        {checkoutStatus.eventName ? ` — ${checkoutStatus.eventName}` : ""}
+                        {checkoutStatus.expectedReturnDate ? ` · ${lang === "en" ? "due back" : "irudi"} ${checkoutStatus.expectedReturnDate}` : ""}
+                      </p>
+                    )}
 
                     {/* Middle Details */}
                     <div className="border-t border-b border-neutral-100 py-3 my-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-semibold text-neutral-500">
