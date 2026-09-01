@@ -1314,7 +1314,7 @@ export default function App() {
 
               {activeTab === "tasks" && currentUser && (
                 <ErrorBoundary fallbackTitle="Tasks Board Failure">
-                  <TasksBoard lang={lang} currentUser={currentUser} canAssign={can("tasks", "create")} />
+                  <TasksBoard lang={lang} currentUser={currentUser} canAssign={can("tasks", "create")} canReview={can("tasks", "edit")} />
                 </ErrorBoundary>
               )}
 

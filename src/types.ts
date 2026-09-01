@@ -639,7 +639,7 @@ export interface Broadcast {
 
 export type ProgramArea = "gbv" | "srhr" | "mental_health" | "film_academy" | "taas" | "general";
 
-export type TaskStatus = "pending" | "in_progress" | "completed";
+export type TaskStatus = "pending" | "in_progress" | "submitted" | "blocked" | "cancelled" | "completed";
 export type TaskPriority = "low" | "medium" | "high";
 
 export interface Task {

@@ -4409,6 +4409,19 @@ app.post("/api/tasks", requireAuth, async (req: AuthenticatedRequest, res: expre
       if (!isOwnStatusUpdate && !canFullEdit) {
         return res.status(403).json({ error: "Access denied: you can only update tasks assigned to you, or manage tasks you have edit rights to." });
       }
+      // An assignee updating their own task may move it through the working states,
+      // but may NEVER self-mark it "completed" or "cancelled" directly — that's
+      // exactly the "a person should not be able to falsely mark a task completed
+      // where organizational review is required" gap this fixes. The furthest an
+      // assignee can push a task on their own is "submitted"; only someone with real
+      // tasks:edit authority (a reviewer) can approve it into "completed", return it
+      // to "in_progress", or cancel it.
+      const SELF_ALLOWED_STATUSES = new Set(["in_progress", "submitted", "blocked"]);
+      if (isOwnStatusUpdate && !canFullEdit && req.body.status && !SELF_ALLOWED_STATUSES.has(req.body.status)) {
+        return res.status(403).json({
+          error: `You can move this task to "in progress", "blocked", or "submitted for review" yourself — only a reviewer can mark it completed or cancel it.`
+        });
+      }
       const updated: any = isOwnStatusUpdate && !canFullEdit
         ? { ...data, status: req.body.status || data.status, completedDate: req.body.status === "completed" ? new Date().toISOString() : data.completedDate }
         : {

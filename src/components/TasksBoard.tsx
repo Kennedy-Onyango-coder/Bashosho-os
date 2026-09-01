@@ -6,6 +6,7 @@ interface TasksBoardProps {
   lang: "en" | "sw";
   currentUser: UserProfile;
   canAssign: boolean; // leadership role — can create/assign tasks to others
+  canReview: boolean; // tasks:edit — can approve/return submitted tasks, cancel tasks
 }
 
 const PROGRAM_AREA_LABELS: Record<ProgramArea, { en: string; sw: string }> = {
@@ -24,11 +25,11 @@ const PRIORITY_STYLES: Record<TaskPriority, string> = {
 };
 
 function isOverdue(task: Task): boolean {
-  if (task.status === "completed" || !task.dueDate) return false;
+  if (task.status === "completed" || task.status === "cancelled" || !task.dueDate) return false;
   return new Date(task.dueDate) < new Date(new Date().toDateString());
 }
 
-export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardProps) {
+export default function TasksBoard({ lang, currentUser, canAssign, canReview }: TasksBoardProps) {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [profiles, setProfiles] = React.useState<UserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -186,7 +187,7 @@ export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardP
       )}
 
       <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wider">
-        {(["all", "pending", "in_progress", "completed"] as const).map(s => (
+        {(["all", "pending", "in_progress", "submitted", "blocked", "completed", "cancelled"] as const).map(s => (
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
@@ -194,7 +195,13 @@ export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardP
               filterStatus === s ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-500 border-neutral-200 hover:border-neutral-400"
             }`}
           >
-            {s === "all" ? (lang === "en" ? "All" : "Zote") : s === "pending" ? (lang === "en" ? "Pending" : "Inasubiri") : s === "in_progress" ? (lang === "en" ? "In Progress" : "Inaendelea") : (lang === "en" ? "Completed" : "Imekamilika")}
+            {s === "all" ? (lang === "en" ? "All" : "Zote")
+              : s === "pending" ? (lang === "en" ? "Pending" : "Inasubiri")
+              : s === "in_progress" ? (lang === "en" ? "In Progress" : "Inaendelea")
+              : s === "submitted" ? (lang === "en" ? "Awaiting Review" : "Inasubiri Ukaguzi")
+              : s === "blocked" ? (lang === "en" ? "Blocked" : "Imezuiliwa")
+              : s === "cancelled" ? (lang === "en" ? "Cancelled" : "Imeghairiwa")
+              : (lang === "en" ? "Completed" : "Imekamilika")}
           </button>
         ))}
       </div>
@@ -231,21 +238,68 @@ export default function TasksBoard({ lang, currentUser, canAssign }: TasksBoardP
                     </div>
                   </div>
 
-                  {task.assignedToId === currentUser.id && task.status !== "completed" && (
-                    <div className="flex gap-2 shrink-0">
+                  {task.assignedToId === currentUser.id && task.status !== "completed" && task.status !== "cancelled" && (
+                    <div className="flex gap-2 shrink-0 flex-wrap justify-end">
                       {task.status === "pending" && (
                         <button onClick={() => updateStatus(task, "in_progress")} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 cursor-pointer">
                           {lang === "en" ? "Start" : "Anza"}
                         </button>
                       )}
+                      {(task.status === "pending" || task.status === "in_progress") && (
+                        <>
+                          <button onClick={() => updateStatus(task, "blocked")} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer">
+                            {lang === "en" ? "Report Blocked" : "Ripoti Kizuizi"}
+                          </button>
+                          <button onClick={() => updateStatus(task, "submitted")} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer flex items-center gap-1">
+                            <CheckCircle2 size={12} /> {lang === "en" ? "Submit for Review" : "Wasilisha Kwa Ukaguzi"}
+                          </button>
+                        </>
+                      )}
+                      {task.status === "blocked" && (
+                        <button onClick={() => updateStatus(task, "in_progress")} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 cursor-pointer">
+                          {lang === "en" ? "Resume" : "Endelea"}
+                        </button>
+                      )}
+                      {task.status === "submitted" && (
+                        <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
+                          {lang === "en" ? "Awaiting review" : "Inasubiri ukaguzi"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Reviewer controls — separate from the assignee's own controls above,
+                      since it's entirely possible (e.g. a leader assigning to themselves)
+                      for both to apply to the same task; each renders independently. */}
+                  {canReview && task.status === "submitted" && (
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => updateStatus(task, "in_progress")} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-600 border border-neutral-200 hover:bg-neutral-200 cursor-pointer">
+                        {lang === "en" ? "Return" : "Rudisha"}
+                      </button>
                       <button onClick={() => updateStatus(task, "completed")} className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer flex items-center gap-1">
-                        <CheckCircle2 size={12} /> {lang === "en" ? "Mark Done" : "Kamilisha"}
+                        <CheckCircle2 size={12} /> {lang === "en" ? "Approve" : "Idhinisha"}
                       </button>
                     </div>
                   )}
+                  {canReview && (task.status === "pending" || task.status === "in_progress" || task.status === "blocked") && (
+                    <button onClick={() => updateStatus(task, "cancelled")} className="text-[10px] font-bold px-2 py-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer shrink-0">
+                      {lang === "en" ? "Cancel" : "Ghairi"}
+                    </button>
+                  )}
+
                   {task.status === "completed" && (
                     <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shrink-0">
                       <CheckCircle2 size={12} /> {lang === "en" ? "Done" : "Imekamilika"}
+                    </span>
+                  )}
+                  {task.status === "cancelled" && (
+                    <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-500 border border-neutral-200 shrink-0">
+                      {lang === "en" ? "Cancelled" : "Imeghairiwa"}
+                    </span>
+                  )}
+                  {task.status === "blocked" && task.assignedToId !== currentUser.id && (
+                    <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 shrink-0">
+                      {lang === "en" ? "Blocked" : "Imezuiliwa"}
                     </span>
                   )}
                 </div>
