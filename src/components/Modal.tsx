@@ -28,6 +28,7 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const hasFocusedRef = useRef(false);
   const titleId = useId();
 
   // Accessibility: this Modal is the single dialog primitive used across the whole
@@ -46,6 +47,14 @@ export const Modal: React.FC<ModalProps> = ({
     // Defer to the next tick so the panel has actually mounted/animated in before we
     // try to find something inside it to focus.
     const focusTimer = window.setTimeout(() => {
+      // Only move focus on the very first tick of each open. Without this guard the
+      // effect re-runs whenever a parent hands us a fresh onClose identity (the normal
+      // case for controlled forms, since the inline arrow changes every render). That
+      // re-focus would yank the cursor back to the dialog's first focusable — the
+      // header Close button — on every keystroke, so a user could never type more than
+      // one character before losing their place.
+      if (hasFocusedRef.current) return;
+      hasFocusedRef.current = true;
       const panel = panelRef.current;
       if (!panel) return;
       const focusable = panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
@@ -87,6 +96,14 @@ export const Modal: React.FC<ModalProps> = ({
       }
     };
   }, [isOpen, onClose]);
+
+  // Reset the one-time initial-focus guard once the dialog has fully closed, so the
+  // next open performs the focus-in again instead of leaving focus stranded wherever
+  // the user happened to be. Kept as its own effect because the main effect above
+  // early-returns while the dialog is closed.
+  useEffect(() => {
+    if (!isOpen) hasFocusedRef.current = false;
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
