@@ -175,7 +175,7 @@ export default function BankReconciliationBoard({ lang }: BankReconciliationBoar
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm space-y-4">
-          {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+          {errorMsg && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
 
           {/* Statement upload */}
           <div className="bg-neutral-50 border border-dashed border-neutral-300 rounded-xl p-4 space-y-3">

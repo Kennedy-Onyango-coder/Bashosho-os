@@ -154,7 +154,7 @@ export default function ForceChangePasswordScreen({
               </div>
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium flex items-center gap-2">
+                <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium flex items-center gap-2">
                   <AlertTriangle size={14} className="shrink-0" /> {error}
                 </div>
               )}

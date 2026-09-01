@@ -100,7 +100,7 @@ export default function BulkHistoricalEntryBoard({ lang }: BulkHistoricalEntryBo
         </p>
       </div>
 
-      {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+      {errorMsg && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
       {resultMsg && (
         <div className={`rounded-xl p-4 space-y-1 border ${resultMsg.created > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
           <p className="text-xs font-bold flex items-center gap-1.5">

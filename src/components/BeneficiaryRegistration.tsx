@@ -185,7 +185,7 @@ Initial Intake Context: ${notes || "Participating in youth theatre & creative me
             )}
 
             {errorMsg && (
-              <div className="bg-red-50 border border-red-200 text-red-800 text-xs font-bold rounded-lg p-3">
+              <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-xs font-bold rounded-lg p-3">
                 {errorMsg}
               </div>
             )}

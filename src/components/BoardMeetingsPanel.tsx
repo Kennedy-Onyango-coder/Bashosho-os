@@ -172,7 +172,7 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
 
       {showForm && (
         <form onSubmit={handleCreate} className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm space-y-3">
-          {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+          {errorMsg && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
           <div>
             <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">{lang === "en" ? "Meeting Title" : "Kichwa"} *</label>
             <input value={title} onChange={e => setTitle(e.target.value)} required placeholder={lang === "en" ? "e.g. Q3 Board Review" : ""} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs" />

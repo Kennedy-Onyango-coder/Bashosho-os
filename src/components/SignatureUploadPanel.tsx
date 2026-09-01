@@ -182,7 +182,7 @@ export default function SignatureUploadPanel({ lang }: SignatureUploadPanelProps
       </div>
 
       {error && (
-        <p className="text-[11px] text-red-600 mt-3 flex items-center gap-1.5"><AlertCircle size={12} /> {error}</p>
+        <p role="alert" className="text-[11px] text-red-600 mt-3 flex items-center gap-1.5"><AlertCircle size={12} /> {error}</p>
       )}
       {success && (
         <p className="text-[11px] text-green-600 mt-3 flex items-center gap-1.5"><CheckCircle2 size={12} /> {success}</p>

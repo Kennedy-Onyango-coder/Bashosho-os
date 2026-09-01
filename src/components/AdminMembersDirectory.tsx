@@ -136,7 +136,7 @@ export default function AdminMembersDirectory({ lang }: AdminMembersDirectoryPro
         />
       </div>
 
-      {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+      {errorMsg && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
 
       {loading ? (
         <p className="text-xs text-neutral-500 py-10 text-center">{lang === "en" ? "Loading members..." : "Inapakia..."}</p>

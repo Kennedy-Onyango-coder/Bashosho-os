@@ -74,7 +74,7 @@ export default function VolunteerRecognitionPanel({ lang, currentUser, volunteer
         <span className="text-xs font-mono font-bold text-neutral-500">{volunteerHours} {lang === "en" ? "hrs logged" : "saa"}</span>
       </div>
 
-      {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+      {errorMsg && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
 
       {/* Current tier badge */}
       <div className="flex items-center gap-4">

@@ -154,7 +154,7 @@ export default function MpesaPayButton({ lang, linkType, linkId, amount, default
           placeholder={tt.phonePlaceholder}
           className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
         />
-        {errorMsg && <p className="text-[11px] text-red-600 flex items-center gap-1"><AlertCircle size={11} /> {errorMsg}</p>}
+        {errorMsg && <p role="alert" className="text-[11px] text-red-600 flex items-center gap-1"><AlertCircle size={11} /> {errorMsg}</p>}
         <div className="flex gap-2">
           <button
             type="button"
@@ -215,7 +215,7 @@ export default function MpesaPayButton({ lang, linkType, linkId, amount, default
   return (
     <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
       <p className="text-xs font-bold text-red-700 flex items-center gap-1.5"><XCircle size={14} /> {state === "failed" ? tt.failed : tt.error}</p>
-      {errorMsg && <p className="text-[10px] text-red-500">{errorMsg}</p>}
+      {errorMsg && <p role="alert" className="text-[10px] text-red-500">{errorMsg}</p>}
       <button
         type="button"
         onClick={() => { setState("entering_phone"); setErrorMsg(""); }}

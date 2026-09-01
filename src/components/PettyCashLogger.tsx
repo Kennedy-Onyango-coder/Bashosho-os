@@ -115,7 +115,7 @@ export default function PettyCashLogger({ lang }: PettyCashLoggerProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm space-y-3">
-        {errorMsg && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
+        {errorMsg && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{errorMsg}</div>}
         {successMsg && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-lg px-3 py-2 flex items-center gap-1.5"><CheckCircle2 size={14} /> {successMsg}</div>}
 
         <div className="grid grid-cols-2 gap-3">

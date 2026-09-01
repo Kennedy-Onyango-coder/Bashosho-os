@@ -393,7 +393,7 @@ export default function CmsEditor({ lang }: CmsEditorProps) {
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-800 text-xs font-semibold rounded-xl">
+        <div role="alert" className="p-4 bg-red-50 border border-red-200 text-red-800 text-xs font-semibold rounded-xl">
           ️ {error}
         </div>
       )}

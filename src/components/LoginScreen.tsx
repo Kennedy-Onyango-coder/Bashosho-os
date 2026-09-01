@@ -234,7 +234,7 @@ export default function LoginScreen({ onLoginSuccess, lang, onChangeLang, onBack
               )}
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+                <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
                   <div className="flex items-center gap-1.5"><AlertCircle size={14} className="shrink-0 text-red-600" /> {error}</div>
                 </div>
               )}
@@ -331,7 +331,7 @@ export default function LoginScreen({ onLoginSuccess, lang, onChangeLang, onBack
               </div>
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+                <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
                   <div className="flex items-center gap-1.5"><AlertCircle size={14} className="shrink-0 text-red-600" /> {error}</div>
                   {errorDetails && (
                     <div className="mt-2 pt-2 border-t border-red-200 text-[10px] font-mono text-red-500 break-all whitespace-pre-wrap">
@@ -456,7 +456,7 @@ export default function LoginScreen({ onLoginSuccess, lang, onChangeLang, onBack
               </div>
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+                <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
                   <div className="flex items-center gap-1.5"><AlertCircle size={14} className="shrink-0 text-red-600" /> {error}</div>
                 </div>
               )}

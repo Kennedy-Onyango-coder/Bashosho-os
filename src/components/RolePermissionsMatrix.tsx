@@ -189,7 +189,7 @@ export default function RolePermissionsMatrix({ lang, roleId, roleName, isSystem
           </div>
         ) : (
           <div className="overflow-y-auto flex-1 p-4">
-            {error && <p className="text-[11px] text-red-600 mb-2 px-2">{error}</p>}
+            {error && <p role="alert" className="text-[11px] text-red-600 mb-2 px-2">{error}</p>}
             {success && <p className="text-[11px] text-green-600 mb-2 px-2">{success}</p>}
             <table className="w-full text-[11px] border-collapse">
               <thead>

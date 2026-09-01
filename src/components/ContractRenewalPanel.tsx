@@ -362,7 +362,7 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
         </div>
       )}
       {errorMsg && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-xs font-bold rounded-xl p-4 shadow-2xs flex items-start gap-2.5">
+        <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-xs font-bold rounded-xl p-4 shadow-2xs flex items-start gap-2.5">
           <AlertTriangle size={16} className="shrink-0" /><p>{errorMsg}</p>
         </div>
       )}
