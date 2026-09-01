@@ -1950,6 +1950,15 @@ export default function Dashboard({
                         <div
                           key={b.id}
                           onClick={() => markAsRead(b.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              markAsRead(b.id);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={read ? `Broadcast, already read: ${b.message}` : `Mark broadcast as read: ${b.message}`}
                           className={`border p-4 rounded-xl text-left transition-all cursor-pointer ${
                             read ? "bg-white border-gray-150 opacity-80" : "bg-red-50/20 border-red-200 shadow-2xs"
                           }`}

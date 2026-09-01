@@ -231,10 +231,12 @@ export default function SignupReviews({ lang }: SignupReviewsProps) {
           {/* List Sidebar (on md screen: left side taking 4cols, on smaller: full) */}
           <div className="md:col-span-4 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs divide-y max-h-[70vh] overflow-y-auto">
             {filtered.map((app) => (
-              <div
+              <button
                 key={app.id}
+                type="button"
                 onClick={() => setSelectedApp(app)}
-                className={`p-4 hover:bg-gray-50/70 transition-all cursor-pointer text-left flex items-center justify-between ${
+                aria-current={selectedApp?.id === app.id ? "true" : undefined}
+                className={`w-full p-4 hover:bg-gray-50/70 transition-all cursor-pointer text-left flex items-center justify-between ${
                   selectedApp?.id === app.id ? "bg-red-50/40 border-l-4 border-l-[#E31E24]" : ""
                 }`}
               >
@@ -253,7 +255,7 @@ export default function SignupReviews({ lang }: SignupReviewsProps) {
                   </p>
                 </div>
                 <div className="text-neutral-300"></div>
-              </div>
+              </button>
             ))}
           </div>
 

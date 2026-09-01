@@ -595,6 +595,15 @@ export default function OrgSettingsScreen({ currentUser, lang }: OrgSettingsScre
                 >
                   <div
                     onClick={() => toggleSection(sec.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleSection(sec.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={!!openSections[sec.id]}
                     className="p-3 bg-white flex items-center justify-between cursor-pointer border-b border-neutral-200 select-none hover:bg-neutral-50/50"
                   >
                     <div className="flex items-center gap-2">

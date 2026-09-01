@@ -393,6 +393,15 @@ Generate formal CBO membership citation and endorsement bio for official profile
   return (
     <div
       onClick={() => onVerify?.(member)}
+      onKeyDown={(e) => {
+        if (onVerify && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onVerify(member);
+        }
+      }}
+      role={onVerify ? "button" : undefined}
+      tabIndex={onVerify ? 0 : undefined}
+      aria-label={onVerify ? `Verify membership card for ${member.name}` : undefined}
       id={`member-id-card-${member.id}`}
       className={`w-full max-w-sm mx-auto bg-white border ${
         isExpired ? "border-amber-500 ring-2 ring-amber-400/50" : "border-gray-200"
