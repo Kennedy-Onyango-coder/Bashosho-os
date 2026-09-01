@@ -11,7 +11,41 @@ env:
   REGION: ${{ secrets.GCP_REGION }}
 
 jobs:
+  # Gate on the same checks a human is expected to run locally before shipping —
+  # "if tests fail, do not deploy" only means something if the pipeline actually
+  # can't proceed past a failure here. The deploy job below declares `needs: test`,
+  # so GitHub Actions will not run it at all if this job fails.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22 (matches firebase-admin's minimum supported version)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript validation
+        run: npx tsc --noEmit
+
+      - name: Automated tests
+        run: npm run test
+
+      - name: Security audit (fails on high/critical only — see project notes on the
+          known moderate uuid advisory, which is not reachable through how this app
+          uses its dependencies and is deliberately not force-downgraded)
+        run: npm audit --audit-level=high
+
+      - name: Production build
+        run: npm run build
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,6 +74,7 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Deploy to Cloud Run
+        id: deploy
         run: |
           gcloud run deploy "${{ env.SERVICE_NAME }}" \
             --image "${{ env.IMAGE }}" \
@@ -47,3 +82,34 @@ jobs:
             --region "${{ env.REGION }}" \
             --platform managed \
             --quiet
+          SERVICE_URL=$(gcloud run services describe "${{ env.SERVICE_NAME }}" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
+            --format "value(status.url)")
+          echo "SERVICE_URL=$SERVICE_URL" >> "$GITHUB_ENV"
+
+      # Master doc Phase 36: "do not allow production to accidentally operate against
+      # EPHEMERAL_MOCK_FILE or development seed data" — /api/health already reports
+      # dbMode for exactly this reason; this step is what actually acts on it. A
+      # deploy that silently fell back to the mock file store (e.g. a misconfigured
+      # or missing Firebase service account secret) would otherwise look successful
+      # while quietly not touching real Bashosho data at all.
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5; do
+            HEALTH=$(curl -sf "${{ env.SERVICE_URL }}/api/health") && break
+            echo "Health check attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "$HEALTH"
+          echo "$HEALTH" | grep -q '"status":"ok"' || (echo "Health check did not report ok" && exit 1)
+          # A shell variable set in one `run:` step does not persist to the next step
+          # in GitHub Actions (each is a fresh shell) — pass it forward explicitly.
+          echo "HEALTH<<EOF" >> "$GITHUB_ENV"
+          echo "$HEALTH" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+
+      - name: Smoke test — refuse to ship a build silently running on mock data
+        run: |
+          echo "$HEALTH" | grep -q '"dbMode":"REAL_FIRESTORE"' || \
+            (echo "REFUSING DEPLOY RESULT: production reports dbMode != REAL_FIRESTORE — check FIREBASE_SERVICE_ACCOUNT is correctly set as a Cloud Run secret." && exit 1)
