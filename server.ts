@@ -335,7 +335,8 @@ async function getRoles(): Promise<any[]> {
         // deployment; it does not touch or remove any existing role document already
         // sitting in a live "roles" collection.
         { id: "program_member", roleKey: "program_member", name: "Program Member", originalName: "Program Member", isSystem: true, description: "Regular program member" },
-        { id: "volunteer", roleKey: "volunteer", name: "Volunteer Staff", originalName: "Volunteer Staff", isSystem: true, description: "Volunteer worker" }
+        { id: "volunteer", roleKey: "volunteer", name: "Volunteer Staff", originalName: "Volunteer Staff", isSystem: true, description: "Volunteer worker" },
+        { id: "intern", roleKey: "intern", name: "Intern", originalName: "Intern", isSystem: true, description: "May work across different program areas depending on expertise" }
       ];
       for (const r of defaultRolesList) {
         await db.collection("roles").doc(r.id).set(r);
@@ -538,8 +539,11 @@ function buildDefaultPermissionsForRole(roleKey: string): any {
 
     case "program_member":
     case "volunteer":
+    case "intern":
       // Old code granted these roles nothing beyond the always-open dashboard/handbook/
-      // classes/security tabs.
+      // classes/security tabs. Intern gets the same minimal baseline as Member/
+      // Volunteer by default — a real org role now exists to assign people to, but it
+      // doesn't come with any elevated access just by being added.
       break;
 
     default:

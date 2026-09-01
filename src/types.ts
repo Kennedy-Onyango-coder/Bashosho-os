@@ -24,7 +24,13 @@ export enum UserRole {
   // should be able to tell which hat they're acting under.
   EXECUTIVE_DIRECTOR = "executive_director",
   MEMBER_REPRESENTATIVE = "member_representative",
-  COMMUNICATIONS_MARKETING = "communications_marketing"
+  COMMUNICATIONS_MARKETING = "communications_marketing",
+  // Bashosho's own org structure names Interns as a distinct category from Members and
+  // Volunteers ("may work in different areas depending on expertise") — previously had
+  // no roleKey at all and would have fallen through to the generic slugify fallback
+  // below, landing wherever "intern" happened to slugify to rather than a real,
+  // permission-matched role. New, additive — doesn't touch any existing role.
+  INTERN = "intern"
 }
 
 export function getCanonicalRoleKey(roleOrName?: string, docId?: string): string {
@@ -41,6 +47,7 @@ export function getCanonicalRoleKey(roleOrName?: string, docId?: string): string
     if (idLower === "executive_director") return UserRole.EXECUTIVE_DIRECTOR;
     if (idLower === "member_representative") return UserRole.MEMBER_REPRESENTATIVE;
     if (idLower === "communications_marketing") return UserRole.COMMUNICATIONS_MARKETING;
+    if (idLower === "intern") return UserRole.INTERN;
   }
 
   if (!roleOrName) return "";
@@ -58,6 +65,7 @@ export function getCanonicalRoleKey(roleOrName?: string, docId?: string): string
   if (str === UserRole.EXECUTIVE_DIRECTOR) return UserRole.EXECUTIVE_DIRECTOR;
   if (str === UserRole.MEMBER_REPRESENTATIVE) return UserRole.MEMBER_REPRESENTATIVE;
   if (str === UserRole.COMMUNICATIONS_MARKETING) return UserRole.COMMUNICATIONS_MARKETING;
+  if (str === UserRole.INTERN) return UserRole.INTERN;
 
   // Matching display strings
   // "Executive Director" / "CBO Chief" is checked BEFORE and separately from chairperson
@@ -99,6 +107,9 @@ export function getCanonicalRoleKey(roleOrName?: string, docId?: string): string
   }
   if (str.includes("volunteer")) {
     return UserRole.VOLUNTEER;
+  }
+  if (str.includes("intern")) {
+    return UserRole.INTERN;
   }
   if (str.includes("member")) {
     return UserRole.PROGRAM_MEMBER;
