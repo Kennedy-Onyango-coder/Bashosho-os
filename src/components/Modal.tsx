@@ -28,8 +28,17 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
-  const hasFocusedRef = useRef(false);
   const titleId = useId();
+
+  // Hold the latest onClose in a ref so the effect below can depend solely on [isOpen].
+  // The parent of a controlled form passes onClose as an inline arrow, which gets a
+  // brand-new identity on every render. If the effect listed onClose as a dependency it
+  // would tear down and re-run on every keystroke — and its cleanup restores focus to the
+  // element that opened the dialog — yanking the user's cursor out of the field they're
+  // typing in after every single character. Reading onClose from a ref keeps the whole
+  // focus-management effect tied to open/close transitions only.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Accessibility: this Modal is the single dialog primitive used across the whole
   // app (dozens of forms/edit screens), so fixing it once here fixes it everywhere.
@@ -47,14 +56,6 @@ export const Modal: React.FC<ModalProps> = ({
     // Defer to the next tick so the panel has actually mounted/animated in before we
     // try to find something inside it to focus.
     const focusTimer = window.setTimeout(() => {
-      // Only move focus on the very first tick of each open. Without this guard the
-      // effect re-runs whenever a parent hands us a fresh onClose identity (the normal
-      // case for controlled forms, since the inline arrow changes every render). That
-      // re-focus would yank the cursor back to the dialog's first focusable — the
-      // header Close button — on every keystroke, so a user could never type more than
-      // one character before losing their place.
-      if (hasFocusedRef.current) return;
-      hasFocusedRef.current = true;
       const panel = panelRef.current;
       if (!panel) return;
       const focusable = panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
@@ -63,7 +64,7 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -90,19 +91,17 @@ export const Modal: React.FC<ModalProps> = ({
       window.clearTimeout(focusTimer);
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
-      // Return focus to whatever opened this dialog, if it's still on the page.
+      // Return focus to whatever opened this dialog, if it's still on the page. Because
+      // this effect only runs on open/close (dependency: [isOpen]) and NOT on every
+      // re-render, this restore fires once when the dialog truly closes — never while the
+      // user is mid-keystroke inside a field.
       if (previouslyFocusedRef.current && document.contains(previouslyFocusedRef.current)) {
         previouslyFocusedRef.current.focus();
       }
     };
-  }, [isOpen, onClose]);
-
-  // Reset the one-time initial-focus guard once the dialog has fully closed, so the
-  // next open performs the focus-in again instead of leaving focus stranded wherever
-  // the user happened to be. Kept as its own effect because the main effect above
-  // early-returns while the dialog is closed.
-  useEffect(() => {
-    if (!isOpen) hasFocusedRef.current = false;
+    // Intentionally depend only on isOpen (not onClose): see the onCloseRef note above.
+    // The effect must not re-run on parent re-renders, or it would steal focus from the
+    // active input on every keystroke — the exact bug this file fixes.
   }, [isOpen]);
 
   if (!isOpen) return null;
