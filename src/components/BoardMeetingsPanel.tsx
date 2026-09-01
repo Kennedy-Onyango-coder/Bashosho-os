@@ -268,8 +268,10 @@ export default function BoardMeetingsPanel({ lang, currentUser, documents, onCre
                           <p className="text-[10px] text-neutral-500 font-mono">{pt.assignedToName} — {lang === "en" ? "by" : "kabla ya"} {pt.deadline}</p>
                         </div>
                         {pt.taskId ? (
-                          <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 shrink-0">
-                            <CheckCircle2 size={12} /> {lang === "en" ? "Task created" : "Kazi imeundwa"}
+                          <span className={`text-[10px] font-bold flex items-center gap-1 shrink-0 ${pt.taskCompletedDate ? "text-emerald-700" : "text-blue-600"}`}>
+                            <CheckCircle2 size={12} /> {pt.taskCompletedDate
+                              ? (lang === "en" ? "Task completed" : "Kazi imekamilika")
+                              : (lang === "en" ? "Task in progress" : "Kazi inaendelea")}
                           </span>
                         ) : (
                           <button

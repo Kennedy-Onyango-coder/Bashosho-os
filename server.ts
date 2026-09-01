@@ -4431,6 +4431,29 @@ app.post("/api/tasks", requireAuth, async (req: AuthenticatedRequest, res: expre
             id: existing.id
           };
       logActivity(req, "tasks", "edit", existing.id, updated.title, data, updated);
+
+      // Reflect task completion back onto its originating meeting action point ("If
+      // the task is completed, the original meeting action point should reflect
+      // that" — master doc Phase 10). Only fires on the actual transition into
+      // "completed", not on every edit, and only for tasks that came from a meeting.
+      if (updated.status === "completed" && data.status !== "completed" && data.sourceMeetingId && data.sourceActionPointId) {
+        try {
+          const meetingRef = db.collection("board_meetings").doc(data.sourceMeetingId);
+          const meetingSnap = await meetingRef.get();
+          if (meetingSnap.exists) {
+            const meeting = meetingSnap.data()!;
+            const points: any[] = meeting.actionPoints || [];
+            const updatedPoints = points.map((p: any) =>
+              p.id === data.sourceActionPointId ? { ...p, taskCompletedDate: updated.completedDate } : p
+            );
+            await meetingRef.update({ actionPoints: updatedPoints });
+          }
+        } catch (syncErr) {
+          // Never let this side-sync fail the actual task completion the user asked for.
+          console.error("Failed to sync task completion back to meeting action point:", syncErr);
+        }
+      }
+
       return saveDocument("tasks", existing.id, updated, req, res);
     }
 
@@ -4854,7 +4877,11 @@ app.post("/api/board_meetings/:id/action_points/:pointId/create_task", requireAu
       priority: "medium",
       dueDate: point.deadline,
       status: "pending",
-      createdDate: new Date().toISOString().split("T")[0]
+      createdDate: new Date().toISOString().split("T")[0],
+      // Lets completing this task automatically reflect back onto the meeting's
+      // action point — see the completion sync in the /api/tasks update handler.
+      sourceMeetingId: req.params.id,
+      sourceActionPointId: req.params.pointId
     };
     await db.collection("tasks").doc(taskId).set(task);
 

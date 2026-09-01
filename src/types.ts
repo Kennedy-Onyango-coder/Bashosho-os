@@ -546,6 +546,9 @@ export interface BoardMeeting {
     assignedToName: string;
     deadline: string;
     taskId?: string;
+    /** Set automatically when the linked task is marked completed — see the task
+     *  update handler in server.ts. Never set directly by editing the meeting. */
+    taskCompletedDate?: string;
   }[];
   createdBy: string;
   createdDate: string;
@@ -653,6 +656,11 @@ export interface Task {
   status: TaskStatus;
   createdDate: string;
   completedDate?: string;
+  /** Set only when this task was created via a meeting's "Create Task" button on a
+   *  decision/action point — lets completing the task automatically reflect back onto
+   *  that action point (see server.ts's task update handler). */
+  sourceMeetingId?: string;
+  sourceActionPointId?: string;
 }
 
 /** A single logged outreach/rehearsal/training/booking session — the real, countable
