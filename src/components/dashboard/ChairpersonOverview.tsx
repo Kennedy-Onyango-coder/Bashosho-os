@@ -7,6 +7,7 @@ import DashboardTrendChart from "./DashboardTrendChart";
 import NotificationFeed, { NotificationItem } from "./NotificationFeed";
 import QuickActions, { QuickAction } from "./QuickActions";
 import GlobalSearch from "./GlobalSearch";
+import MembershipPaymentsWidget from "./MembershipPaymentsWidget";
 
 interface ChairpersonOverviewProps {
   lang: "en" | "sw";
@@ -211,6 +212,8 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
           onClick={() => onNavigateToTab("handbook")}
         />
       </div>
+
+      <MembershipPaymentsWidget lang={lang} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-7 bg-neutral-900 border border-neutral-800 rounded-xl p-4">

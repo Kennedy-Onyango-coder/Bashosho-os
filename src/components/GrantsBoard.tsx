@@ -1,8 +1,9 @@
-import { Lock, AlertTriangle, Link, Pencil, Trash2, X, Sparkles, Globe } from "lucide-react";
+import { Lock, AlertTriangle, Link, Pencil, Trash2, X, Sparkles, Globe, CheckCircle2, HelpCircle, XCircle, Plus } from "lucide-react";
 import React from "react";
 import Modal from "./Modal";
 import { Grant, UserRole, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
+import { computeEligibilityVerdict } from "../../grantEligibility";
 
 interface GrantsBoardProps {
   currentUser: any;
@@ -55,6 +56,47 @@ export default function GrantsBoard({ currentUser, lang }: GrantsBoardProps) {
     } finally {
       setGeneratingProposalId(null);
     }
+  };
+
+  // Eligibility checklist (master doc Phase 13). Deliberately simple CRUD against the
+  // grant record — the verdict is computed purely from what's here (see
+  // grantEligibility.ts), never independently claimed. Adding/toggling a requirement
+  // reuses the same StorageService.saveRecord path as the rest of this board.
+  const [checklistOpenFor, setChecklistOpenFor] = React.useState<string | null>(null);
+  const [newRequirementText, setNewRequirementText] = React.useState("");
+
+  const addEligibilityRequirement = (grant: Grant) => {
+    if (!newRequirementText.trim()) return;
+    const updated: Grant = {
+      ...grant,
+      eligibilityChecklist: [
+        ...(grant.eligibilityChecklist || []),
+        { id: `req-${Date.now()}`, requirement: newRequirementText.trim(), status: "needs_verification" }
+      ]
+    };
+    setGrants(grants.map(g => g.id === grant.id ? updated : g));
+    StorageService.saveRecord("grants", updated).catch(console.error);
+    setNewRequirementText("");
+  };
+
+  const setRequirementStatus = (grant: Grant, reqId: string, status: "met" | "not_met" | "needs_verification") => {
+    const updated: Grant = {
+      ...grant,
+      eligibilityChecklist: (grant.eligibilityChecklist || []).map(item =>
+        item.id === reqId ? { ...item, status } : item
+      )
+    };
+    setGrants(grants.map(g => g.id === grant.id ? updated : g));
+    StorageService.saveRecord("grants", updated).catch(console.error);
+  };
+
+  const removeRequirement = (grant: Grant, reqId: string) => {
+    const updated: Grant = {
+      ...grant,
+      eligibilityChecklist: (grant.eligibilityChecklist || []).filter(item => item.id !== reqId)
+    };
+    setGrants(grants.map(g => g.id === grant.id ? updated : g));
+    StorageService.saveRecord("grants", updated).catch(console.error);
   };
 
   const handleGenerateGrantPitchAiDraft = async () => {
@@ -300,6 +342,71 @@ Notes context: ${notes || "None provided — do not invent specific objectives o
                           "{grant.notes}"
                         </p>
                       )}
+
+                      {(() => {
+                        const verdict = computeEligibilityVerdict(grant.eligibilityChecklist);
+                        const verdictConfig = {
+                          eligible: { label: lang === "en" ? "Eligible" : "Inastahili", icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                          not_eligible: { label: lang === "en" ? "Not Eligible" : "Haistahili", icon: XCircle, cls: "bg-red-50 text-red-600 border-red-200" },
+                          needs_verification: { label: lang === "en" ? "Needs Verification" : "Inahitaji Uthibitisho", icon: HelpCircle, cls: "bg-amber-50 text-amber-700 border-amber-200" },
+                          no_requirements_listed: { label: lang === "en" ? "No requirements listed" : "Hakuna mahitaji", icon: HelpCircle, cls: "bg-neutral-50 text-neutral-400 border-neutral-200" }
+                        }[verdict];
+                        const VerdictIcon = verdictConfig.icon;
+                        const isOpen = checklistOpenFor === grant.id;
+                        return (
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => setChecklistOpenFor(isOpen ? null : grant.id)}
+                              className={`w-full flex items-center justify-between gap-1.5 border rounded-lg px-2 py-1.5 text-[10px] font-bold cursor-pointer ${verdictConfig.cls}`}
+                            >
+                              <span className="flex items-center gap-1.5"><VerdictIcon size={12} /> {verdictConfig.label}</span>
+                              <span className="font-mono opacity-60">{(grant.eligibilityChecklist || []).length} {lang === "en" ? "reqs" : "mahitaji"}</span>
+                            </button>
+                            {isOpen && (
+                              <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-2.5 space-y-2">
+                                {(grant.eligibilityChecklist || []).map(item => (
+                                  <div key={item.id} className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-neutral-700 flex-1 truncate">{item.requirement}</span>
+                                    <select
+                                      value={item.status}
+                                      onChange={e => setRequirementStatus(grant, item.id, e.target.value as any)}
+                                      className={`text-[9px] font-bold rounded px-1 py-0.5 border cursor-pointer ${
+                                        item.status === "met" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : item.status === "not_met" ? "bg-red-50 text-red-600 border-red-200"
+                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                      }`}
+                                    >
+                                      <option value="needs_verification">{lang === "en" ? "Unverified" : "Haijathibitishwa"}</option>
+                                      <option value="met">{lang === "en" ? "Met" : "Imetimizwa"}</option>
+                                      <option value="not_met">{lang === "en" ? "Not Met" : "Haijatimizwa"}</option>
+                                    </select>
+                                    <button onClick={() => removeRequirement(grant, item.id)} className="text-neutral-300 hover:text-red-500 cursor-pointer shrink-0">
+                                      <X size={11} />
+                                    </button>
+                                  </div>
+                                ))}
+                                <div className="flex gap-1.5 pt-1">
+                                  <input
+                                    value={newRequirementText}
+                                    onChange={e => setNewRequirementText(e.target.value)}
+                                    onKeyDown={e => { if (e.key === "Enter") addEligibilityRequirement(grant); }}
+                                    placeholder={lang === "en" ? "e.g. Registered CBO in Kenya" : "mfano: CBO iliyosajiliwa Kenya"}
+                                    className="flex-1 bg-white border border-neutral-200 rounded px-2 py-1 text-[10px]"
+                                  />
+                                  <button onClick={() => addEligibilityRequirement(grant)} className="bg-neutral-900 hover:bg-black text-white rounded px-2 cursor-pointer">
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                                <p className="text-[9px] text-neutral-400 leading-snug pt-1 border-t border-neutral-200">
+                                  {lang === "en"
+                                    ? "Enter each real requirement from the funder's own call and mark it only once you've actually checked it — this never auto-verifies anything."
+                                    : "Weka kila hitaji halisi kutoka kwa mfadhili na uliweke tu baada ya kuthibitisha — hii haithibitishi kiotomatiki."}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {(grant.status === "identified" || grant.status === "preparing") && (
                         <button

@@ -3,6 +3,7 @@ import { Wallet, Clock3, FolderKanban, AlertTriangle } from "lucide-react";
 import { Income, ExpenditureRequest, BudgetEngagement } from "../../types";
 import StatCard from "./StatCard";
 import DashboardTrendChart from "./DashboardTrendChart";
+import MembershipPaymentsWidget from "./MembershipPaymentsWidget";
 
 interface TreasurerOverviewProps {
   lang: "en" | "sw";
@@ -65,6 +66,8 @@ export default function TreasurerOverview({
           accent="neutral"
         />
       </div>
+
+      <MembershipPaymentsWidget lang={lang} />
 
       {engagementUtilization.length > 0 && (
         <div className="bg-white border border-amber-200 rounded-xl p-4">

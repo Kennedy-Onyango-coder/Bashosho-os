@@ -3835,7 +3835,11 @@ app.get("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest,
     const snap = await db.collection("contract_renewals").get();
     const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
     const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
-    const visible = (userRoleKey === "chairperson" || userRoleKey === "vice_chairperson")
+    // BUG FIX: Treasurer was missing from this list — meaning the one role whose
+    // actual job is tracking membership fee payments could only ever see their OWN
+    // renewal record here, not anyone else's. The Treasurer-facing payment-tracking
+    // dashboard (TreasurerOverview.tsx) depends on this endpoint returning everyone.
+    const visible = (userRoleKey === "chairperson" || userRoleKey === "vice_chairperson" || userRoleKey === "treasurer")
       ? items
       : items.filter(item => item.userId === req.user!.id);
     // Every visible contract gets a real, scannable QR — members printing their own

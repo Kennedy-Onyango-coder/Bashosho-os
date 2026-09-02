@@ -621,6 +621,18 @@ export interface Grant {
   source?: "public_website" | "manual";
   contactPhone?: string;
   contactEmail?: string;
+  /** Eligibility checklist (master doc Phase 13). Deliberately human-driven, not
+   *  AI-auto-verified — the doc's own rule is "NEVER claim eligibility where
+   *  evidence is missing", and an AI self-assessing eligibility risks exactly that.
+   *  Staff enter each requirement from the actual opportunity and mark it true only
+   *  once they've genuinely checked it. The overall verdict is computed from these,
+   *  never asserted independently. */
+  eligibilityChecklist?: {
+    id: string;
+    requirement: string;
+    status: "met" | "not_met" | "needs_verification";
+    note?: string;
+  }[];
 }
 
 export interface Income {

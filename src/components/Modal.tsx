@@ -30,6 +30,20 @@ export const Modal: React.FC<ModalProps> = ({
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
+  // BUG FIX: this effect previously depended on [isOpen, onClose]. onClose is almost
+  // always a fresh inline arrow function from whichever screen renders this Modal, so
+  // it gets a brand-new reference on every parent re-render — including the re-render
+  // caused by typing a single character into a controlled input inside the modal.
+  // Each of those re-renders re-ran this whole effect: re-captured
+  // document.activeElement (the field being typed into) as "the element to return
+  // focus to later", then immediately moved focus to the FIRST focusable element in
+  // the panel. That's exactly the reported symptom — type one letter, focus jumps
+  // away, click back in, repeat. A ref holds the latest onClose without needing it in
+  // the dependency array, so this effect now only actually runs on a real open/close
+  // transition, never on a keystroke.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   // Accessibility: this Modal is the single dialog primitive used across the whole
   // app (dozens of forms/edit screens), so fixing it once here fixes it everywhere.
   // Adds the three things a real dialog needs beyond Escape-to-close (already
@@ -54,7 +68,7 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -86,7 +100,9 @@ export const Modal: React.FC<ModalProps> = ({
         previouslyFocusedRef.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+    // Deliberately NOT including onClose here — see the comment above onCloseRef.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
