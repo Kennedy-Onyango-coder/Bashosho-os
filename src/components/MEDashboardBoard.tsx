@@ -2,6 +2,7 @@ import React from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { Users, MapPin, Activity, Download, Baby } from "lucide-react";
 import { ProgramSession, ProgramArea } from "../types";
+import { filterSessionsByPeriod, computeMESummary, computeByProgramArea } from "../../meCalculations";
 
 interface MEDashboardBoardProps {
   lang: "en" | "sw";
@@ -56,21 +57,14 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
   }, []);
 
   const now = new Date();
-  const filtered = sessions.filter(s => {
-    const d = new Date(s.date);
-    if (isNaN(d.getTime())) return period === "all";
-    if (period === "this_year") return d.getFullYear() === now.getFullYear();
-    if (period === "this_month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    return true;
-  });
+  const filtered = filterSessionsByPeriod<ProgramSession>(sessions, period, now);
 
   // --- Headline totals — every number here is a straight sum of what staff/volunteers
   // actually logged in Program Outcomes. Nothing here is estimated or extrapolated. ---
-  const totalSessions = filtered.length;
-  const totalParticipants = filtered.reduce((s, r) => s + (Number(r.participantsReached) || 0), 0);
-  const totalMale = filtered.reduce((s, r) => s + (Number(r.maleCount) || 0), 0);
-  const totalFemale = filtered.reduce((s, r) => s + (Number(r.femaleCount) || 0), 0);
-  const totalChildren = filtered.reduce((s, r) => s + (Number(r.childrenCount) || 0), 0);
+  const meSummary = computeMESummary(filtered);
+  const { totalSessions, totalParticipants, totalMale, totalFemale, totalChildren } = meSummary;
+  // Kept as real Sets (not just the summary's counts) because the geographic
+  // breakdown below needs to iterate the actual location names, not just a count.
   const uniqueLocations = new Set(filtered.map(r => r.location.trim().toLowerCase()).filter(Boolean));
   const uniqueFacilitators = new Set(
     filtered.flatMap(r => r.facilitators.split(",").map(f => f.trim().toLowerCase()).filter(Boolean))
@@ -78,19 +72,11 @@ export default function MEDashboardBoard({ lang }: MEDashboardBoardProps) {
 
   // --- By program area ---
   const areaKeys = Object.keys(PROGRAM_AREA_LABELS) as ProgramArea[];
-  const byArea = areaKeys
-    .map(area => {
-      const rows = filtered.filter(r => r.programArea === area);
-      return {
-        area,
-        label: PROGRAM_AREA_LABELS[area][lang],
-        sessions: rows.length,
-        participants: rows.reduce((s, r) => s + (Number(r.participantsReached) || 0), 0),
-        color: AREA_COLORS[area]
-      };
-    })
-    .filter(a => a.sessions > 0)
-    .sort((a, b) => b.participants - a.participants);
+  const byArea = computeByProgramArea(filtered, areaKeys).map(a => ({
+    ...a,
+    label: PROGRAM_AREA_LABELS[a.area as ProgramArea][lang],
+    color: AREA_COLORS[a.area as ProgramArea]
+  }));
 
   // --- Monthly trend (last 6 calendar months up to now, regardless of period filter,
   // so the trend chart always shows a stable recent window) ---
