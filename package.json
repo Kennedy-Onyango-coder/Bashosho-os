@@ -17,7 +17,8 @@
     "test:finance": "tsx scripts/test-financial-calculations.ts",
     "test:tasks": "tsx scripts/test-task-authorization.ts",
     "test:me": "tsx scripts/test-me-calculations.ts",
-    "test": "npm run test:finance && npm run test:tasks && npm run test:me"
+    "test:roles": "tsx scripts/test-role-permissions.ts",
+    "test": "npm run test:finance && npm run test:tasks && npm run test:me && npm run test:roles"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
