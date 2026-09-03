@@ -13,6 +13,7 @@ import { generateTotpSecret, generateTotpUri, verifyTotpToken, generateBackupCod
 import { calculatePerformanceSettlement, calculateCastPayment } from "./financialCalculations";
 import { checkTaskStatusTransition } from "./taskAuthorization";
 import { PERMISSION_MODULE_KEYS, PERMISSION_ACTIONS, buildDefaultPermissionsForRole, emptyPermSet, fullPermSet } from "./rolePermissions";
+import { canViewDocumentConfidentiality, DocumentAccessContext } from "./documentAccess";
 
 // Safety net for local development: some Google Cloud client libraries fire background
 // credential/metadata-probing promises that reject OUTSIDE any of our own try/catch blocks
@@ -443,6 +444,18 @@ async function getRolePermissionsForRoleKey(roleKey: string): Promise<any> {
     isSystemRole: false,
     orgId: "bashosho",
     permissions: buildDefaultPermissionsForRole(roleKey)
+  };
+}
+
+async function buildDocumentAccessContext(req: AuthenticatedRequest): Promise<DocumentAccessContext> {
+  const roleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+  const roleData = await getRolePermissionsForRoleKey(roleKey);
+  const perms = roleData?.permissions || {};
+  return {
+    roleKey,
+    hasDocumentsView: !!perms.documents?.view,
+    hasDocumentsEdit: !!perms.documents?.edit,
+    hasFinanceView: !!perms.finance?.view
   };
 }
 
@@ -2555,7 +2568,17 @@ app.post("/api/roles/reassign", requireAuth, requirePermission("roles", "edit"),
 });
 
 // 2. DOCUMENTS
-app.get("/api/documents", requireAuth, requirePermission("documents", "view"), (req, res) => fetchCollection("documents", req, res));
+app.get("/api/documents", requireAuth, requirePermission("documents", "view"), async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const snap = await db.collection("documents").get();
+    const items = snap.docs.map(d => d.data());
+    const ctx = await buildDocumentAccessContext(req);
+    const visible = items.filter((doc: any) => canViewDocumentConfidentiality(doc.confidentiality, ctx));
+    return res.json(visible);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to fetch documents", details: err.message });
+  }
+});
 
 app.post("/api/documents", requireAuth, requirePermission("documents", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   const doc = req.body;
@@ -2583,8 +2606,23 @@ app.post("/api/documents", requireAuth, requirePermission("documents", "create")
 });
 
 // Document audit trail logs
-app.get("/api/documents/:id/audit", requireAuth, async (req: AuthenticatedRequest, res): Promise<any> => {
+// SECURITY FIX: this endpoint previously had only requireAuth — no documents:view
+// check at all, and no awareness that the underlying document might be confidential.
+// Any authenticated user (regardless of documents access) could probe it by document
+// ID and see who created/edited a document, and its title, even for a leadership-only
+// or finance-only document. Now requires documents:view as a baseline, and also
+// checks the SPECIFIC document's own confidentiality tier before returning its trail —
+// having general documents access doesn't automatically mean you can see the audit
+// history of every individual document.
+app.get("/api/documents/:id/audit", requireAuth, requirePermission("documents", "view"), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
+    const docSnap = await db.collection("documents").doc(req.params.id).get();
+    if (docSnap.exists) {
+      const ctx = await buildDocumentAccessContext(req);
+      if (!canViewDocumentConfidentiality(docSnap.data()?.confidentiality, ctx)) {
+        return res.status(403).json({ error: "You do not have access to this document." });
+      }
+    }
     const snap = await db.collection("document_audit_trails").where("documentId", "==", req.params.id).orderBy("timestamp", "desc").get();
     const items = snap.docs.map(doc => doc.data());
     return res.json(items);

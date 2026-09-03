@@ -200,6 +200,10 @@ export interface Document {
   /** For documents with a validity window (e.g. a signed MoU, an insurance
    *  certificate) — shown as an expiry warning, never auto-deletes or hides anything. */
   expiryDate?: string;
+  /** Confidentiality tier (master doc Phase 7), enforced server-side — see
+   *  documentAccess.ts. Undefined/omitted is treated as "internal", matching the
+   *  access every document had before this field existed. */
+  confidentiality?: "public" | "internal" | "confidential" | "finance_only" | "leadership_only" | "restricted";
 }
 
 export interface BudgetEngagement {

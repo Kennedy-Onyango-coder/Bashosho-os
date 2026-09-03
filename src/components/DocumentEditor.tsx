@@ -20,6 +20,7 @@ export default function DocumentEditor({
   const [title, setTitle] = React.useState(document?.title || "");
   const [type, setType] = React.useState<DocumentType>(document?.type || "minutes");
   const [content, setContent] = React.useState(document?.content || "");
+  const [confidentiality, setConfidentiality] = React.useState<Document["confidentiality"]>(document?.confidentiality || "internal");
   const [roughNotes, setRoughNotes] = React.useState("");
   const [isAiLoading, setIsAiLoading] = React.useState(false);
   const [aiError, setAiError] = React.useState<string | null>(null);
@@ -71,10 +72,18 @@ export default function DocumentEditor({
     if (!title.trim() || !content.trim()) return;
 
     const savedDoc: Document = {
+      // BUG FIX: this previously rebuilt the document from scratch with only the
+      // fields this form knows about, which silently dropped version/supersedesId/
+      // expiryDate/partnerId/verificationUrl on every edit — editing an approved,
+      // versioned document through this form would erase its version history link.
+      // Spreading the original first, then overriding only what this form actually
+      // edits, preserves everything else exactly as it was.
+      ...document,
       id: document?.id || `doc-${Date.now()}`,
       title,
       type,
       content,
+      confidentiality,
       date: document?.date || new Date().toISOString().split("T")[0],
       author: document?.author || authorName,
       status: document?.status || "draft",
@@ -138,6 +147,25 @@ export default function DocumentEditor({
               <option value="activity">{lang === "en" ? "Activity/Outreach Report" : "Ripoti ya Miradi"}</option>
               <option value="budget">{lang === "en" ? "Budget Explanatory Settlement" : "Ufafanuzi wa Bajeti"}</option>
               <option value="proposal">{lang === "en" ? "Grant Proposal (AI-assisted draft)" : "Pendekezo la Ruzuku"}</option>
+            </select>
+          </div>
+
+          {/* Confidentiality */}
+          <div>
+            <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1.5 font-mono">
+              {lang === "en" ? "Confidentiality" : "Usiri"}
+            </label>
+            <select
+              value={confidentiality}
+              onChange={(e) => setConfidentiality(e.target.value as Document["confidentiality"])}
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 font-medium"
+            >
+              <option value="public">{lang === "en" ? "Public" : "Wazi"}</option>
+              <option value="internal">{lang === "en" ? "Internal — anyone with document access" : "Ndani — wenye ruhusa ya nyaraka"}</option>
+              <option value="confidential">{lang === "en" ? "Confidential — document editors only" : "Siri — wahariri wa nyaraka pekee"}</option>
+              <option value="finance_only">{lang === "en" ? "Finance staff only" : "Wafanyakazi wa fedha pekee"}</option>
+              <option value="leadership_only">{lang === "en" ? "Leadership only" : "Uongozi pekee"}</option>
+              <option value="restricted">{lang === "en" ? "Restricted — Chairperson/Vice Chairperson only" : "Imezuiliwa — Mwenyekiti/Makamu pekee"}</option>
             </select>
           </div>
 
