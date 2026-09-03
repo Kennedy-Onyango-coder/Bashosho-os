@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { getStorage } from "firebase-admin/storage";
+import sharp from "sharp";
 import { DocumentData, FieldValue } from "firebase-admin/firestore";
 import crypto from "crypto";
 import { generateTotpSecret, generateTotpUri, verifyTotpToken, generateBackupCodes } from "./totp";
@@ -1074,7 +1075,7 @@ app.post("/api/upload", requireAuth, async (req: AuthenticatedRequest, res: expr
     if (!decoded) {
       return res.status(400).json({ error: "Invalid or unrecognized image upload. Only JPEG, PNG and WebP images are accepted." });
     }
-    const { mimeType, buffer } = decoded;
+    const { buffer } = decoded;
 
     const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB — no size limit existed here before
     if (buffer.length > MAX_UPLOAD_BYTES) {
@@ -1088,15 +1089,25 @@ app.post("/api/upload", requireAuth, async (req: AuthenticatedRequest, res: expr
     const withoutExt = filename.replace(/\.[^/.]+$/, "");
     const cleanFilename = withoutExt.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100) || "file";
 
-    const extensionForMimeType: Record<string, string> = {
-      "image/png": "png",
-      "image/webp": "webp",
-      "image/jpeg": "jpg",
-      "image/jpg": "jpg"
-    };
-    const ext = extensionForMimeType[mimeType] || "jpg";
-    const publicUrl = await saveFile(`uploads/${Date.now()}-${cleanFilename}.${ext}`, buffer, mimeType, true);
-    return res.json({ url: publicUrl });
+    // Resize + convert to WebP + generate a thumbnail — see optimizeImageForStorage.
+    // If sharp itself fails on a technically-valid-but-unusual file (a corrupt or
+    // exotic image sharp can't decode), fail the upload rather than silently falling
+    // back to storing the original unoptimized bytes — a clear error is better than a
+    // policy that silently stops applying under conditions nobody would notice.
+    let optimized: { main: Buffer; thumbnail: Buffer };
+    try {
+      optimized = await optimizeImageForStorage(buffer);
+    } catch (sharpErr: any) {
+      console.error("Image optimization failed:", sharpErr);
+      return res.status(400).json({ error: "This image could not be processed. Try a different file or format." });
+    }
+
+    const baseName = `${Date.now()}-${cleanFilename}`;
+    const [publicUrl, thumbnailUrl] = await Promise.all([
+      saveFile(`uploads/${baseName}.webp`, optimized.main, "image/webp", true),
+      saveFile(`uploads/${baseName}-thumb.webp`, optimized.thumbnail, "image/webp", true)
+    ]);
+    return res.json({ url: publicUrl, thumbnailUrl });
   } catch (error: any) {
     console.error("Upload handler failed:", error);
     const userFriendlyError = error.message && error.message.includes("File upload failed")
@@ -2212,6 +2223,51 @@ app.get("/api/roles", requireAuth, async (req, res: express.Response): Promise<a
     return res.json(rolesList);
   } catch (err: any) {
     return res.status(500).json({ error: "Failed to fetch roles", details: err.message });
+  }
+});
+
+// Legacy-role migration mechanism (master doc: "existing user → new appropriate role
+// → verify zero remaining users → remove legacy role. Do not leave the legacy role
+// indefinitely."). This is the missing piece that actually lets Kennedy eventually
+// delete the safeguarding_officer case from buildDefaultPermissionsForRole with
+// confidence, instead of it sitting there forever "just in case".
+app.get("/api/roles/safeguarding_officer_migration_status", requireAuth, requireRole(["chairperson"]), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("profiles").where("roleKey", "==", "safeguarding_officer").get();
+    return res.json({
+      remainingCount: snap.size,
+      remainingUsers: snap.docs.map(d => ({ id: d.id, name: d.data().name }))
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to check migration status", details: err.message });
+  }
+});
+
+app.post("/api/roles/migrate_safeguarding_officer", requireAuth, requireRole(["chairperson"]), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const targetRoleKey = req.body.targetRoleKey || "programs_director";
+    const snap = await db.collection("profiles").where("roleKey", "==", "safeguarding_officer").get();
+    if (snap.empty) {
+      return res.json({ success: true, migratedCount: 0 });
+    }
+    const targetRoleDoc = await db.collection("roles").where("roleKey", "==", targetRoleKey).limit(1).get();
+    const targetRoleName = targetRoleDoc.empty ? targetRoleKey : targetRoleDoc.docs[0].data().name;
+
+    const batch = db.batch();
+    const migrated: { id: string; name: string }[] = [];
+    for (const doc of snap.docs) {
+      batch.update(doc.ref, { roleKey: targetRoleKey, role: targetRoleName });
+      migrated.push({ id: doc.id, name: doc.data().name });
+    }
+    await batch.commit();
+
+    for (const person of migrated) {
+      logActivity(req, "roles", "edit", person.id, `Migrated off retired Safeguarding & MEL Officer role to ${targetRoleName}: ${person.name}`);
+    }
+
+    return res.json({ success: true, migratedCount: migrated.length, migrated });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to migrate legacy role holders", details: err.message });
   }
 });
 
@@ -5901,8 +5957,33 @@ function bufferMatchesImageSignature(buffer: Buffer, mimeType: string): boolean 
   return false;
 }
 
-function decodeBase64Image(base64Str: string): { buffer: Buffer; mimeType: string } | null {
-  if (!base64Str || typeof base64Str !== "string") return null;
+// Real image optimization (master doc: "resized, converted to WebP, compressed...
+// create thumbnails. Do NOT store persistent uploaded images as Base64"). Previously
+// this endpoint validated and stored whatever the browser sent — a 5MB phone photo
+// stayed a 5MB phone photo in Cloud Storage forever, and nothing ever generated a
+// smaller version for fast-loading lists/galleries. This only ever runs on already-
+// validated real image bytes (never PDFs or other documents — those go through a
+// completely separate path and are deliberately never touched here, since converting
+// a signed document to an image format would destroy its evidentiary value).
+const MAIN_IMAGE_MAX_WIDTH = 1920;
+const THUMBNAIL_MAX_WIDTH = 400;
+
+async function optimizeImageForStorage(buffer: Buffer): Promise<{ main: Buffer; thumbnail: Buffer }> {
+  const image = sharp(buffer).rotate(); // .rotate() with no args auto-orients from EXIF before anything else touches the pixels
+  const [main, thumbnail] = await Promise.all([
+    image.clone()
+      .resize({ width: MAIN_IMAGE_MAX_WIDTH, withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer(),
+    image.clone()
+      .resize({ width: THUMBNAIL_MAX_WIDTH, withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer()
+  ]);
+  return { main, thumbnail };
+}
+
+function decodeBase64Image(base64Str: string): { buffer: Buffer; mimeType: string } | null {  if (!base64Str || typeof base64Str !== "string") return null;
   // Previously this defaulted to "image/jpeg" whenever the string didn't match the
   // expected data-URI prefix — meaning every caller's `mimeType.startsWith("image/")`
   // check downstream was trivially satisfied by ANY input, including one deliberately

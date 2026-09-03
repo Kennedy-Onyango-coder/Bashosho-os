@@ -2,6 +2,7 @@ import React from "react";
 import { UserProfile, UserRole, getCanonicalRoleKey, getUserRoleKey } from "../types";
 import { StorageService } from "../lib/storage";
 import RolePermissionsMatrix from "./RolePermissionsMatrix";
+import SafeguardingOfficerMigrationWidget from "./SafeguardingOfficerMigrationWidget";
 import { 
   Shield, 
   Plus, 
@@ -103,7 +104,7 @@ const t = {
   }
 };
 
-export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }: RoleManagementPanelProps) {
+export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles, currentUser }: RoleManagementPanelProps) {
   const [roles, setRoles] = React.useState<Role[]>([]);
   const [loadingRoles, setLoadingRoles] = React.useState(false);
   const [rolesError, setRolesError] = React.useState("");
@@ -467,6 +468,10 @@ export default function RoleManagementPanel({ lang, allProfiles, fetchProfiles }
           <AlertTriangle size={16} className="text-red-600 shrink-0" />
           <span>{rolesError}</span>
         </div>
+      )}
+
+      {getUserRoleKey(currentUser) === "chairperson" && (
+        <SafeguardingOfficerMigrationWidget lang={lang} onMigrated={fetchProfiles} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
