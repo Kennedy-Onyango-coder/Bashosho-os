@@ -35,9 +35,14 @@ export default function MembershipPaymentsWidget({ lang }: MembershipPaymentsWid
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action })
       });
+      let data: any = {};
+      const text = await res.text();
+      try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to record decision");
+        const userMsg = data?.message || data?.error || (lang === "en" ? "Failed to process claim" : "Imeshindwa kuchakata madai");
+        const code = data?.code ? ` (${data.code})` : "";
+        const ref = data?.referenceId ? `\nReference: ${data.referenceId}` : "";
+        throw new Error(`${userMsg}${code}${ref}`);
       }
       await fetchRenewals();
     } catch (err: any) {

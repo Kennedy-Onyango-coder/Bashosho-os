@@ -15,6 +15,38 @@ import { calculatePerformanceSettlement, calculateCastPayment } from "./financia
 import { checkTaskStatusTransition } from "./taskAuthorization";
 import { PERMISSION_MODULE_KEYS, PERMISSION_ACTIONS, buildDefaultPermissionsForRole, emptyPermSet, fullPermSet } from "./rolePermissions";
 import { canViewDocumentConfidentiality, DocumentAccessContext } from "./documentAccess";
+import { evaluateSyncItem, SYNCABLE_COLLECTIONS } from "./syncAuthorization";
+import {
+  processClaimDecision,
+  confirmDirectManualPayment,
+  submitManualClaim,
+  canVerifyPaymentClaims,
+  ClaimFlowError,
+  isClaimFlowError,
+  toSafeError
+} from "./paymentClaimFlow";
+
+/**
+ * Distinguish expected domain errors (validation / authorization / not-found /
+ * conflict) from unexpected internal failures. Expected errors return their safe code +
+ * message; unexpected failures are logged in full and exposed only as a stable error
+ * code plus a unique correlation id — never a stack trace or internal details.
+ */
+function sendFlowError(res: express.Response, err: any, fallbackCode: string): void {
+  if (isClaimFlowError(err)) {
+    const safe = toSafeError(err);
+    res.status(safe.status).json({ error: safe.message, code: safe.code });
+    return;
+  }
+  // Unexpected internal failure — do not leak internals to the client.
+  const referenceId = crypto.randomBytes(6).toString("hex");
+  console.error(`[${fallbackCode}] referenceId=${referenceId}`, err);
+  res.status(500).json({
+    error: fallbackCode,
+    message: "Something went wrong on the server. Please try again.",
+    referenceId
+  });
+}
 
 // Safety net for local development: some Google Cloud client libraries fire background
 // credential/metadata-probing promises that reject OUTSIDE any of our own try/catch blocks
@@ -1615,7 +1647,7 @@ app.post("/api/auth/update-profile", requireAuth, async (req: AuthenticatedReque
   }
 });
 
-app.post("/api/auth/admin-reset-password", requireAuth, requireRole(["chairperson", "vice_chairperson", "secretary", "programs_director", "safeguarding_officer"]), async (req: AuthenticatedRequest, res): Promise<any> => {
+app.post("/api/auth/admin-reset-password", requireAuth, requireRole(["chairperson", "vice_chairperson", "secretary", "programs_director"]), async (req: AuthenticatedRequest, res): Promise<any> => {
   const { targetUserId, newPassword } = req.body;
   if (!targetUserId || !newPassword) {
     return res.status(400).json({ error: "Target user ID and new password are required" });
@@ -2068,6 +2100,22 @@ async function readFileBuffer(filePath: string): Promise<Buffer> {
 
 // 1. PROFILES (Only Chairperson / Admin can create/update profiles and assign roles)
 app.get("/api/profiles", requireAuth, (req, res) => fetchCollection("profiles", req, res));
+
+// Full, sensitive own profile — only the authenticated account's own record. Used by
+// self-service features; the general /api/profiles and /api/peer_directory endpoints
+// never leak this amount of personal data about others (peer_directory is name/role/
+// photo/skills only).
+app.get("/api/profiles/me", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const doc = await db.collection("profiles").doc(req.user!.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+    return res.json({ id: doc.id, ...doc.data() });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to load your profile", details: err.message });
+  }
+});
 
 // Admin Members Directory — full detail on every member/volunteer/leader (join date,
 // photo, contact, contract cycle status) in one place, plus the ability to request
@@ -4110,56 +4158,24 @@ app.post("/api/contract_renewals", requireAuth, async (req: AuthenticatedRequest
 // and it's tagged "manual" (vs "mpesa") in the payment history so the distinction is
 // never lost. Also posts a matching Income record, since STK payments already do that
 // automatically on the Daraja callback but this path bypasses that callback entirely.
-// Shared: appends a confirmed manual payment to a renewal's real payments[] and posts
-// the matching Income record. Used both when an admin records one directly and when
-// an admin confirms a member-submitted claim.
-async function applyConfirmedManualPayment(renewalId: string, existing: any, amount: number, transactionCode: string | undefined, recordedBy: string) {
-  const paymentId = `pay-manual-${Date.now()}`;
-  const payments = [...(existing.payments || []), {
-    id: paymentId,
-    amount: Number(amount),
-    date: new Date().toISOString().split("T")[0],
-    method: "manual",
-    transactionCode: transactionCode || undefined,
-    recordedBy
-  }];
-  const amountPaid = payments.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
-  const feeRequired = Number(existing.feeRequired) || 500;
-  await db.collection("contract_renewals").doc(renewalId).set(
-    { payments, paymentStatus: amountPaid >= feeRequired ? "paid" : "partially_paid" },
-    { merge: true }
-  );
-  const incomeId = `income-cr-${paymentId}`;
-  await db.collection("incomes").doc(incomeId).set({
-    id: incomeId,
-    source: "membership_contribution",
-    amount: Number(amount),
-    date: new Date().toISOString().split("T")[0],
-    description: `Contract renewal fee (manual) — ${existing.userName}${transactionCode ? ` — ${transactionCode}` : ""}`,
-    recordedBy
-  });
-}
-
+// The atomic + idempotent + duplicate-safe behaviour now lives in
+// paymentClaimFlow.confirmDirectManualPayment (used below).
 app.post("/api/contract_renewals/:id/manual_payment", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
     const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
-    if (!["treasurer", "chairperson", "vice_chairperson"].includes(userRoleKey)) {
-      return res.status(403).json({ error: "Access denied: only Treasurer, Chairperson, or Vice Chairperson can confirm a manual payment." });
-    }
     const { amount, transactionCode } = req.body;
-    if (!amount || Number(amount) <= 0) {
-      return res.status(400).json({ error: "A positive amount is required." });
-    }
-    const docRef = db.collection("contract_renewals").doc(req.params.id);
-    const snap = await docRef.get();
-    if (!snap.exists) return res.status(404).json({ error: "Contract renewal not found" });
-    const existing = snap.data() as any;
-
-    await applyConfirmedManualPayment(req.params.id, existing, Number(amount), transactionCode, req.user!.name);
-    logActivity(req, "contract_renewals", "manual_payment", req.params.id, `Ksh ${amount} for ${existing.userName}`);
-    return res.json({ success: true });
+    const result = await confirmDirectManualPayment({
+      renewalId: req.params.id,
+      amount,
+      transactionCode,
+      recordedBy: req.user!.name,
+      verifierRoleKey: userRoleKey
+    });
+    const { incomeId } = result;
+    logActivity(req, "contract_renewals", "manual_payment", req.params.id, `Ksh ${amount} for renewal ${req.params.id}`);
+    return res.json({ success: true, incomeId, alreadyProcessed: result.status === "alreadyProcessed" });
   } catch (err: any) {
-    return res.status(500).json({ error: "Failed to record manual payment", details: err.message });
+    return sendFlowError(res, err, "MANUAL_PAYMENT_RECORDING_FAILED");
   }
 });
 
@@ -4172,74 +4188,50 @@ app.post("/api/contract_renewals/:id/manual_payment", requireAuth, async (req: A
 app.post("/api/contract_renewals/:id/claim_manual_payment", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
     const { amount, transactionCode, phone } = req.body;
-    if (!amount || Number(amount) <= 0) {
-      return res.status(400).json({ error: "A positive amount is required." });
-    }
-    if (!transactionCode || !transactionCode.trim()) {
-      return res.status(400).json({ error: "The M-Pesa transaction code (from your confirmation SMS) is required." });
-    }
-    const docRef = db.collection("contract_renewals").doc(req.params.id);
-    const snap = await docRef.get();
-    if (!snap.exists) return res.status(404).json({ error: "Contract renewal not found" });
-    const existing = snap.data() as any;
-    if (existing.userId !== req.user!.id) {
-      return res.status(403).json({ error: "Access denied: you can only report a payment on your own contract renewal." });
-    }
-
-    const claim = {
-      id: `claim-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      amount: Number(amount),
-      transactionCode: transactionCode.trim(),
-      phone: phone || undefined,
-      claimedDate: new Date().toISOString().split("T")[0],
-      status: "pending"
-    };
-    const pendingManualClaims = [...(existing.pendingManualClaims || []), claim];
-    await docRef.set({ pendingManualClaims }, { merge: true });
-    logActivity(req, "contract_renewals", "claim_manual_payment", req.params.id, `Ksh ${amount} claimed by ${existing.userName}`);
-    return res.json({ success: true, claim });
+    const outcome = await submitManualClaim({
+      renewalId: req.params.id,
+      amount,
+      transactionCode,
+      phone,
+      submitterUserId: req.user!.id,
+      submitterName: req.user!.name
+    });
+    logActivity(req, "contract_renewals", "claim_manual_payment", req.params.id, `Ksh ${amount} claimed by ${req.user!.name}`);
+    return res.json({ success: true, claim: outcome });
   } catch (err: any) {
-    return res.status(500).json({ error: "Failed to submit payment claim", details: err.message });
+    return sendFlowError(res, err, "PAYMENT_CLAIM_SUBMISSION_FAILED");
   }
 });
 
 // Treasurer/Chairperson/Vice Chairperson verifies a member's self-reported till
-// payment against the real statement, then confirms or rejects it.
+// payment against the real statement, then confirms or rejects it. This is now an
+// ATOMIC + IDEMPOTENT operation (see paymentClaimFlow.processClaimDecision):
+//   A) claim confirmed, exactly one payment added, paymentStatus recalculated,
+//      exactly one Income record created and the M-Pesa receipt token permanently
+//      reserved — OR nothing is changed. No mid-state, no duplicate payments.
+// Self-verification (a claimant confirming their own claim) is blocked server-side.
 app.post("/api/contract_renewals/:id/manual_claims/:claimId/decision", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
     const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
-    if (!["treasurer", "chairperson", "vice_chairperson"].includes(userRoleKey)) {
+    if (!canVerifyPaymentClaims(userRoleKey)) {
       return res.status(403).json({ error: "Access denied: only Treasurer, Chairperson, or Vice Chairperson can verify a payment claim." });
     }
-    const { action, reason } = req.body; // "confirm" | "reject"
-    const docRef = db.collection("contract_renewals").doc(req.params.id);
-    const snap = await docRef.get();
-    if (!snap.exists) return res.status(404).json({ error: "Contract renewal not found" });
-    const existing = snap.data() as any;
-    const claim = (existing.pendingManualClaims || []).find((c: any) => c.id === req.params.claimId);
-    if (!claim) return res.status(404).json({ error: "Payment claim not found" });
-    if (claim.status !== "pending") return res.status(400).json({ error: `This claim was already ${claim.status}.` });
-
-    const updatedClaims = existing.pendingManualClaims.map((c: any) => c.id === claim.id ? {
-      ...c,
-      status: action === "reject" ? "rejected" : "confirmed",
-      decisionBy: req.user!.name,
-      decisionDate: new Date().toISOString().split("T")[0],
-      rejectionReason: action === "reject" ? (reason || "") : undefined
-    } : c);
-    await docRef.set({ pendingManualClaims: updatedClaims }, { merge: true });
-
-    if (action !== "reject") {
-      // Re-read so we apply against the just-written claims array (avoids a stale
-      // duplicate if applyConfirmedManualPayment also touches this doc).
-      const fresh = (await docRef.get()).data() as any;
-      await applyConfirmedManualPayment(req.params.id, fresh, claim.amount, claim.transactionCode, req.user!.name);
-    }
-
-    logActivity(req, "contract_renewals", action === "reject" ? "reject_claim" : "confirm_claim", req.params.id, `Ksh ${claim.amount} — ${existing.userName}`);
-    return res.json({ success: true });
+    const { action, reason } = req.body;
+    const outcome = await processClaimDecision({
+      renewalId: req.params.id,
+      claimId: req.params.claimId,
+      action: action as any,
+      reason,
+      verifierUserId: req.user!.id,
+      verifierName: req.user!.name,
+      verifierRoleKey: userRoleKey
+    });
+    logActivity(req, "contract_renewals", outcome.decision === "reject" ? "reject_claim" : "confirm_claim", req.params.id, `Claim ${req.params.claimId} ${outcome.decision}`);
+    // A deterministic retry (outcome.status === "alreadyProcessed") is a benign success
+    // so a double-click / browser retry refreshes the UI instead of showing a failure.
+    return res.json({ success: true, status: outcome.status, decision: outcome.decision });
   } catch (err: any) {
-    return res.status(500).json({ error: "Failed to process payment claim", details: err.message });
+    return sendFlowError(res, err, "PAYMENT_CLAIM_CONFIRMATION_FAILED");
   }
 });
 
@@ -4348,7 +4340,7 @@ app.post("/api/leadership_appointments/:id/acknowledge", requireAuth, async (req
 // task's status even without general "tasks.edit" permission — that's what lets a
 // volunteer with no other write access still mark their own task done.
 const LEADERSHIP_ROLE_KEYS = new Set([
-  "chairperson", "vice_chairperson", "programs_director", "secretary", "treasurer", "safeguarding_officer"
+  "chairperson", "vice_chairperson", "programs_director", "secretary", "treasurer", "executive_director"
 ]);
 
 app.get("/api/tasks", requireAuth, requirePermission("tasks", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
@@ -5428,80 +5420,96 @@ app.post("/api/bank_reconciliations", requireAuth, requirePermission("finance", 
 
 
 // --- BACKEND BULK SYNC ENDPOINT WITH CONFLICT RESOLUTION ---
+// PRODUCTION SECURITY HARDENING: this endpoint is now a STRICT ALLOWLIST. A client can
+// only ever write to an explicitly listed collection, under the exact same permission
+// module/action the normal API requires for that collection. Arbitrary collection names
+// are rejected outright, and sensitive collections (activity_log, role_permissions,
+// financial_audit_trails, transaction_codes, payment_transactions, profiles, ...) are
+// deliberately NOT writable through offline sync at all. Ownership rules stop a
+// non-privileged user from editing another person's records. Fail closed.
 app.post("/api/sync", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   const { queue } = req.body;
   if (!queue || !Array.isArray(queue)) {
     return res.status(400).json({ error: "Invalid sync request format" });
   }
+  // Clients may have cached a huge queue; cap it defensively.
+  if (queue.length > 500) {
+    return res.status(400).json({ error: "Sync queue too large. Please retry in smaller batches." });
+  }
 
   const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+  const results: any[] = [];
 
-  const results = [];
   for (const item of queue) {
-    const { action, payload, id, timestamp } = item;
-    
-    // Authorization maps for bulk synchronization
-    let allowed = true;
-    if (action === "profiles" || action === "org_settings") {
-      allowed = userRoleKey === "chairperson";
-    } else if (action === "safeguarding_reports") {
-      allowed = ["safeguarding_officer", "chairperson", "programs_director"].includes(userRoleKey);
-    }
-
-    if (!allowed) {
-      results.push({ id, status: "error", error: "Unauthorized operation in sync" });
-      continue;
-    }
+    const itemResult: any = { id: item?.id };
 
     try {
-      const docRef = db.collection(action).doc(payload.id);
-
-      // Handle deletion actions from offline queue
-      if (item.type === "delete") {
-        let deleteAllowed = false;
-        if (action === "grants") {
-          deleteAllowed = ["chairperson", "treasurer"].includes(userRoleKey);
-        } else if (action === "classes") {
-          deleteAllowed = ["chairperson", "programs_director"].includes(userRoleKey);
-        } else if (action === "invoices") {
-          deleteAllowed = ["chairperson", "treasurer", "vice_chairperson"].includes(userRoleKey);
-        } else {
-          deleteAllowed = userRoleKey === "chairperson";
-        }
-
-        if (!deleteAllowed) {
-          results.push({ id, status: "error", error: "Unauthorized delete operation in sync" });
-          continue;
-        }
-
-        await docRef.delete();
-        results.push({ id, status: "synced" });
+      const action = String(item?.action || "").trim();
+      const rule = SYNCABLE_COLLECTIONS[action];
+      if (!rule) {
+        // Not an allow-listed collection → fail closed. Never treat as writable.
+        results.push({ ...itemResult, status: "error", error: "Unauthorized operation in sync", code: "SYNC_COLLECTION_NOT_ALLOWED" });
         continue;
       }
 
-      const docSnap = await docRef.get();
+      const payload = item?.payload;
+      if (!payload || typeof payload !== "object" || !payload.id) {
+        results.push({ ...itemResult, status: "error", error: "Sync item is missing its payload id", code: "SYNC_INVALID_PAYLOAD" });
+        continue;
+      }
 
+      // --- Strict allow-list + permission decision (pure syncAuthorization module). ---
+      const docRef = db.collection(action).doc(payload.id);
+      const isDelete = item?.type === "delete";
+      const existsSnap = await docRef.get();
+      const existsData = existsSnap.exists ? (existsSnap.data() as any) : null;
+      const decision = await evaluateSyncItem({
+        action,
+        type: item?.type,
+        docExists: existsSnap.exists,
+        docOwnerId: existsData ? (existsData.userId ?? existsData.id) : undefined,
+        payloadOwnerId: payload.userId,
+        requesterId: req.user!.id,
+        can: (m: string, a: string) => userHasPermission(req, m, a)
+      });
+      if (!decision.allowed) {
+        console.warn(`[Sync Denied] ${req.user!.name} (${userRoleKey}) tried ${isDelete ? "delete" : "write"} on '${action}' → ${decision.reason}`);
+        results.push({ ...itemResult, status: "error", error: "Unauthorized operation in sync", code: decision.reason || "SYNC_DENIED" });
+        continue;
+      }
+
+      // --- Delete path (ownership already enforced above). ---
+      if (isDelete) {
+        await docRef.delete();
+        results.push({ ...itemResult, status: "synced" });
+        continue;
+      }
+
+      // --- Last-Write-Wins conflict resolution against the server's updatedAt. ---
+      const docSnap = await docRef.get();
       if (docSnap.exists) {
-        const currentDoc = docSnap.data()!;
-        // Last-Write-Wins based on updatedAt or timestamp comparison
-        if (currentDoc.updatedAt && timestamp && currentDoc.updatedAt > timestamp) {
-          results.push({ id, status: "resolved", resolved: "server-wins", payload: currentDoc });
+        const currentDoc = docSnap.data() as any;
+        if (currentDoc.updatedAt && item?.timestamp && currentDoc.updatedAt > item.timestamp) {
+          results.push({ ...itemResult, status: "resolved", resolved: "server-wins", payload: currentDoc });
           continue;
         }
       }
 
-      // If it is safeguarding, encrypt it before saving!
-      const dataToSave = { ...payload };
+      // --- Write, with safeguarding encryption preserved. ---
+      const dataToSave: any = { ...payload };
       if (action === "safeguarding_reports") {
-        dataToSave.description = encrypt(payload.description || "");
-        dataToSave.notes = encrypt(payload.notes || "");
+        dataToSave.description = encrypt(String(payload.description || ""));
+        dataToSave.notes = encrypt(String(payload.notes || ""));
+        // Never allow a synced safeguarding report to forge a privileged verifier.
+        delete dataToSave.verificationStatus;
       }
-
       dataToSave.updatedAt = new Date().toISOString();
-      await docRef.set(dataToSave, { merge: true });
-      results.push({ id, status: "synced" });
+      delete dataToSave.id;
+      await docRef.set({ ...dataToSave, id: payload.id }, { merge: true });
+      results.push({ ...itemResult, status: "synced" });
     } catch (err: any) {
-      results.push({ id, status: "error", error: err.message });
+      console.error("Sync item error:", item?.action, err);
+      results.push({ ...itemResult, status: "error", error: "Sync failed", code: "SYNC_INTERNAL_ERROR" });
     }
   }
 
@@ -6527,13 +6535,6 @@ const DEFAULT_ROLE_TEMPLATES = [
     responsibilities: {
       en: "Ensure financial oversight and accountability, manage budgets and expenditures, prepare monthly and annual financial reports, and coordinate fundraising/stipend disbursement.",
       sw: "Kuhakikisha usimamizi na uwajibikaji wa kifedha, kusimamia bajeti na matumizi, kuandaa ripoti za kila mwezi na mwaka za kifedha, na kuratibu ukusanyaji wa fedha/malipo ya posho."
-    }
-  },
-  {
-    role: "Safeguarding & MEL Officer",
-    responsibilities: {
-      en: "Ensure child protection and safeguarding policies are strictly enforced, handle sensitive case intakes, conduct monitoring & evaluation (MEL) of community projects, and draft compliance reports.",
-      sw: "Kuhakikisha sera za ulinzi wa watoto na usalama zinatekelezwa kikamilifu, kushughulikia kesi nyeti, kufanya ufuatiliaji na tathmini (MEL) ya miradi ya jamii, na kuandaa ripoti za uzingatiaji."
     }
   }
 ];

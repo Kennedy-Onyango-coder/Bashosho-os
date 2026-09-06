@@ -69,7 +69,7 @@ export interface MockQuerySnapshot {
 }
 
 export class MockDocumentReference {
-  constructor(public id: string, private colName: string, private db: any) {}
+  constructor(public id: string, public colName: string, private db: any) {}
 
   async get(): Promise<MockDocumentSnapshot> {
     const data = this.db.getDoc(this.colName, this.id);
@@ -290,6 +290,46 @@ export class MockFirestore {
     return new MockWriteBatch(this);
   }
 
+  /**
+   * Mock equivalent of Firestore's `runTransaction`. The whole update function runs
+   * against a private working copy of the state; nothing is visible to other readers and
+   * NOTHING is committed unless the update function completes without throwing. That
+   * gives the local mock genuine all-or-nothing semantics (plus reads seeing their own
+   * staged writes), so regression tests for our financial confirmation flow can verify
+   * atomicity — a failure halfway through leaves zero partial writes behind.
+   */
+  async runTransaction<T>(updateFunction: (transaction: any) => Promise<T>): Promise<T> {
+    const workingState: { [col: string]: { [id: string]: any } } = JSON.parse(JSON.stringify(this.state));
+    const transaction = {
+      get: (ref: MockDocumentReference) => {
+        const data = workingState[ref.colName]?.[ref.id];
+        return Promise.resolve({
+          exists: data !== undefined,
+          id: ref.id,
+          data: () => (data ? { ...data } : undefined)
+        });
+      },
+      set: (ref: MockDocumentReference, data: any, options?: { merge?: boolean }) => {
+        if (!workingState[ref.colName]) workingState[ref.colName] = {};
+        const existing = workingState[ref.colName][ref.id] || {};
+        workingState[ref.colName][ref.id] = (options?.merge ? { ...existing, ...data } : { ...data });
+      },
+      update: (ref: MockDocumentReference, data: any) => {
+        if (!workingState[ref.colName]) workingState[ref.colName] = {};
+        const existing = workingState[ref.colName][ref.id] || {};
+        workingState[ref.colName][ref.id] = { ...existing, ...data };
+      },
+      delete: (ref: MockDocumentReference) => {
+        if (workingState[ref.colName]) delete workingState[ref.colName][ref.id];
+      }
+    };
+    const updateResult = await updateFunction(transaction);
+    // Only reached if updateFunction completed without throwing → commit atomically.
+    this.state = workingState;
+    this.save();
+    return updateResult;
+  }
+
   getDoc(col: string, id: string): any {
     return this.state[col]?.[id];
   }
@@ -355,6 +395,10 @@ class DynamicDb {
 
   batch() {
     return this.activeDb.batch();
+  }
+
+  async runTransaction<T>(updateFunction: (transaction: any) => Promise<T>): Promise<T> {
+    return this.activeDb.runTransaction(updateFunction);
   }
 }
 

@@ -304,9 +304,22 @@ export default function ContractRenewalPanel({ currentUser, lang, onRefreshUser 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to process claim");
+      // Safely parse JSON (or any fallback) without relying on res.json() succeeding,
+      // and never surface stack traces or internal details to the user.
+      let data: any = {};
+      const text = await res.text();
+      try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
+      if (!res.ok) {
+        const userMsg = data?.message || data?.error || (lang === "en" ? "Failed to process claim" : "Imeshindwa kuchakata madai");
+        const code = data?.code ? ` (${data.code})` : "";
+        const ref = data?.referenceId ? `\nReference: ${data.referenceId}` : "";
+        throw new Error(`${userMsg}${code}${ref}`);
+      }
       refreshData();
+      setSuccessMsg(lang === "en"
+        ? (action === "confirm" ? "Payment claim confirmed. The payment and income have been recorded." : "Payment claim rejected.")
+        : (action === "confirm" ? "Madai ya malipo yamethibitishwa." : "Madai ya malipo yamekataliwa."));
+      setTimeout(() => setSuccessMsg(null), 6000);
     } catch (err: any) {
       alert(err.message);
     }
