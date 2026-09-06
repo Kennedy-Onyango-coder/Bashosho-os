@@ -17,7 +17,19 @@ const SYSTEM_DATE = new Date();
 export default function ProgramsDirectorOverview({ lang, onNavigateToTab }: ProgramsDirectorOverviewProps) {
   const classes = StorageService.getClasses();
   const attendance = StorageService.getAttendance();
-  const leaveRequests = StorageService.getLeaveRequests();
+  const [leaveRequests, setLeaveRequests] = React.useState<any[]>([]);
+
+  // Load leave requests from SERVER, not localStorage, to avoid stale counts
+  React.useEffect(() => {
+    fetch("/api/leave_requests")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setLeaveRequests(data);
+      })
+      .catch(() => setLeaveRequests(StorageService.getLeaveRequests()));
+  }, []);
+
+  const pendingLeave = leaveRequests.filter(l => l.status === "pending" || l.status === "submitted" || l.status === "under_review").length;
 
   const activeClasses = classes.filter(c => {
     const end = new Date(c.endDate);
@@ -33,7 +45,6 @@ export default function ProgramsDirectorOverview({ lang, onNavigateToTab }: Prog
   }, 0);
 
   const untranscribedSheets = attendance.filter(a => !a.isTranscribed).length;
-  const pendingLeave = leaveRequests.filter(l => l.status === "pending").length;
 
   const notifications: NotificationItem[] = [
     {

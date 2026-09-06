@@ -80,27 +80,71 @@ export default function MemberSelfServicePanel({ currentUser, lang, onRefreshUse
   const [myAppointments, setMyAppointments] = React.useState<LeadershipAppointment[]>([]);
 
   const userRoleKey = currentUser.roleKey || getCanonicalRoleKey(currentUser.role);
-  const canApproveLeave = ["chairperson", "programs_director"].includes(userRoleKey);
+  const canApproveLeave = ["chairperson", "vice_chairperson"].includes(userRoleKey);
   const [teamRequests, setTeamRequests] = React.useState<LeaveRequest[]>([]);
   const [respondingId, setRespondingId] = React.useState<string | null>(null);
 
-  const loadLeaveData = React.useCallback(() => {
-    const all = StorageService.getLeaveRequests();
-    setLeaveRequests(all.filter(l => l.userId === currentUser.id));
-    if (canApproveLeave) {
-      setTeamRequests(all.filter(l => l.userId !== currentUser.id && l.status === "pending"));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, canApproveLeave]);
+  // ----- Server-authoritative data loading -----
+  // The frontend NEVER trusts localStorage for leave status. Every action goes through
+  // the server API and the UI refetches the authoritative record.
 
+  const loadMyLeave = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/leave_requests/my", {
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server returned ${res.status}`);
+      }
+      const data = await res.json();
+      setLeaveRequests(data);
+    } catch (err: any) {
+      setLeaveErr(err.message || "Failed to load leave requests");
+    }
+  }, []);
+
+  const loadTeamLeave = React.useCallback(async () => {
+    if (!canApproveLeave) return;
+    try {
+      const res = await fetch("/api/leave_requests", {
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server returned ${res.status}`);
+      }
+      const data = await res.json();
+      setTeamRequests(data.filter((l: LeaveRequest) => l.userId !== currentUser.id && (l.status === "pending" || l.status === "submitted" || l.status === "under_review")));
+    } catch (err: any) {
+      setLeaveErr(err.message || "Failed to load team leave requests");
+    }
+  }, [canApproveLeave, currentUser.id]);
+
+  const loadLeaveData = React.useCallback(() => {
+    loadMyLeave();
+    if (canApproveLeave) loadTeamLeave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadMyLeave, loadTeamLeave, canApproveLeave]);
+
+  // Server-authoritative decision handler
   const handleRespondToLeave = async (req: LeaveRequest, decision: "approved" | "rejected") => {
     setRespondingId(req.id);
+    setLeaveErr("");
     try {
-      const updated: LeaveRequest = { ...req, status: decision };
-      const ok = await StorageService.saveRecord("leave_requests", updated);
-      if (ok) {
-        setTeamRequests(prev => prev.filter(r => r.id !== req.id));
+      const res = await fetch(`/api/leave_requests/${req.id}/decide`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, reason: decision === "rejected" ? "Rejected by administrator" : undefined })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `Server returned ${res.status}`);
       }
+      // Refetch authoritative data — never trust optimistic local state
+      loadLeaveData();
+    } catch (err: any) {
+      setLeaveErr(err.message || "Failed to process decision");
     } finally {
       setRespondingId(null);
     }
@@ -147,22 +191,26 @@ export default function MemberSelfServicePanel({ currentUser, lang, onRefreshUse
     setLeaveSubmitting(true);
     setLeaveErr("");
     try {
-      const newRequest: LeaveRequest = {
-        id: `leave-${Date.now()}`,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        startDate: leaveStart,
-        endDate: leaveEnd,
-        reason: leaveReason.trim(),
-        status: "pending"
-      };
-      const ok = await StorageService.saveRecord("leave_requests", newRequest);
-      if (!ok) throw new Error("Failed to submit");
+      const res = await fetch("/api/leave_requests/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: leaveStart,
+          endDate: leaveEnd,
+          reason: leaveReason.trim(),
+          leaveType: "annual"
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `Server returned ${res.status}`);
+      }
+      // Refetch authoritative data from server
       loadLeaveData();
       setShowLeaveForm(false);
       setLeaveStart(""); setLeaveEnd(""); setLeaveReason("");
     } catch (err: any) {
-      setLeaveErr(lang === "en" ? "Failed to submit leave request." : "Imeshindwa kuwasilisha ombi la likizo.");
+      setLeaveErr(err.message || (lang === "en" ? "Failed to submit leave request." : "Imeshindwa kuwasilisha ombi la likizo."));
     } finally {
       setLeaveSubmitting(false);
     }
@@ -171,8 +219,13 @@ export default function MemberSelfServicePanel({ currentUser, lang, onRefreshUse
   const statusBadge = (status: string) => {
     const map: Record<string, { bg: string; text: string; label: string }> = {
       pending: { bg: "bg-amber-100", text: "text-amber-700", label: tt.statusPending },
+      submitted: { bg: "bg-amber-100", text: "text-amber-700", label: tt.statusPending },
+      under_review: { bg: "bg-blue-100", text: "text-blue-700", label: lang === "en" ? "Under Review" : "Inapitiwa" },
       approved: { bg: "bg-emerald-100", text: "text-emerald-700", label: tt.statusApproved },
-      rejected: { bg: "bg-red-100", text: "text-red-700", label: tt.statusRejected }
+      rejected: { bg: "bg-red-100", text: "text-red-700", label: tt.statusRejected },
+      cancelled: { bg: "bg-neutral-100", text: "text-neutral-600", label: lang === "en" ? "Cancelled" : "Imeghairiwa" },
+      on_leave: { bg: "bg-purple-100", text: "text-purple-700", label: lang === "en" ? "On Leave" : "Kwenye Likizo" },
+      completed: { bg: "bg-neutral-100", text: "text-neutral-600", label: lang === "en" ? "Completed" : "Imekamilika" }
     };
     const s = map[status] || map.pending;
     return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>;
@@ -341,6 +394,7 @@ export default function MemberSelfServicePanel({ currentUser, lang, onRefreshUse
                     <p className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
                       <Clock size={11} className="text-neutral-500" /> {lr.startDate} → {lr.endDate}
                     </p>
+                    {lr.reference && <p className="text-[10px] text-neutral-400 mt-0.5">{lr.reference}</p>}
                     <p className="text-[11px] text-neutral-500 mt-1">{lr.reason}</p>
                     {lr.respondedBy && <p className="text-[10px] text-neutral-500 mt-1">{tt.respondedBy}: {lr.respondedBy}</p>}
                   </div>

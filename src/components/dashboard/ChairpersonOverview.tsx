@@ -53,7 +53,26 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
   const profiles = StorageService.getProfiles();
   const incomes = StorageService.getIncomes();
   const expenditures = StorageService.getExpenditures();
-  const leaveRequests = StorageService.getLeaveRequests();
+  const [leaveRequests, setLeaveRequests] = React.useState<any[]>([]);
+  const [leaveLoading, setLeaveLoading] = React.useState(true);
+
+  // Fetch leave requests from server-authoritative API
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/leave_requests");
+        if (res.ok && !cancelled) setLeaveRequests(await res.json());
+      } catch (err) {
+        console.warn("Failed to load leave requests:", err);
+      } finally {
+        if (!cancelled) setLeaveLoading(false);
+      }
+    };
+    load();
+    const interval = setInterval(load, 30000); // refresh every 30s
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
   const contractRenewals = StorageService.getContractRenewals();
   const safeguarding = StorageService.getSafeguarding();
   const grants = StorageService.getGrants();
@@ -73,7 +92,12 @@ export default function ChairpersonOverview({ lang, onNavigateToTab, currentUser
   const netBalance = totalIncome - totalExpenditure;
 
   const pendingExpenditures = expenditures.filter(e => e.status === "pending_treasurer" || e.status === "pending_chairperson").length;
-  const pendingLeave = leaveRequests.filter(l => l.status === "pending").length;
+  // The new leave workflow uses normalized statuses: "submitted", "under_review",
+  // "approved", "rejected", "cancelled", "on_leave", "completed".
+  // Legacy records may still use "pending". Count anything actionable as pending.
+  const pendingLeave = leaveRequests.filter(l =>
+    l.status === "pending" || l.status === "submitted" || l.status === "under_review"
+  ).length;
   const pendingRenewals = contractRenewals.filter(c => c.status === "pending_review").length;
   const openSafeguarding = safeguarding.filter(s => s.status !== "resolved").length;
 

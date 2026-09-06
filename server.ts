@@ -17,6 +17,14 @@ import { PERMISSION_MODULE_KEYS, PERMISSION_ACTIONS, buildDefaultPermissionsForR
 import { canViewDocumentConfidentiality, DocumentAccessContext } from "./documentAccess";
 import { evaluateSyncItem, SYNCABLE_COLLECTIONS } from "./syncAuthorization";
 import {
+  submitLeaveRequest, decideLeaveRequest, startLeaveReview, cancelLeaveRequest,
+  confirmLeaveReturn, runLeaveAutomationTick, reconcileLeaveRegister,
+  backfillLegacyLeaveRequests, computeLeaveBalance, toSafeLeaveError,
+  isActionable, isOpenLeave, normalizeLegacyStatus, buildTimeline, statusDisplay,
+  computeLeaveDays, planDueReminders, DEFAULT_LEAVE_AUTOMATION,
+  LeaveAutomationConfig, ApproverCandidate, LeaveWorkflowRecord
+} from "./leaveWorkflow";
+import {
   processClaimDecision,
   confirmDirectManualPayment,
   submitManualClaim,
@@ -3597,22 +3605,288 @@ app.post("/api/broadcasts", requireAuth, requirePermission("cms_editor", "create
   }
 });
 
-// 13. LEAVE REQUESTS
-// Anyone can see their own leave requests; only the roles who can actually approve them
-// (chairperson / programs_director) see everyone's. Previously ANY authenticated account
-// could list every member's leave requests — personal HR data (dates, reasons) that
-// should only be visible to the person who filed it and whoever approves it.
+// 13. LEAVE REQUESTS — authoritative workflow
+// One server-owned record per request, a permanent LV-YYYY-NNNNN reference, resolved
+// approver, immutable audit trail, notifications and automation. The frontend is never
+// the source of truth: every action goes through here, is validated/authorized
+// server-side, and returns the authoritative record so the UI refetches rather than
+// trusting its own optimistic state.
+// Privacy: a person always sees their own full request; approvers/administrators see
+// what they need; everyone else sees nothing about other people's leave.
+
+/** Shared helpers for the leave endpoints. */
+function leaveActor(req: AuthenticatedRequest) {
+  return { id: req.user!.id, name: req.user!.name };
+}
+function leaveRoleKey(req: AuthenticatedRequest): string {
+  return req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
+}
+function canSeeFullLeaveRegister(roleKey: string): boolean {
+  return ["chairperson", "programs_director"].includes(roleKey);
+}
+function canDecideAnyLeave(roleKey: string): boolean {
+  return ["chairperson", "vice_chairperson"].includes(roleKey);
+}
+async function loadApproverCandidates(): Promise<ApproverCandidate[]> {
+  const snap = await db.collection("profiles").get();
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ApproverCandidate));
+}
+/** Strip the confidential reason for users who are neither owner nor approver/admin. */
+function redactLeaveForViewer(r: any, viewerId: string, roleKey: string) {
+  if (r.userId === viewerId || canSeeFullLeaveRegister(roleKey) || r.approverId === viewerId) return r;
+  const { reason, ...rest } = r;
+  return { ...rest, reason: undefined, reasonConfidential: true };
+}
+function sendLeaveError(res: express.Response, err: any): express.Response {
+  const safe = toSafeLeaveError(err);
+  if (safe.code === "LEAVE_INTERNAL_ERROR") {
+    const referenceId = crypto.randomBytes(6).toString("hex");
+    console.error(`[LEAVE_INTERNAL_ERROR] referenceId=${referenceId}`, err);
+    return res.status(500).json({ ...safe, referenceId });
+  }
+  return res.status(safe.status).json({ error: safe.message, code: safe.code });
+}
+/** Compute non-blocking activity conflicts (events + assigned tasks) for a date range. */
+async function computeLeaveConflicts(userId: string, startDate: string, endDate: string) {
+  const warnings: { title: string; date: string; role?: string }[] = [];
+  try {
+    const [eventsSnap, tasksSnap] = await Promise.all([
+      db.collection("events").get(),
+      db.collection("tasks").get()
+    ]);
+    for (const doc of eventsSnap.docs) {
+      const e = doc.data() as any;
+      if (!e.date) continue;
+      if (e.date >= startDate && e.date <= endDate) {
+        warnings.push({ title: e.title || "Scheduled activity", date: e.date });
+      }
+      if (warnings.length >= 8) break;
+    }
+    for (const doc of tasksSnap.docs) {
+      const t = doc.data() as any;
+      if (t.assignedToId !== userId || !t.dueDate) continue;
+      if (t.status === "completed" || t.status === "cancelled") continue;
+      if (t.dueDate >= startDate && t.dueDate <= endDate) {
+        warnings.push({ title: t.title || "Assigned task", date: t.dueDate, role: "Assigned task" });
+      }
+      if (warnings.length >= 12) break;
+    }
+  } catch (err) {
+    // Conflicts are advisory — never block submission on a lookup failure.
+  }
+  return warnings;
+}
+function leaveWithComputedFields(r: LeaveWorkflowRecord) {
+  return {
+    ...r,
+    days: r.days ?? computeLeaveDays(r.startDate, r.endDate),
+    statusLabel: statusDisplay(r.status).label,
+    statusTone: statusDisplay(r.status).tone,
+    timeline: buildTimeline(r)
+  };
+}
+
+// Authoritative submission — the server creates the record, assigns the permanent
+// reference, resolves the approver and records the audit trail.
+app.post("/api/leave_requests/submit", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { startDate, endDate, reason, leaveType, onBehalfOfUserId } = req.body;
+    // A user submits for themselves; leadership with roles:edit may file on behalf of someone.
+    let targetUserId = req.user!.id;
+    if (onBehalfOfUserId && onBehalfOfUserId !== req.user!.id) {
+      if (!(await userHasPermission(req, "roles", "edit"))) {
+        return res.status(403).json({ error: "Access denied: you can only submit your own leave request.", code: "LEAVE_NOT_AUTHORIZED" });
+      }
+      targetUserId = String(onBehalfOfUserId);
+    }
+    const profiles = await loadApproverCandidates();
+    const target = profiles.find(p => p.id === targetUserId);
+    const conflictWarnings = await computeLeaveConflicts(targetUserId, String(startDate || ""), String(endDate || ""));
+    const outcome = await submitLeaveRequest({
+      userId: targetUserId,
+      userName: target?.name || req.user!.name,
+      startDate,
+      endDate,
+      reason,
+      leaveType,
+      profiles,
+      conflictWarnings
+    });
+    logActivity(req, "leave_requests", "request_submitted", outcome.id, outcome.reference);
+    const docSnap = await db.collection("leave_requests").doc(outcome.id).get();
+    return res.json({ success: true, request: leaveWithComputedFields(docSnap.data() as LeaveWorkflowRecord) });
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// __LEAVE_ROUTES_A__
+
+// GET /api/leave_requests — current user's own leave requests (employee view)
 app.get("/api/leave_requests", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
     const snap = await db.collection("leave_requests").get();
-    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-    const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
-    if (["chairperson", "programs_director"].includes(userRoleKey)) {
+    const items = snap.docs.map(doc => leaveWithComputedFields(doc.data() as LeaveWorkflowRecord));
+    const userRoleKey = leaveRoleKey(req);
+    if (canSeeFullLeaveRegister(userRoleKey)) {
       return res.json(items);
     }
     return res.json(items.filter(item => item.userId === req.user!.id));
   } catch (err: any) {
-    return res.status(500).json({ error: "Failed to fetch leave requests", details: err.message });
+    return sendLeaveError(res, err);
+  }
+});
+
+// GET /api/leave_requests/my — explicit "my leave" endpoint
+app.get("/api/leave_requests/my", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("leave_requests").get();
+    const items = snap.docs
+      .map(doc => leaveWithComputedFields(doc.data() as LeaveWorkflowRecord))
+      .filter(item => item.userId === req.user!.id);
+    return res.json(items);
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// GET /api/leave_requests/register — full leave register for authorized administrators
+app.get("/api/leave_requests/register", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = leaveRoleKey(req);
+    if (!canSeeFullLeaveRegister(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only authorized administrators can view the full leave register.", code: "LEAVE_NOT_AUTHORIZED" });
+    }
+    const snap = await db.collection("leave_requests").get();
+    const items = snap.docs.map(doc => leaveWithComputedFields(doc.data() as LeaveWorkflowRecord));
+    return res.json(items);
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// GET /api/leave_requests/balance — current user's leave balance
+app.get("/api/leave_requests/balance", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const settingsSnap = await db.collection("org_settings").doc("global").get();
+    const entitlementDays = Number(settingsSnap.data()?.leavePolicy?.annualDays) || undefined;
+    const balance = await computeLeaveBalance(req.user!.id, entitlementDays);
+    return res.json(balance);
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// GET /api/leave_requests/reconcile — diagnostic scan for administrators
+app.get("/api/leave_requests/reconcile", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = leaveRoleKey(req);
+    if (!canSeeFullLeaveRegister(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only authorized administrators can run reconciliation.", code: "LEAVE_NOT_AUTHORIZED" });
+    }
+    const result = await reconcileLeaveRegister();
+    return res.json(result);
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// POST /api/leave_requests/backfill — non-destructive migration for legacy records
+app.post("/api/leave_requests/backfill", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = leaveRoleKey(req);
+    if (!canSeeFullLeaveRegister(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only authorized administrators can run backfill.", code: "LEAVE_NOT_AUTHORIZED" });
+    }
+    const result = await backfillLegacyLeaveRequests();
+    logActivity(req, "leave_requests", "backfill", undefined, `Scanned ${result.scanned}, references ${result.referencesAssigned}, approvers ${result.approversAssigned}`);
+    return res.json({ success: true, result });
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// POST /api/leave_requests/automation — trigger the automation tick (idempotent)
+app.post("/api/leave_requests/automation", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = leaveRoleKey(req);
+    if (!canSeeFullLeaveRegister(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only authorized administrators can trigger automation.", code: "LEAVE_NOT_AUTHORIZED" });
+    }
+    const result = await runLeaveAutomationTick();
+    return res.json({ success: true, result });
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// POST /api/leave_requests/:id/decide — approve or reject a leave request
+app.post("/api/leave_requests/:id/decide", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { reason } = req.body;
+    const decision = ["approved", "rejected"].includes(req.body.decision) ? (req.body.decision === "approved" ? "approve" : "reject") : null;
+    if (!decision) {
+      return res.status(400).json({ error: "Invalid decision: must be 'approved' or 'rejected'.", code: "LEAVE_INVALID_DECISION" });
+    }
+    if (req.body.decision === "rejected" && !String(reason || "").trim()) {
+      return res.status(400).json({ error: "A reason is required when rejecting a leave request.", code: "LEAVE_REJECTION_REASON_REQUIRED" });
+    }
+    const userRoleKey = leaveRoleKey(req);
+    if (!canDecideAnyLeave(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only the designated approver can decide this request.", code: "LEAVE_NOT_AUTHORIZED" });
+    }
+    const outcome = await decideLeaveRequest({
+      requestId: req.params.id,
+      decision,
+      actor: leaveActor(req),
+      reason,
+      actorIsChairperson: userRoleKey === "chairperson",
+      actorRoleKey: userRoleKey
+    });
+    logActivity(req, "leave_requests", req.body.decision === "approved" ? "approved" : "rejected", outcome.request.id, outcome.request.reference);
+    return res.json({ success: true, request: leaveWithComputedFields(outcome.request) });
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// POST /api/leave_requests/:id/cancel — cancel a pending leave request
+app.post("/api/leave_requests/:id/cancel", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { reason } = req.body;
+    const userRoleKey = leaveRoleKey(req);
+    const outcome = await cancelLeaveRequest(req.params.id, leaveActor(req), String(reason || ""), canSeeFullLeaveRegister(userRoleKey));
+    logActivity(req, "leave_requests", "cancelled", outcome.id, outcome.reference);
+    return res.json({ success: true, request: leaveWithComputedFields(outcome) });
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// POST /api/leave_requests/:id/return — confirm return from leave
+app.post("/api/leave_requests/:id/return", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = leaveRoleKey(req);
+    const outcome = await confirmLeaveReturn(req.params.id, leaveActor(req), canSeeFullLeaveRegister(userRoleKey));
+    logActivity(req, "leave_requests", "return_confirmed", outcome.id, outcome.reference);
+    return res.json({ success: true, request: leaveWithComputedFields(outcome) });
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
+// POST /api/leave_requests/:id/review — mark a request as under review
+app.post("/api/leave_requests/:id/review", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const userRoleKey = leaveRoleKey(req);
+    if (!canDecideAnyLeave(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: only the designated approver can review this request.", code: "LEAVE_NOT_AUTHORIZED" });
+    }
+    const outcome = await startLeaveReview(req.params.id, leaveActor(req));
+    logActivity(req, "leave_requests", "review_started", outcome.id, outcome.reference);
+    return res.json({ success: true, request: leaveWithComputedFields(outcome) });
+  } catch (err: any) {
+    return sendLeaveError(res, err);
   }
 });
 app.post("/api/leave_requests", requireAuth, async (req: AuthenticatedRequest, res): Promise<any> => {
@@ -6836,6 +7110,22 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running at http://localhost:${PORT}`);
+    
+    // Leave automation scheduler — runs the idempotent automation tick every hour.
+    // Handles: overdue approval reminders, escalation, upcoming leave reminders,
+    // leave start transitions, return reminders, and completion.
+    // The tick is idempotent, so repeated runs are safe and never duplicate reminders.
+    const LEAVE_AUTOMATION_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+    setInterval(async () => {
+      try {
+        const result = await runLeaveAutomationTick();
+        if (result.transitions > 0 || result.remindersSent > 0 || result.escalations > 0) {
+          console.log(`[LeaveAutomation] transitions=${result.transitions} reminders=${result.remindersSent} escalations=${result.escalations}`);
+        }
+      } catch (err) {
+        console.error("[LeaveAutomation] tick failed:", err);
+      }
+    }, LEAVE_AUTOMATION_INTERVAL_MS);
   });
 }
 

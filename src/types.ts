@@ -735,6 +735,25 @@ export interface VolunteerCertificate {
   verificationUrl?: string;
 }
 
+export type LeaveStatus =
+  | "draft" | "submitted" | "under_review" | "approved"
+  | "rejected" | "cancelled" | "on_leave" | "completed";
+
+/** Immutable audit event appended to a leave request (never overwritten). */
+export interface LeaveAuditEvent {
+  id: string;
+  type: string;        // REQUEST_SUBMITTED, APPROVER_ASSIGNED, APPROVED, ...
+  at: string;          // ISO timestamp
+  byId?: string;
+  byName?: string;
+  note?: string;       // safe metadata only (never confidential reason text)
+}
+
+/** One idempotently-sent reminder: key -> ISO sent timestamp. */
+export interface LeaveReminderLedger {
+  [key: string]: string;
+}
+
 export interface LeaveRequest {
   id: string;
   userId: string;
@@ -742,8 +761,37 @@ export interface LeaveRequest {
   startDate: string;
   endDate: string;
   reason: string;
-  status: "pending" | "approved" | "rejected";
+  /** Legacy records carry "pending" | "approved" | "rejected" — still fully supported.
+   *  New records use the LeaveStatus lifecycle; "pending" is treated as "submitted". */
+  status: LeaveStatus | "pending";
   respondedBy?: string;
+  // ---- additive fields (backward compatible; old records simply omit them) ----
+  /** Permanent human-readable reference, e.g. LV-2026-00001. Never changes. */
+  reference?: string;
+  leaveType?: string;                 // annual | sick | compassionate | unpaid | other
+  submittedAt?: string;
+  days?: number;
+  approverId?: string;
+  approverName?: string;
+  /** True when no approver could be resolved for this person — surfaced, never orphaned. */
+  approverNotConfigured?: boolean;
+  underReviewAt?: string;
+  decisionDate?: string;
+  decisionComment?: string;
+  decidedById?: string;
+  cancelledAt?: string;
+  cancelledById?: string;
+  cancelledByName?: string;
+  cancelReason?: string;
+  returnConfirmedAt?: string;
+  returnConfirmedById?: string;
+  completedAt?: string;
+  auditTrail?: LeaveAuditEvent[];
+  /** Reminder idempotency ledger: reminder key -> ISO time sent. */
+  reminders?: LeaveReminderLedger;
+  escalatedAt?: string;
+  /** Non-blocking activity conflicts surfaced to the approver at submit time. */
+  conflictWarnings?: { title: string; date: string; role?: string }[];
 }
 
 export interface Invoice {

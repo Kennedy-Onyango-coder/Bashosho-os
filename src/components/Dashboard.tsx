@@ -247,8 +247,19 @@ export default function Dashboard({
       setPartners(StorageService.getPartners());
       setClasses(StorageService.getClasses());
       setIncomes(StorageService.getIncomes());      setBroadcasts(StorageService.getBroadcasts());
-      setLeaveRequests(StorageService.getLeaveRequests());
       setAssets(StorageService.getAssets());
+
+      // Leave requests: load from SERVER, not localStorage cache, so the admin
+      // dashboard never shows stale/missing data (the "disappearing request" bug).
+      fetch("/api/leave_requests")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setLeaveRequests(data);
+        })
+        .catch(() => {
+          // Fall back to cached only if the server is unreachable
+          setLeaveRequests(StorageService.getLeaveRequests());
+        });
 
       fetch("/api/leadership_appointments")
         .then(res => res.json())
@@ -589,30 +600,38 @@ export default function Dashboard({
     }
   };
 
-  // Leave Requests Handlers
-  const handleRequestLeave = (e: React.FormEvent) => {
+  // Leave Requests Handlers — server-authoritative
+  const handleRequestLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!leaveStartDate || !leaveEndDate || !leaveReason.trim()) return;
 
-    const newRequest: LeaveRequest = {
-      id: `lv-${Date.now()}`,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      startDate: leaveStartDate,
-      endDate: leaveEndDate,
-      reason: leaveReason,
-      status: "pending"
-    };
+    try {
+      const res = await fetch("/api/leave_requests/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: leaveStartDate,
+          endDate: leaveEndDate,
+          reason: leaveReason.trim(),
+          leaveType: "annual"
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `Server returned ${res.status}`);
+      }
+      // Refetch authoritative data from server
+      const freshRes = await fetch("/api/leave_requests/my");
+      if (freshRes.ok) setLeaveRequests(await freshRes.json());
 
-    const updated = [newRequest, ...leaveRequests];
-    setLeaveRequests(updated);
-    StorageService.saveRecord("leave_requests", newRequest).catch(console.error);
-
-    // Reset Form
-    setLeaveStartDate("");
-    setLeaveEndDate("");
-    setLeaveReason("");
-    setShowLeaveModal(false);
+      // Reset Form
+      setLeaveStartDate("");
+      setLeaveEndDate("");
+      setLeaveReason("");
+      setShowLeaveModal(false);
+    } catch (err: any) {
+      alert(err.message || "Failed to submit leave request");
+    }
   };
 
   const handleSaveContactLog = async () => {
@@ -641,33 +660,39 @@ export default function Dashboard({
     }
   };
 
-  const handleApproveLeave = (leaveId: string) => {
-    let updatedReq: LeaveRequest | null = null;
-    const updated = leaveRequests.map(req => {
-      if (req.id === leaveId) {
-        updatedReq = { ...req, status: "approved" as const };
-        return updatedReq;
-      }
-      return req;
-    });
-    setLeaveRequests(updated);
-    if (updatedReq) {
-      StorageService.saveRecord("leave_requests", updatedReq).catch(console.error);
+  const handleApproveLeave = async (leaveId: string) => {
+    try {
+      const res = await fetch(`/api/leave_requests/${leaveId}/decide`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: "approved" })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+      // Refetch authoritative data
+      const freshRes = await fetch("/api/leave_requests");
+      if (freshRes.ok) setLeaveRequests(await freshRes.json());
+    } catch (err: any) {
+      alert(err.message || "Failed to approve leave");
     }
   };
 
-  const handleRejectLeave = (leaveId: string) => {
-    let updatedReq: LeaveRequest | null = null;
-    const updated = leaveRequests.map(req => {
-      if (req.id === leaveId) {
-        updatedReq = { ...req, status: "rejected" as const };
-        return updatedReq;
-      }
-      return req;
-    });
-    setLeaveRequests(updated);
-    if (updatedReq) {
-      StorageService.saveRecord("leave_requests", updatedReq).catch(console.error);
+  const handleRejectLeave = async (leaveId: string) => {
+    const reason = prompt(lang === "en" ? "Reason for rejection (required):" : "Sababu ya kukatakata (lazima):");
+    if (!reason || !reason.trim()) return;
+    try {
+      const res = await fetch(`/api/leave_requests/${leaveId}/decide`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: "rejected", reason: reason.trim() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+      // Refetch authoritative data
+      const freshRes = await fetch("/api/leave_requests");
+      if (freshRes.ok) setLeaveRequests(await freshRes.json());
+    } catch (err: any) {
+      alert(err.message || "Failed to reject leave");
     }
   };
 
@@ -675,7 +700,7 @@ export default function Dashboard({
     const date = new Date(dateStr);
     return leaveRequests.some(req => 
       req.userId === userId && 
-      req.status === "approved" && 
+      (req.status === "approved" || req.status === "on_leave") && 
       new Date(req.startDate) <= date && 
       new Date(req.endDate) >= date
     );
@@ -1224,7 +1249,8 @@ export default function Dashboard({
                       </p>
                     </div>
 
-                    {req.status === "pending" && (
+                    {/* Show Approve/Reject for actionable statuses: pending (legacy), submitted, under_review */}
+                    {(req.status === "pending" || req.status === "submitted" || req.status === "under_review") && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleApproveLeave(req.id)}
