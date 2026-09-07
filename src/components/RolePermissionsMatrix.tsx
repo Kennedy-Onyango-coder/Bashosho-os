@@ -43,6 +43,8 @@ const MODULE_LABELS: Record<PermissionModuleKey, { en: string; sw: string }> = {
   board_meetings: { en: "Board Meetings", sw: "Mikutano ya Bodi" },
     onboarding_checklists: { en: "Onboarding Checklists", sw: "Orodha za Kuanzisha" },
   leave_management: { en: "Leave Management", sw: "Usimamizi wa Likizo" }
+  ,
+  equipment_management: { en: "Equipment Management", sw: "Usimamizi wa Vifaa" }
 };
 
 const ACTION_LABELS: Record<PermissionAction, { en: string; sw: string }> = {

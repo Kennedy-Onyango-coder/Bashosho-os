@@ -12,7 +12,7 @@ export const PERMISSION_MODULE_KEYS = [
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
   "tasks", "program_sessions", "volunteer_recognition", "attendance_registers",
-  "events", "board_meetings", "onboarding_checklists", "leave_management"
+  "events", "board_meetings", "onboarding_checklists", "leave_management", "equipment_management"
 ] as const;
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];
@@ -51,6 +51,11 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
   // Every authenticated role can submit and view their own leave requests.
   p.leave_management.view = true;
   p.leave_management.create = true; // submit own request
+  // Equipment hiring: every authenticated member/volunteer can view available gear and
+  // request a hire (server-authoritative pricing/availability). Approval/management is
+  // leadership-only and granted per-role below — never a plain member.
+  p.equipment_management.view = true;
+  p.equipment_management.create = true; // request own hire
 
   // Tasks: everyone can see and update their own assigned/created tasks (baseline
   // "view" — the tasks endpoint itself further restricts non-leadership users to only
@@ -108,6 +113,8 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
       p.leave_management.approve = true;     // can approve/reject leave
       p.leave_management.reject = true;
       p.leave_management.manage = true;      // full register access
+      p.equipment_management.approve = true; // approve/reject hires
+      p.equipment_management.edit = true;    // checkout/return/manage inventory + pricing
       full("board_meetings");
       break;
 
@@ -133,6 +140,8 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
       p.leave_management.approve = true;     // can approve/reject leave
       p.leave_management.reject = true;
       p.leave_management.manage = true;      // full register access
+      p.equipment_management.approve = true; // approve/reject hires
+      p.equipment_management.edit = true;    // checkout/return/manage inventory + pricing
       break;
 
     case "secretary":
@@ -145,6 +154,8 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
       p.events.create = true; p.events.edit = true;
       view("board_meetings"); p.board_meetings.create = true; p.board_meetings.edit = true;
       full("onboarding_checklists");
+      p.equipment_management.approve = true; // approve/reject hires
+      p.equipment_management.edit = true;    // checkout/return/manage inventory + pricing
       break;
 
     case "treasurer":
@@ -154,6 +165,8 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
       full("invoices"); // old generic-delete route allowed treasurer to delete invoices
       p.finance.create = true;
       p.tasks.create = true; p.tasks.edit = true;
+      p.equipment_management.approve = true; // approve/reject hires
+      p.equipment_management.edit = true;    // checkout/return/manage inventory + pricing
       break;
 
     // LEGACY ROLE — Bashosho Talents has decided to retire the dedicated Safeguarding

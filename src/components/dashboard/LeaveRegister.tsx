@@ -1,10 +1,13 @@
 import React from "react";
 import { LeaveRequest } from "../../types";
 import { Search, Filter, Calendar, User, Clock, AlertCircle, Loader2 } from "lucide-react";
+import LeaveDetail from "./LeaveDetail";
 
 interface LeaveRegisterProps {
   lang: "en" | "sw";
   canSeeConfidential: boolean;
+  /** leave_management.approve — shows Approve/Reject in the detail view. */
+  canApprove?: boolean;
 }
 
 type FilterKey = "all" | "pending" | "under_review" | "approved" | "rejected" | "cancelled" | "on_leave" | "completed";
@@ -52,13 +55,14 @@ const t = {
   }
 };
 
-export default function LeaveRegister({ lang, canSeeConfidential }: LeaveRegisterProps) {
+export default function LeaveRegister({ lang, canSeeConfidential, canApprove = false }: LeaveRegisterProps) {
   const tt = t[lang];
   const [requests, setRequests] = React.useState<LeaveRequest[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [filter, setFilter] = React.useState<FilterKey>("all");
+  const [detailId, setDetailId] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -156,7 +160,12 @@ export default function LeaveRegister({ lang, canSeeConfidential }: LeaveRegiste
                   const pd = pendingDays(req.submittedAt);
                   return (
                     <tr key={req.id} className="hover:bg-neutral-50 transition-colors">
-                      <td className="px-3 py-2.5"><span className="font-mono font-bold text-neutral-700">{req.reference || req.id}</span></td>
+                      <td className="px-3 py-2.5">
+                        <button onClick={() => setDetailId(req.id)} title={lang === "en" ? "Open leave request detail" : "Fungua maelezo ya ombi la likizo"}
+                          className="font-mono font-bold text-neutral-700 hover:text-red-600 hover:underline text-left cursor-pointer">
+                          {req.reference || req.id}
+                        </button>
+                      </td>
                       <td className="px-3 py-2.5"><div className="flex items-center gap-1.5"><User size={11} className="text-neutral-400" /><span className="font-semibold text-neutral-800">{req.userName}</span></div></td>
                       <td className="px-3 py-2.5"><div className="flex items-center gap-1.5 text-neutral-600"><Calendar size={11} className="text-neutral-400" />{req.startDate} → {req.endDate}{req.days != null && <span className="text-neutral-400">({req.days}d)</span>}</div></td>
                       <td className="px-3 py-2.5 text-neutral-600">{req.approverName || req.respondedBy || "—"}</td>
@@ -175,6 +184,17 @@ export default function LeaveRegister({ lang, canSeeConfidential }: LeaveRegiste
             </table>
           </div>
         </div>
+      )}
+
+      {detailId && (
+        <LeaveDetail
+          requestId={detailId}
+          lang={lang}
+          canApprove={canApprove}
+          canSeeConfidential={canSeeConfidential}
+          onClose={() => setDetailId(null)}
+          onChanged={loadData}
+        />
       )}
     </div>
   );

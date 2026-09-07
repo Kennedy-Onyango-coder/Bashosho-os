@@ -33,6 +33,20 @@ import {
   isClaimFlowError,
   toSafeError
 } from "./paymentClaimFlow";
+import {
+  createEquipmentHire,
+  decideEquipmentHire,
+  checkoutEquipmentHire,
+  returnEquipmentHire,
+  cancelEquipmentHire,
+  updateEquipmentRecord,
+  resolveActiveMembership,
+  computeEquipmentPricing,
+  sendEquipmentError,
+  toSafeEquipmentError,
+  EquipmentServiceError
+} from "./equipmentWorkflow";
+import { applyIdentitySyncForProfileChange, regenerateIdentity } from "./identitySync";
 
 /**
  * Distinguish expected domain errors (validation / authorization / not-found /
@@ -2243,6 +2257,16 @@ app.post("/api/profiles", requireAuth, requirePermission("roles", "edit"), async
 
   profile.roleKey = profile.roleKey || getCanonicalRoleKey(profile.role, profile.id);
 
+  // Identity synchronization: capture the authoritative profile BEFORE the write so any
+  // ID-sensitive change (name/role/status/membership) can be detected and the current ID
+  // representation flagged for regeneration. Executed/historical documents are NEVER
+  // rewritten — new documents consume the new data; old ones keep their snapshot.
+  let beforeProfile: any = undefined;
+  try {
+    const beforeSnap = await db.collection("profiles").doc(profile.id).get();
+    if (beforeSnap.exists) beforeProfile = beforeSnap.data();
+  } catch { /* non-fatal */ }
+
   // SECURITY FIX: this previously assigned every admin-created profile the fixed,
   // publicly-known PIN "1234" and never flagged the account for a forced password
   // change — meaning any account created through this endpoint (as opposed to the
@@ -2268,7 +2292,21 @@ app.post("/api/profiles", requireAuth, requirePermission("roles", "edit"), async
       return originalJson(body);
     }) as typeof res.json;
   }
-  return saveDocument("profiles", profile.id, profile, req, res);
+
+  // Authoritative write first, then identity sync (fire-and-forget): if an ID-sensitive
+  // field changed, the current ID representation is flagged for regeneration, a new
+  // immutable identity snapshot is appended (history preserved), and ID_DATA_CHANGED is
+  // audited. Executed/historical documents are never rewritten.
+  const saveResult = saveDocument("profiles", profile.id, profile, req, res);
+  saveResult
+    .then(() => applyIdentitySyncForProfileChange(
+      { id: req.user!.id, name: req.user!.name },
+      beforeProfile,
+      profile,
+      { profileId: profile.id }
+    ))
+    .catch(err => console.error("[IdentitySync] failed for profile", profile.id, err));
+  return saveResult;
 });
 
 // --- ROLE CRUD ENDPOINTS ---
@@ -3422,6 +3460,269 @@ app.post("/api/public/inquiry", publicInquiryRateLimiter, async (req: express.Re
 
 app.get("/api/assets", requireAuth, requirePermission("assets", "view"), (req, res) => fetchCollection("assets", req, res));
 app.post("/api/assets", requireAuth, requirePermission("assets", "create"), (req: AuthenticatedRequest, res) => saveDocumentLogged("assets", "assets", "name", req, res));
+
+// 6b. EQUIPMENT HIRING — authoritative inventory + member-discounted hires.
+// Server-authoritative pricing & availability: the browser may request an action, the
+// server decides whether it is valid. Membership is derived from the authoritative
+// profile (isActive + status + contract lock), never from the client.
+
+/** Resolve whether the authenticated user is an ACTIVE member, server-side. */
+async function equipmentActiveMembership(req: AuthenticatedRequest): Promise<{ active: boolean; label: string }> {
+  try {
+    const profileSnap = await db.collection("profiles").doc(req.user!.id).get();
+    if (!profileSnap.exists) return resolveActiveMembership(undefined);
+    const profile = profileSnap.data() as any;
+    const renewalsSnap = await db.collection("contract_renewals").get();
+    const approvedByUser = new Map<string, string>();
+    renewalsSnap.docs.forEach(doc => {
+      const r = doc.data() as any;
+      if (r.status === "approved" && r.expiryDate) {
+        const current = approvedByUser.get(r.userId);
+        if (!current || r.expiryDate > current) approvedByUser.set(r.userId, r.expiryDate);
+      }
+    });
+    const cycle = await computeContractCycleStatus(
+      { joinDate: profile.joinDate || profile.createdAt || new Date().toISOString().split("T")[0], contractGraceUntil: profile.contractGraceUntil },
+      approvedByUser.get(profile.id) || null
+    );
+    return resolveActiveMembership({ ...profile, contractLocked: cycle.locked });
+  } catch {
+    return resolveActiveMembership(undefined);
+  }
+}
+
+/** Attach the viewer's server-computed price to each inventory item. */
+async function decorateEquipmentViewer(items: any[], req: AuthenticatedRequest) {
+  const mem = await equipmentActiveMembership(req);
+  return items.map((it: any) => {
+    const p = computeEquipmentPricing(it, mem.active);
+    return { ...it, myRate: p.chargedRate, myPricingReason: p.pricingReason, callerIsActiveMember: mem.active };
+  });
+}
+
+// GET /api/equipment — inventory with the caller's authoritative price
+app.get("/api/equipment", requireAuth, requirePermission("equipment_management", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("equipment").get();
+    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return res.json(await decorateEquipmentViewer(items, req));
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// GET /api/equipment/:id — single inventory item (viewer-priced)
+app.get("/api/equipment/:id", requireAuth, requirePermission("equipment_management", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("equipment").doc(String(req.params.id)).get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "This equipment item could not be found.", code: "EQUIPMENT_NOT_FOUND" });
+    }
+    return res.json((await decorateEquipmentViewer([{ id: snap.id, ...snap.data() }], req))[0]);
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// POST /api/equipment — create an inventory record (management only)
+app.post("/api/equipment", requireAuth, requirePermission("equipment_management", "edit"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { name, category, description, normalHireRate, memberHireRate, pricingUnit, condition, serialNumber, photoUrl, depositRequired, depositAmount } = req.body;
+    if (!String(name || "").trim() || !String(category || "").trim()) {
+      return res.status(400).json({ error: "name and category are required.", code: "EQUIPMENT_INVALID_REQUEST" });
+    }
+    const id = `eq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const nowISO = new Date().toISOString();
+    const record = {
+      id,
+      name: String(name).trim(),
+      category: String(category),
+      description: String(description || ""),
+      normalHireRate: Number(normalHireRate) || 0,
+      memberHireRate: memberHireRate != null ? Number(memberHireRate) : undefined,
+      pricingUnit: pricingUnit || "daily",
+      status: "active",
+      active: true,
+      condition: condition || "good",
+      serialNumber: serialNumber || undefined,
+      photoUrl: photoUrl || undefined,
+      depositRequired: !!depositRequired,
+      depositAmount: depositAmount != null ? Number(depositAmount) : undefined,
+      createdAt: nowISO,
+      updatedAt: nowISO,
+      changeHistory: []
+    };
+    await db.collection("equipment").doc(id).set(record);
+    logActivity(req, "equipment_management", "create", id, record.name);
+    return res.status(201).json({ success: true, equipment: record });
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// POST /api/equipment/hire — request a hire (server-side price + availability)
+app.post("/api/equipment/hire", requireAuth, requirePermission("equipment_management", "create"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const { equipmentId, startDate, endDate, purpose, pricingUnit } = req.body;
+    if (!String(equipmentId || "").trim()) {
+      return res.status(400).json({ error: "equipmentId is required.", code: "EQUIPMENT_INVALID_REQUEST" });
+    }
+    const mem = await equipmentActiveMembership(req);
+    const hire = await createEquipmentHire(
+      String(equipmentId),
+      { id: req.user!.id, name: req.user!.name },
+      mem as any,
+      { startDate, endDate, pricingUnit: pricingUnit || "daily" },
+      purpose
+    );
+    logActivity(req, "equipment_management", "hire_requested", hire.id, hire.reference);
+    return res.status(201).json({ success: true, hire });
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// GET /api/equipment/hire/my — the caller's own hires
+app.get("/api/equipment/hire/my", requireAuth, requirePermission("equipment_management", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("equipment_hires").get();
+    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return res.json(items.filter((h: any) => h.requesterId === req.user!.id));
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// GET /api/equipment/hire — all hires (approvers / managers)
+app.get("/api/equipment/hire", requireAuth, requirePermission("equipment_management", "approve"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("equipment_hires").get();
+    return res.json(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// GET /api/equipment/hire/:id — one hire (owner or approver)
+app.get("/api/equipment/hire/:id", requireAuth, requirePermission("equipment_management", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const snap = await db.collection("equipment_hires").doc(String(req.params.id)).get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "This hire record could not be found.", code: "EQUIPMENT_HIRE_NOT_FOUND" });
+    }
+    const hire = snap.data() as any;
+    const canApprove = await userHasPermission(req, "equipment_management", "approve");
+    if (hire.requesterId !== req.user!.id && !canApprove) {
+      return res.status(403).json({ error: "Access denied: you cannot view this hire record.", code: "EQUIPMENT_NOT_AUTHORIZED" });
+    }
+    return res.json({ id: snap.id, ...hire });
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// POST /api/equipment/hire/:id/decide — authoritative approve/reject
+app.post("/api/equipment/hire/:id/decide", requireAuth, requirePermission("equipment_management", "approve"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const raw = String(req.body.decision || "").toLowerCase();
+    const decision = raw === "approved" ? "approve" : raw === "rejected" ? "reject" : null;
+    if (!decision) {
+      return res.status(400).json({ error: "Invalid decision: must be 'approved' or 'rejected'.", code: "EQUIPMENT_INVALID_DECISION" });
+    }
+    const actorCanApprove = await userHasPermission(req, "equipment_management", "approve");
+    const outcome = await decideEquipmentHire({
+      hireId: String(req.params.id),
+      decision: decision as "approve" | "reject",
+      actor: { id: req.user!.id, name: req.user!.name },
+      reason: req.body.reason,
+      actorCanApprove
+    });
+    logActivity(req, "equipment_management", decision === "approve" ? "hire_approved" : "hire_rejected", outcome.hire.id, outcome.hire.reference);
+    return res.json({ success: true, hire: outcome.hire, alreadyDecided: outcome.status === "alreadyDecided" });
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// POST /api/equipment/hire/:id/checkout — approved → checked_out (management only)
+app.post("/api/equipment/hire/:id/checkout", requireAuth, requirePermission("equipment_management", "edit"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const actorCanOperate = await userHasPermission(req, "equipment_management", "edit");
+    const hire = await checkoutEquipmentHire({
+      hireId: String(req.params.id),
+      actor: { id: req.user!.id, name: req.user!.name },
+      actorCanOperate
+    });
+    logActivity(req, "equipment_management", "checkout", hire.id, hire.reference);
+    return res.json({ success: true, hire });
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// POST /api/equipment/hire/:id/return — checked_out → returned (records condition)
+app.post("/api/equipment/hire/:id/return", requireAuth, requirePermission("equipment_management", "edit"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const actorCanOperate = await userHasPermission(req, "equipment_management", "edit");
+    const hire = await returnEquipmentHire({
+      hireId: String(req.params.id),
+      actor: { id: req.user!.id, name: req.user!.name },
+      condition: req.body.condition,
+      actorCanOperate
+    });
+    logActivity(req, "equipment_management", "return", hire.id, hire.reference);
+    return res.json({ success: true, hire });
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// POST /api/equipment/hire/:id/cancel — owner or management
+app.post("/api/equipment/hire/:id/cancel", requireAuth, requirePermission("equipment_management", "view"), async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const actorIsOwnerOrAdmin = await userHasPermission(req, "equipment_management", "edit");
+    const hire = await cancelEquipmentHire({
+      hireId: String(req.params.id),
+      actor: { id: req.user!.id, name: req.user!.name },
+      actorIsOwnerOrAdmin
+    });
+    logActivity(req, "equipment_management", "hire_cancelled", hire.id, hire.reference);
+    return res.json({ success: true, hire });
+  } catch (err: any) {
+    return sendEquipmentError(res, err);
+  }
+});
+
+// GET /api/identity/records/:profileId — identity history (own or authorized)
+app.get("/api/identity/records/:profileId", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const targetId = String(req.params.profileId);
+    const canManage = await userHasPermission(req, "roles", "edit");
+    if (targetId !== req.user!.id && !canManage) {
+      return res.status(403).json({ error: "Access denied: you cannot view another person's identity records.", code: "IDENTITY_NOT_AUTHORIZED" });
+    }
+    const snap = await db.collection("identity_records").get();
+    const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((r: any) => r.profileId === targetId);
+    return res.json(items);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to load identity records", details: err.message });
+  }
+});
+
+// POST /api/identity/regenerate/:profileId — regenerate the current ID representation
+app.post("/api/identity/regenerate/:profileId", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const canManage = await userHasPermission(req, "roles", "edit");
+    if (!canManage) {
+      return res.status(403).json({ error: "Access denied: only authorized staff can regenerate identity records.", code: "IDENTITY_NOT_AUTHORIZED" });
+    }
+    const result = await regenerateIdentity({ id: req.user!.id, name: req.user!.name }, String(req.params.profileId));
+    logActivity(req, "roles", "regenerate_identity", req.params.profileId, String(result.version));
+    return res.json({ success: true, record: result.record, version: result.version });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to regenerate identity record", details: err.message });
+  }
+});
 
 // 7. ATTENDANCE
 app.get("/api/attendance", requireAuth, requirePermission("classes", "view"), (req, res) => fetchCollection("attendance_sheets", req, res));

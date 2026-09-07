@@ -725,6 +725,15 @@ const SEED_HANDBOOK_SECTIONS = [
       sw: "1. Mabadiliko ya mwongozo yanatangazwa kwa wanachama.\n2. Kukubali kwa kidijitali kunarekodiwa kwenye mfumo."
     },
     order: 12
+  },
+  {
+    id: "equipment-hiring-policy",
+    title: { en: "13. Equipment Hiring & Member Discount Policy", sw: "13. Ukodishaji wa Vifaa na Punguzo la Wanachama" },
+    body: {
+      en: "1. Active members are eligible for discounted organizational equipment hire. The system determines eligibility from active membership status (inactive, contract-locked, or non-member accounts pay the normal published rate).\n2. Camera member hire rate: KSh 500 per configured hire unit.\n3. Wireless microphone member hire rate: KSh 300 per configured hire unit.\n4. Other equipment normally receives a 50% member discount unless an equipment-specific member rate is configured.\n5. Equipment remains organizational property at all times and must not be used for non-CBO paid work unless hired through standard processes.\n6. Availability is subject to prior approved bookings; overlapping bookings are rejected automatically.\n7. Approval is required before collection. No hire proceeds without an authorized approver.\n8. Identification may be required at checkout.\n9. The member is responsible for the equipment while it is checked out.\n10. Damage/loss rules follow the organization's approved equipment policy.\n11. Equipment must be returned by the agreed deadline and its condition recorded.\n12. Late return may affect future borrowing privileges; any late charge must be approved by the organization before it is introduced.\n13. Members cannot transfer their discounted hire privilege to non-members.\n14. The system determines eligibility from active membership status recorded on the member's authoritative profile.\n15. Prices are calculated and recorded at the time of approval/hire and never change afterwards.\n16. Administrators may configure equipment-specific member rates; every pricing change is audited.",
+      sw: "1. Wanachama hai wana haki ya kupunguzwa bei ya ukodishaji wa vifaa.\n2. Bei ya kamera kwa wanachama: KSh 500 kwa kipimo kilichowekwa.\n3. Kisimbapate wanachama: KSh 300 kwa kipimo kilichowekwa.\n4. Vifaa vingine kwa kawaida hupata punguzo la 50% kwa wanachama isipokuwa pale bei maalumu iliyowekwa.\n5. Vifaa ni mali ya shirika kila wakati.\n6. Upatikanaji unategemea maombi yaliyoidhinishwa kwanza.\n7. Idhini inahitajika kabla ya kukusanya.\n8. Uthibitisho wa utambulisho unaweza kuhitajika.\n9. Mwanachama anawajibika kwa vifaa yakiwa naye.\n10. Sheria za uharibifu hufuata sera ya vifaa iliyoidhinishwa.\n11. Vifaa lazima virudishwe kwa wakati na hali yake iandikwe.\n12. Kuchelewa kurudisha kunaweza kuathiri mikopo ijayo.\n13. Wanachama hawawezi kuhama punguzo lao kwa wasio wanachama.\n14. Mfumo hutambua uhalali kutoka kwa hali ya uanachama kwenye wasifu rasmi.\n15. Bei huhesabiwa na kuhifadhiwa wakati wa idhini/ukodishaji.\n16. Wasimamizi wanaweza kuweka bei maalum ya kifaa; kila mabadiliko ya bei yanaandikwa."
+    },
+    order: 13
   }
 ];
 
@@ -802,6 +811,60 @@ export const DEMO_SEED = {
   renewals: SEED_RENEWALS
 };
 
+// Hireable equipment inventory (server-authoritative pricing). Member rates live on the
+// record — never hard-coded in the UI. Production seeds nothing; administrators create
+// equipment through POST /api/equipment.
+export const SEED_EQUIPMENT = [
+  {
+    id: "eq-camera-main",
+    name: "Cinema Camera (Main)",
+    category: "camera",
+    description: "Primary cinema camera body with basic kit.",
+    normalHireRate: 5000,
+    memberHireRate: 500,
+    pricingUnit: "daily",
+    status: "active",
+    active: true,
+    condition: "excellent",
+    serialNumber: "BTC-CAM-001",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+    changeHistory: []
+  },
+  {
+    id: "eq-mic-wireless",
+    name: "Wireless Microphone Set",
+    category: "mic",
+    description: "Dual-channel wireless microphone set with receivers.",
+    normalHireRate: 2000,
+    memberHireRate: 300,
+    pricingUnit: "daily",
+    status: "active",
+    active: true,
+    condition: "good",
+    serialNumber: "BTC-MIC-001",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+    changeHistory: []
+  },
+  {
+    id: "eq-lighting-kit",
+    name: "Lighting Kit",
+    category: "lighting",
+    description: "Portable lighting kit with stands and softboxes.",
+    normalHireRate: 3000,
+    memberHireRate: undefined,
+    pricingUnit: "daily",
+    status: "active",
+    active: true,
+    condition: "good",
+    serialNumber: "BTC-LGT-001",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+    changeHistory: []
+  }
+];
+
 // Seed function to seed Firestore (compatible with real Firestore or Mock)
 export async function seedDatabaseIfEmpty() {
   try {
@@ -864,6 +927,11 @@ export async function seedDatabaseIfEmpty() {
 
       DEMO_SEED.assets.forEach(a => {
         batch.set(db.collection("assets").doc(a.id), a);
+      });
+
+      // Hireable equipment inventory (server-authoritative pricing lives on the record).
+      SEED_EQUIPMENT.forEach(e => {
+        batch.set(db.collection("equipment").doc(e.id), e);
       });
 
       DEMO_SEED.documents.forEach(d => {

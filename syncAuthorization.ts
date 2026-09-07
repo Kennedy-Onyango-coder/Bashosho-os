@@ -60,7 +60,10 @@ export const SYNC_NON_WRITABLE_COLLECTIONS: ReadonlySet<string> = new Set([
   "payment_transactions",
   "safeguarding_access_logs",
   "system_meta",
-  "leave_requests"
+  "leave_requests",
+  "equipment",
+  "equipment_hires",
+  "identity_records"
 ]);
 
 export interface SyncDecisionInput {

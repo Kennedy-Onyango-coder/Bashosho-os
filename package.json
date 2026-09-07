@@ -23,7 +23,8 @@
     "test:payment": "tsx scripts/test-payment-claims.ts",
     "test:sync": "tsx scripts/test-sync-authorization.ts",
     "test:leave": "tsx scripts/test-leave-workflow.ts",
-    "test": "npm run test:finance && npm run test:tasks && npm run test:me && npm run test:roles && npm run test:grants && npm run test:documents && npm run test:payment && npm run test:sync && npm run test:leave"
+    "test:equipment": "tsx scripts/test-equipment-workflow.ts",
+    "test": "npm run test:finance && npm run test:tasks && npm run test:me && npm run test:roles && npm run test:grants && npm run test:documents && npm run test:payment && npm run test:sync && npm run test:leave && npm run test:equipment"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

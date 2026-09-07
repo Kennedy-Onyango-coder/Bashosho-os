@@ -52,6 +52,7 @@ const BoardMeetingsPanel = React.lazy(() => import("./components/BoardMeetingsPa
 const OnboardingChecklistBoard = React.lazy(() => import("./components/OnboardingChecklistBoard"));
 const PeerDirectory = React.lazy(() => import("./components/PeerDirectory"));
 const LeaveRegister = React.lazy(() => import("./components/dashboard/LeaveRegister"));
+const EquipmentHiringBoard = React.lazy(() => import("./components/dashboard/EquipmentHiringBoard"));
 import { 
   LayoutDashboard, 
   FileText, 
@@ -990,6 +991,19 @@ export default function App() {
                       <CalendarDays size={14} className="shrink-0" /> {lang === "en" ? "Leave Management" : "Usimamizi wa Likizo"}
                     </button>
                   )}
+
+                  {can("equipment_management", "view") && (
+                    <button
+                      onClick={() => { setActiveTab("equipment_management"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "equipment_management"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <Package size={14} className="shrink-0" /> {lang === "en" ? "Equipment Hiring" : "Ukodishaji wa Vifaa"}
+                    </button>
+                  )}
                 </>
               );
             })()}
@@ -1458,10 +1472,20 @@ export default function App() {
                   />
                 </ErrorBoundary>
               )}
-
-{activeTab === "leave_management" && currentUser && (
+              {activeTab === "leave_management" && currentUser && (
                 <ErrorBoundary fallbackTitle="Leave Management Failure">
-                  <LeaveRegister lang={lang} canSeeConfidential={can("leave_management", "manage")} />
+                  <LeaveRegister lang={lang} canSeeConfidential={can("leave_management", "manage")} canApprove={can("leave_management", "approve")} />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "equipment_management" && currentUser && (
+                <ErrorBoundary fallbackTitle="Equipment Hiring Failure">
+                  <EquipmentHiringBoard
+                    lang={lang}
+                    canApprove={can("equipment_management", "approve")}
+                    canManage={can("equipment_management", "edit")}
+                    canRequest={can("equipment_management", "create")}
+                  />
                 </ErrorBoundary>
               )}
               </React.Suspense>

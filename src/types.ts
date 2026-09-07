@@ -168,6 +168,10 @@ export interface UserProfile {
    *  screens should check for real-time lock state. */
   contractLocked?: boolean;
   contractDueDate?: string;
+  /** Set by identitySync when an authoritative identity field changed; the current ID
+   *  representation should be regenerated. Derived, server-owned. */
+  idRegenerationRequired?: boolean;
+  identityCurrentVersion?: number;
 }
 
 export type DocumentType = "minutes" | "budget" | "activity" | "statement" | "proposal";
@@ -927,7 +931,8 @@ export type PermissionModuleKey =
     | "events"
   | "board_meetings"
   | "onboarding_checklists"
-  | "leave_management";
+  | "leave_management"
+  | "equipment_management";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve";
 
@@ -948,7 +953,7 @@ export const PERMISSION_MODULE_KEYS: PermissionModuleKey[] = [
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
   "tasks", "program_sessions", "volunteer_recognition", "attendance_registers",
-  "events", "board_meetings", "onboarding_checklists", "leave_management"
+  "events", "board_meetings", "onboarding_checklists", "leave_management", "equipment_management"
 ];
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];
@@ -1189,6 +1194,139 @@ export interface LeadershipAppointment {
   verificationUrl?: string;
   acknowledged: boolean;
   acknowledgedDate?: string;
+}
+
+// ---------------------------------------------------------------------------
+// EQUIPMENT HIRING (server-authoritative pricing & availability)
+// ---------------------------------------------------------------------------
+
+export type EquipmentStatus = "active" | "inactive" | "maintenance";
+export type EquipmentPricingUnit = "daily" | "weekly" | "event" | "session";
+
+/** Inventory item offered for hire. Pricing lives here (never trust a client price). */
+export interface HireEquipmentItem {
+  id: string;
+  name: string;
+  category: "camera" | "mic" | "sound" | "lighting" | "costume" | "prop" | "other";
+  description: string;
+  /** Normal published hire rate for a non-member. */
+  normalHireRate: number;
+  /** Optional equipment-specific member rate. When absent/<=0 the default 50%-of-normal rule applies. */
+  memberHireRate?: number;
+  pricingUnit: EquipmentPricingUnit;
+  status: EquipmentStatus;
+  active: boolean;
+  depositRequired?: boolean;
+  depositAmount?: number;
+  condition: "excellent" | "good" | "fair" | "poor" | "repair_needed";
+  serialNumber?: string;
+  photoUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Audit of pricing / condition changes — NEVER silently overwritten. */
+  changeHistory?: EquipmentChangeEvent[];
+  /** Server-computed for the authenticated viewer: price *they* would be charged. */
+  myRate?: number;
+  myPricingReason?: string;
+  callerIsActiveMember?: boolean;
+}
+
+export interface EquipmentChangeEvent {
+  id: string;
+  type: "EQUIPMENT_RATE_CHANGED" | "EQUIPMENT_CONDITION_UPDATED" | "EQUIPMENT_UPDATED";
+  field: string;
+  oldValue?: any;
+  newValue?: any;
+  byId?: string;
+  byName?: string;
+  at: string;
+}
+
+export type EquipmentHireStatus =
+  | "requested" | "under_review" | "approved" | "checked_out"
+  | "returned" | "cancelled" | "rejected" | "overdue";
+
+/** One hire of one physical item. Price + reason are snapshotted at request time. */
+export interface EquipmentHire {
+  id: string;
+  /** Permanent human-readable reference, e.g. EQ-2026-00001. */
+  reference: string;
+  equipmentId: string;
+  equipmentNameSnapshot: string;
+  equipmentSerialSnapshot?: string;
+  requesterId: string;
+  requesterNameSnapshot: string;
+  membershipStatusAtRequest: string;      // "active" | "inactive" | "non_member"
+  normalRate: number;
+  memberRate?: number;
+  chargedRate: number;                    // the rate actually applied
+  pricingReason: "MEMBER_RATE" | "STANDARD_RATE";
+  pricingUnit: EquipmentPricingUnit;
+  startDate: string;
+  endDate: string;
+  numberOfUnits: number;                  // inclusive days / units
+  totalAmount: number;                    // chargedRate * numberOfUnits
+  depositAmount?: number;
+  status: EquipmentHireStatus;
+  purpose?: string;
+  approvedById?: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  rejectedById?: string;
+  rejectedAt?: string;
+  checkedOutAt?: string;
+  checkedOutById?: string;
+  returnedAt?: string;
+  returnedById?: string;
+  returnCondition?: string;
+  cancelledBy?: string;
+  cancelReason?: string;
+  cancelledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  auditTrail: EquipmentAuditEvent[];
+}
+
+export interface EquipmentAuditEvent {
+  id: string;
+  type: "EQUIPMENT_HIRE_REQUESTED" | "EQUIPMENT_HIRE_APPROVED" | "EQUIPMENT_HIRE_REJECTED"
+    | "EQUIPMENT_CHECKED_OUT" | "EQUIPMENT_RETURNED" | "EQUIPMENT_HIRE_CANCELLED";
+  at: string;
+  byId?: string;
+  byName?: string;
+  note?: string;
+}
+
+// ---------------------------------------------------------------------------
+// IDENTITY / ID DOCUMENT SYNCHRONIZATION
+// ---------------------------------------------------------------------------
+
+/**
+ * A single immutable identity snapshot (a "current" ID representation is a row in
+ * `identity_records`). Changing authoritative profile fields appends a NEW row and
+ * advances the `current` pointer — historical rows are never overwritten, so issued
+ * IDs remain auditable.
+ */
+export interface IdentityRecord {
+  id: string;
+  profileId: string;
+  /** Monotonic version — each regeneration is the next integer. */
+  version: number;
+  isCurrent: boolean;
+  snapshot: {
+    name: string;
+    role: string;
+    roleKey: string;
+    status: string;
+    isActive: boolean;
+    memberNumber?: string;
+    department?: string;
+    position?: string;
+  };
+  issuedBy?: string;
+  issuedAt: string;
+  notes?: string;
 }
 
 
