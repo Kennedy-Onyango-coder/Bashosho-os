@@ -102,7 +102,7 @@ export function computeHireUnits(startDate?: string, endDate?: string, unit: Equ
   const e = new Date(endDate + "T00:00:00Z").getTime();
   if (!Number.isFinite(s) || !Number.isFinite(e)) return 0;
   const days = Math.floor((e - s) / 86400000) + 1;
-  return Math.max(1, days);
+  return days;
 }
 
 // --------------------------- Permanent reference ----------------------------

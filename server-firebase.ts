@@ -617,7 +617,7 @@ const SEED_BROADCASTS = [];
 const SEED_LEAVE = [];
 const SEED_INVOICES = [];
 
-const SEED_HANDBOOK_SECTIONS = [
+export const SEED_HANDBOOK_SECTIONS = [
   {
     id: "objectives",
     title: { en: "1. Core Objectives", sw: "1. Malengo Makuu" },
@@ -737,7 +737,7 @@ const SEED_HANDBOOK_SECTIONS = [
   }
 ];
 
-const SEED_ORG_SETTINGS = {
+export const SEED_ORG_SETTINGS = {
   name: "BASHOSHO TALENTS CBO",
   registrationNumber: "Reg No. DSD/KAM/CBO/5/4/22/269",
   contactDetails: "P.O. Box 48931-00100 Nairobi, Kenya",

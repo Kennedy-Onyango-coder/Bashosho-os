@@ -229,7 +229,7 @@ console.log("\n=== Pricing changes are audited, never silent ===");
   try { await updateEquipmentRecord("eq-camera-main", admin, { memberHireRate: -5 }); } catch (e) { threw = e; }
   expectError(threw, "EQUIPMENT_INVALID_RATE", "negative rate rejected");
   threw = null;
-  try { await updateEquipmentRecord("eq-camera-main", admin, { memberHireRate: "abc" }); } catch (e) { threw = e; }
+  try { await updateEquipmentRecord("eq-camera-main", admin, { memberHireRate: "abc" as any }); } catch (e) { threw = e; }
   expectError(threw, "EQUIPMENT_INVALID_RATE", "non-numeric rate rejected");
 }
 
