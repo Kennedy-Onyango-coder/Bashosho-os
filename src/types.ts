@@ -924,9 +924,10 @@ export type PermissionModuleKey =
   | "program_sessions"
   | "volunteer_recognition"
   | "attendance_registers"
-  | "events"
+    | "events"
   | "board_meetings"
-  | "onboarding_checklists";
+  | "onboarding_checklists"
+  | "leave_management";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve";
 
@@ -947,7 +948,7 @@ export const PERMISSION_MODULE_KEYS: PermissionModuleKey[] = [
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
   "tasks", "program_sessions", "volunteer_recognition", "attendance_registers",
-  "events", "board_meetings", "onboarding_checklists"
+  "events", "board_meetings", "onboarding_checklists", "leave_management"
 ];
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];

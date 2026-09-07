@@ -108,6 +108,26 @@ console.log("\n=== Safeguarding reports require safeguarding permission ===");
   check(programsD.allowed, "programs_director → safeguarding_reports ALLOWED (successor role)");
   const memberRepD = await evaluateSyncItem(item("safeguarding_reports", undefined, { can: memberRep }));
   check(!memberRepD.allowed, "member_representative → safeguarding_reports DENIED (not a trusted verify role)");
+console.log("\n=== Leave lifecycle cannot be bypassed via generic sync ===\n");
+{
+  // leave_requests was previously allow-listed under program_sessions with allowsSelf: true,
+  // meaning a member could sync their own request to status=approved, bypassing routing,
+  // self-approval prevention, the transactional decision and the audit trail. Removed from
+  // the allowlist and added to the non-writable set, so these MUST fail closed.
+  const programsD = await evaluateSyncItem(item("leave_requests", undefined, { can: programsDirector, docExists: true }));
+  check(!programsD.allowed, "programs_director cannot edit a leave request via sync", programsD.reason);
+  const memberD = await evaluateSyncItem(item("leave_requests", undefined, { can: member, docExists: true, docOwnerId: "u-attacker", payloadOwnerId: "u-attacker", requesterId: "u-attacker" }));
+  check(!memberD.allowed, "member cannot self-approve (status=approved) via sync", memberD.reason);
+  const volunteerD = await evaluateSyncItem(item("leave_requests", undefined, { can: volunteer, docExists: true }));
+  check(!volunteerD.allowed, "volunteer cannot alter a leave request via sync", volunteerD.reason);
+  const deleteD = await evaluateSyncItem(item("leave_requests", "delete", { can: programsDirector, docExists: true }));
+  check(!deleteD.allowed, "leave requests cannot be deleted via sync", deleteD.reason);
+  const newD = await evaluateSyncItem(item("leave_requests", undefined, { can: member, docExists: false, payloadOwnerId: "u-attacker", requesterId: "u-attacker" }));
+  check(!newD.allowed, "user cannot even CREATE a leave request via sync", newD.reason);
+  check(SYNCABLE_COLLECTIONS["leave_requests"] === undefined, "leave_requests is not allow-listed as syncable");
+  check(SYNC_NON_WRITABLE_COLLECTIONS.has("leave_requests"), "leave_requests is explicitly non-writable through sync");
+}
+
 }
 console.log("\n=== Allowlist consistency ===");
 {

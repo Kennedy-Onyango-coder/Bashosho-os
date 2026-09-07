@@ -41,7 +41,8 @@ const MODULE_LABELS: Record<PermissionModuleKey, { en: string; sw: string }> = {
   attendance_registers: { en: "Attendance Registers", sw: "Rejista za Mahudhurio" },
   events: { en: "Events & Calendar", sw: "Matukio na Kalenda" },
   board_meetings: { en: "Board Meetings", sw: "Mikutano ya Bodi" },
-  onboarding_checklists: { en: "Onboarding Checklists", sw: "Orodha za Kuanzisha" }
+    onboarding_checklists: { en: "Onboarding Checklists", sw: "Orodha za Kuanzisha" },
+  leave_management: { en: "Leave Management", sw: "Usimamizi wa Likizo" }
 };
 
 const ACTION_LABELS: Record<PermissionAction, { en: string; sw: string }> = {

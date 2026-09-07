@@ -51,6 +51,7 @@ const EventsCalendar = React.lazy(() => import("./components/EventsCalendar"));
 const BoardMeetingsPanel = React.lazy(() => import("./components/BoardMeetingsPanel"));
 const OnboardingChecklistBoard = React.lazy(() => import("./components/OnboardingChecklistBoard"));
 const PeerDirectory = React.lazy(() => import("./components/PeerDirectory"));
+const LeaveRegister = React.lazy(() => import("./components/dashboard/LeaveRegister"));
 import { 
   LayoutDashboard, 
   FileText, 
@@ -972,9 +973,23 @@ export default function App() {
                         ? "bg-[#E31E24] text-white shadow-sm"
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
-                  >
+                                >
                     <UserCircle2 size={14} className="shrink-0" /> {lang === "en" ? "My Records" : "Rekodi Zangu"}
                   </button>
+
+                  {can("leave_management", "view") && (
+                    <button
+                      onClick={() => { setActiveTab("leave_management"); setIsCreatingDoc(false); setEditingDoc(undefined); }}
+                      id="nav-leave-management-tab"
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === "leave_management"
+                          ? "bg-[#E31E24] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <CalendarDays size={14} className="shrink-0" /> {lang === "en" ? "Leave Management" : "Usimamizi wa Likizo"}
+                    </button>
+                  )}
                 </>
               );
             })()}
@@ -1441,6 +1456,12 @@ export default function App() {
                       }
                     }}
                   />
+                </ErrorBoundary>
+              )}
+
+{activeTab === "leave_management" && currentUser && (
+                <ErrorBoundary fallbackTitle="Leave Management Failure">
+                  <LeaveRegister lang={lang} canSeeConfidential={can("leave_management", "manage")} />
                 </ErrorBoundary>
               )}
               </React.Suspense>

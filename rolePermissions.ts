@@ -12,7 +12,7 @@ export const PERMISSION_MODULE_KEYS = [
   "handbook", "settings", "signup_reviews", "cms_editor", "beneficiaries", "roles",
   "safeguarding", "leadership_appointments", "contract_renewals", "activity_log",
   "tasks", "program_sessions", "volunteer_recognition", "attendance_registers",
-  "events", "board_meetings", "onboarding_checklists"
+  "events", "board_meetings", "onboarding_checklists", "leave_management"
 ] as const;
 
 export const PERMISSION_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "approve"];
@@ -43,11 +43,14 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
   const view = (m: string) => { p[m].view = true; };
   const full = (m: string) => { p[m] = fullPermSet(); };
 
-  // Every role can see their own dashboard and the handbook/classes/security areas —
+    // Every role can see their own dashboard and the handbook/classes/security areas —
   // these were unrestricted in the old nav code.
   full("dashboard");
   view("handbook");
   view("classes");
+  // Every authenticated role can submit and view their own leave requests.
+  p.leave_management.view = true;
+  p.leave_management.create = true; // submit own request
 
   // Tasks: everyone can see and update their own assigned/created tasks (baseline
   // "view" — the tasks endpoint itself further restricts non-leadership users to only
@@ -101,7 +104,10 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
       p.tasks.create = true; p.tasks.edit = true;
       p.program_sessions.edit = true;
       p.volunteer_recognition.edit = true;
-      p.events.create = true; p.events.edit = true;
+            p.events.create = true; p.events.edit = true;
+      p.leave_management.approve = true;     // can approve/reject leave
+      p.leave_management.reject = true;
+      p.leave_management.manage = true;      // full register access
       full("board_meetings");
       break;
 
@@ -124,6 +130,9 @@ export function buildDefaultPermissionsForRole(roleKey: string): PermissionMatri
       p.volunteer_recognition.edit = true;
       p.attendance_registers.edit = true; // approves the Programs stage
       p.events.create = true; p.events.edit = true; p.events.delete = true;
+      p.leave_management.approve = true;     // can approve/reject leave
+      p.leave_management.reject = true;
+      p.leave_management.manage = true;      // full register access
       break;
 
     case "secretary":

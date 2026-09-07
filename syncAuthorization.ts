@@ -36,7 +36,12 @@ export const SYNCABLE_COLLECTIONS: Record<string, SyncRule> = {
   contract_renewals: { module: "contract_renewals", createAction: "create", editAction: "edit", deleteAction: "delete", ownField: "userId", allowsSelf: true },
   leadership_appointments: { module: "leadership_appointments", createAction: "create", editAction: "edit", deleteAction: "delete" },
   safeguarding_reports: { module: "safeguarding", createAction: "create", editAction: "edit", deleteAction: "delete" },
-  leave_requests: { module: "program_sessions", createAction: "create", editAction: "edit", deleteAction: "delete", ownField: "userId", allowsSelf: true },
+  // NOTE: leave_requests is intentionally ABSENT from this allowlist. Leave lifecycle
+  // (submit/approve/reject/cancel/review/return) is owned exclusively by leaveWorkflow.ts
+  // and the dedicated /api/leave_requests/* endpoints. Allowing generic offline sync to
+  // write to leave_requests would let a client set status=approved on its own request,
+  // bypassing routing, self-approval prevention, the transactional decision and the
+  // audit trail. It fails closed via SYNC_COLLECTION_NOT_ALLOWED.
   attendance_sheets: { module: "attendance_registers", createAction: "create", editAction: "edit", deleteAction: "delete" },
   program_sessions: { module: "program_sessions", createAction: "create", editAction: "edit", deleteAction: "delete" }
 };
@@ -54,7 +59,8 @@ export const SYNC_NON_WRITABLE_COLLECTIONS: ReadonlySet<string> = new Set([
   "transaction_codes",
   "payment_transactions",
   "safeguarding_access_logs",
-  "system_meta"
+  "system_meta",
+  "leave_requests"
 ]);
 
 export interface SyncDecisionInput {

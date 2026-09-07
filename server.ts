@@ -3625,7 +3625,10 @@ function canSeeFullLeaveRegister(roleKey: string): boolean {
   return ["chairperson", "programs_director"].includes(roleKey);
 }
 function canDecideAnyLeave(roleKey: string): boolean {
-  return ["chairperson", "vice_chairperson"].includes(roleKey);
+  // Programs Director is the workflow's approver for members/volunteers (see
+  // resolveApprover) and is granted leave_management.approve/reject/manage, so they
+  // must be able to decide alongside Chairperson and Vice Chairperson.
+  return ["chairperson", "vice_chairperson", "programs_director"].includes(roleKey);
 }
 async function loadApproverCandidates(): Promise<ApproverCandidate[]> {
   const snap = await db.collection("profiles").get();
@@ -3791,6 +3794,33 @@ app.get("/api/leave_requests/reconcile", requireAuth, async (req: AuthenticatedR
   }
 });
 
+// GET /api/leave_requests/:id — single authoritative request (owner / admin / approver)
+app.get("/api/leave_requests/:id", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const requestId = String(req.params.id || "");
+    if (!requestId) {
+      return res.status(400).json({ error: "A leave request id is required.", code: "LEAVE_BAD_REQUEST" });
+    }
+    const snap = await db.collection("leave_requests").doc(requestId).get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "This leave request could not be found.", code: "LEAVE_NOT_FOUND" });
+    }
+    const userRoleKey = leaveRoleKey(req);
+    const viewerId = req.user!.id;
+    const record = leaveWithComputedFields(snap.data() as LeaveWorkflowRecord);
+    // A requester may view their own; admins (full register) and the assigned approver
+    // may view what they need; anyone else is not allowed to view private leave info.
+    const isOwner = record.userId === viewerId;
+    const isApprover = record.approverId === viewerId;
+    if (!isOwner && !isApprover && !canSeeFullLeaveRegister(userRoleKey)) {
+      return res.status(403).json({ error: "Access denied: you cannot view this leave request.", code: "LEAVE_NOT_AUTHORIZED" });
+    }
+    return res.json(redactLeaveForViewer(record, viewerId, userRoleKey));
+  } catch (err: any) {
+    return sendLeaveError(res, err);
+  }
+});
+
 // POST /api/leave_requests/backfill — non-destructive migration for legacy records
 app.post("/api/leave_requests/backfill", requireAuth, async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
@@ -3892,23 +3922,34 @@ app.post("/api/leave_requests/:id/review", requireAuth, async (req: Authenticate
 app.post("/api/leave_requests", requireAuth, async (req: AuthenticatedRequest, res): Promise<any> => {
   const { id, status, userId } = req.body;
   const userRoleKey = req.user!.roleKey || getCanonicalRoleKey(req.user!.role);
-  
-  if (status === "approved" || status === "rejected") {
-    // 1. Check permissions: must be Chairperson or Programs Director to approve/reject
-    if (!["chairperson", "programs_director"].includes(userRoleKey)) {
-      return res.status(403).json({ error: "Access denied: insufficient privileges to approve/reject leave requests" });
-    }
-    // 2. Self-approval block: cannot approve/reject your own leave request
-    if (userId === req.user!.id) {
-      return res.status(403).json({ error: "Access denied: you cannot approve or reject your own leave request" });
-    }
-    // Overwrite respondedBy server-side to prevent client spoofing
-    req.body.respondedBy = req.user!.name;
-  } else {
-    // Creation or self-edits: can only submit or edit your own leave requests
-    if (userId !== req.user!.id) {
-      return res.status(403).json({ error: "Access denied: you can only submit or edit your own leave requests" });
-    }
+
+  // Authoritative lifecycle transitions must ONLY happen through the dedicated
+  // workflow endpoints (submit / :id/decide / :id/cancel / :id/review / :id/return).
+  // This generic endpoint is retained purely for backward-compatible creation and
+  // self-edit of NON-lifecycle fields and MUST NOT be able to move a request through
+  // the approval lifecycle — that would let a client bypass routing, self-approval
+  // prevention, the transactional decision and the audit trail.
+  const statusRaw = String(status || "").toLowerCase();
+  const forbiddenLifecycleStatuses = ["approved", "rejected", "on_leave", "completed", "cancelled"];
+  if (forbiddenLifecycleStatuses.includes(statusRaw)) {
+    return res.status(403).json({
+      error: `Leave lifecycle status '${status}' cannot be set through this endpoint. Use the dedicated workflow endpoint instead.`,
+      code: "LEAVE_WORKFLOW_ENDPOINT_REQUIRED"
+    });
+  }
+  // Also refuse attempts to inject authoritative decision/audit fields directly.
+  const forbiddenFields = ["decidedById", "decidedByName", "decisionDate", "decisionComment", "auditTrail", "approvedAt", "rejectedAt", "reference", "approverId"];
+  const bodyHasForbidden = forbiddenFields.some((f) => Object.prototype.hasOwnProperty.call(req.body, f));
+  if (bodyHasForbidden && userRoleKey !== "chairperson") {
+    return res.status(403).json({
+      error: "Workflow decision/audit fields cannot be set through this endpoint. Use POST /api/leave_requests/:id/decide instead.",
+      code: "LEAVE_WORKFLOW_ENDPOINT_REQUIRED"
+    });
+  }
+
+  // Creation or self-edits: can only submit or edit your own leave requests.
+  if (userId !== req.user!.id) {
+    return res.status(403).json({ error: "Access denied: you can only submit or edit your own leave requests" });
   }
   return saveDocument("leave_requests", id, req.body, req, res);
 });

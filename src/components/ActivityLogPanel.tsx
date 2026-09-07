@@ -44,7 +44,7 @@ const t = {
 const MODULE_OPTIONS: PermissionModuleKey[] = [
   "documents", "finance", "assets", "grants", "classes", "invoices", "settings",
   "signup_reviews", "cms_editor", "beneficiaries", "roles", "safeguarding",
-  "leadership_appointments", "activity_log"
+  "leadership_appointments", "activity_log", "leave_management"
 ];
 
 export default function ActivityLogPanel({ lang }: ActivityLogPanelProps) {
